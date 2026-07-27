@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "Unit" ADD VALUE 'PCT';
+ALTER TYPE "Unit" ADD VALUE 'CX';

@@ -1,0 +1,362 @@
+import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/dal";
+import { lateMinutes, nightHours, shiftHours } from "@/lib/payroll";
+import { computePaymentPreview } from "@/lib/payment-preview";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ClockButton } from "./clock-button";
+
+const currency = (value: number) =>
+  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+export default async function MeuPontoPage() {
+  const user = await requireUser();
+
+  const employee = await prisma.employee.findUnique({
+    where: { userId: user.id },
+    include: { store: true },
+  });
+
+  if (!employee) {
+    return (
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-semibold">Meu Ponto</h1>
+        <p className="text-sm text-neutral-500">
+          Sua conta ainda não está vinculada a um cadastro de funcionário. Peça para um
+          administrador vincular em Configurações → Funcionários.
+        </p>
+      </div>
+    );
+  }
+
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const lastPayment = await prisma.payment.findFirst({
+    where: { employeeId: employee.id },
+    orderBy: { periodEnd: "desc" },
+  });
+
+  const now = new Date();
+  const periodEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  let periodStart: Date;
+  if (lastPayment) {
+    periodStart = new Date(lastPayment.periodEnd);
+    periodStart.setDate(periodStart.getDate() + 1);
+    periodStart.setHours(0, 0, 0, 0);
+  } else if (employee.hireDate) {
+    periodStart = new Date(employee.hireDate);
+  } else {
+    periodStart = new Date(now);
+    periodStart.setDate(periodStart.getDate() - 60);
+    periodStart.setHours(0, 0, 0, 0);
+  }
+
+  const preview = await computePaymentPreview(employee.id, periodStart, periodEnd);
+
+  const [entries, advances] = await Promise.all([
+    prisma.timeEntry.findMany({
+      where: { employeeId: employee.id, date: { gte: thirtyDaysAgo } },
+      orderBy: { clockIn: "desc" },
+      take: 30,
+    }),
+    prisma.advance.findMany({
+      where: { employeeId: employee.id },
+      orderBy: { date: "desc" },
+      take: 20,
+    }),
+  ]);
+
+  const openEntry = entries.find((entry) => !entry.clockOut);
+  const pendingAdvancesTotal = advances
+    .filter((a) => a.paymentId === null)
+    .reduce((sum, a) => sum + Number(a.amount), 0);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-semibold">Olá, {employee.name.split(" ")[0]}</h1>
+        <p className="text-sm text-neutral-500">Bata seu ponto e acompanhe seu salário aqui.</p>
+      </div>
+
+      <Tabs defaultValue="ponto">
+        <TabsList>
+          <TabsTrigger value="ponto">Ponto</TabsTrigger>
+          <TabsTrigger value="salario">Salário e Vales</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="ponto" className="flex flex-col gap-6 pt-4">
+          <Card>
+            <CardContent className="flex flex-col items-center gap-3 py-8">
+              {openEntry ? (
+                <p className="text-sm text-neutral-500">
+                  Trabalhando desde{" "}
+                  <span className="font-medium text-foreground">
+                    {openEntry.clockIn.toLocaleTimeString("pt-BR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </p>
+              ) : (
+                <p className="text-sm text-neutral-500">Você não está com ponto aberto agora.</p>
+              )}
+              {employee.store && (
+                <p className="text-xs text-neutral-400">
+                  Bata o ponto perto de &quot;{employee.store.name}&quot; (
+                  {employee.store.radiusMeters}m de raio)
+                </p>
+              )}
+              <ClockButton isOpen={!!openEntry} hasStore={!!employee.store} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Últimos registros de ponto</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Entrada</TableHead>
+                      <TableHead>Saída</TableHead>
+                      <TableHead>Horas</TableHead>
+                      <TableHead>Atraso</TableHead>
+                      <TableHead>Local</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {entries.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-neutral-500">
+                          Nenhum registro ainda.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {entries.map((entry) => {
+                      const late = lateMinutes(employee.scheduledStart, entry.clockIn);
+                      return (
+                        <TableRow key={entry.id}>
+                          <TableCell>{entry.date.toISOString().slice(0, 10)}</TableCell>
+                          <TableCell>
+                            {entry.clockIn.toLocaleTimeString("pt-BR", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </TableCell>
+                          <TableCell>
+                            {entry.clockOut
+                              ? entry.clockOut.toLocaleTimeString("pt-BR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "—"}
+                          </TableCell>
+                          <TableCell>
+                            {entry.clockOut
+                              ? shiftHours(entry.clockIn, entry.clockOut).toFixed(2)
+                              : "—"}
+                            {entry.clockOut && nightHours(entry.clockIn, entry.clockOut) > 0 && (
+                              <span className="text-neutral-500">
+                                {" "}
+                                ({nightHours(entry.clockIn, entry.clockOut).toFixed(2)}h noturnas)
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {late > 0 ? <Badge variant="destructive">{late} min</Badge> : "—"}
+                          </TableCell>
+                          <TableCell className="text-neutral-500">
+                            {entry.clockInDistanceM !== null ? `${entry.clockInDistanceM}m` : "—"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="salario" className="flex flex-col gap-6 pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                Meus ganhos
+                <span className="text-sm font-normal text-neutral-500">
+                  (período: {periodStart.toLocaleDateString("pt-BR")} a{" "}
+                  {periodEnd.toLocaleDateString("pt-BR")}
+                  {lastPayment ? ", desde o último pagamento" : ""})
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-neutral-500">Salário base</p>
+                  <p className="text-lg font-semibold">{currency(preview.baseSalary)}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-neutral-500">
+                    Adicional noturno ({preview.totalNightHours.toFixed(2)}h)
+                  </p>
+                  <p className="text-lg font-semibold text-primary">
+                    {currency(preview.nightPremium)}
+                  </p>
+                </div>
+                {preview.overtimeMode === "HORA_EXTRA" ? (
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-neutral-500">
+                      Hora extra ({preview.overtimeHours.toFixed(2)}h)
+                    </p>
+                    <p className="text-lg font-semibold text-primary">
+                      {currency(preview.overtimeAmount)}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-neutral-500">Banco de horas</p>
+                    <p className="text-lg font-semibold">{preview.bankedHours.toFixed(2)}h</p>
+                  </div>
+                )}
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-neutral-500">Líquido previsto</p>
+                  <p className="text-lg font-semibold text-primary">
+                    {currency(preview.netAmount)}
+                  </p>
+                </div>
+              </div>
+
+              {preview.lateDiscountAmount > 0 && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                  <p className="text-xs font-medium text-destructive">
+                    Desconto por atraso: {currency(preview.lateDiscountAmount)} (
+                    {preview.lateDiscountMinutes} de {preview.lateMinutesTotal} min de atraso no
+                    período)
+                  </p>
+                  <p className="mt-1 text-xs text-neutral-500">
+                    A tolerância legal é de até 5 minutos por evento — acima disso, o atraso todo
+                    entra no desconto.
+                  </p>
+                </div>
+              )}
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border p-3">
+                  <p className="mb-2 text-xs font-medium text-neutral-500">
+                    Bônus ({currency(preview.bonusTotal)})
+                  </p>
+                  {preview.bonusItems.length === 0 ? (
+                    <p className="text-sm text-neutral-400">Nenhum bônus no período.</p>
+                  ) : (
+                    <ul className="flex flex-col gap-1 text-sm">
+                      {preview.bonusItems.map((item) => (
+                        <li key={item.id} className="flex justify-between gap-2">
+                          <span className="text-neutral-500">
+                            {item.date} {item.description ? `· ${item.description}` : ""}
+                          </span>
+                          <span className="font-medium text-primary">
+                            {currency(item.amount)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="mb-2 text-xs font-medium text-neutral-500">
+                    Descontos ({currency(preview.discountTotal)})
+                  </p>
+                  {preview.discountItems.length === 0 ? (
+                    <p className="text-sm text-neutral-400">Nenhum desconto no período.</p>
+                  ) : (
+                    <ul className="flex flex-col gap-1 text-sm">
+                      {preview.discountItems.map((item) => (
+                        <li key={item.id} className="flex justify-between gap-2">
+                          <span className="text-neutral-500">
+                            {item.date} {item.description ? `· ${item.description}` : ""}
+                          </span>
+                          <span className="font-medium text-destructive">
+                            -{currency(item.amount)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              <p className="text-xs text-neutral-400">
+                Vales pendentes descontam do próximo pagamento — veja o detalhamento em &quot;Meus
+                vales&quot; abaixo. Total pendente: {currency(preview.advancesTotal)}.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                Meus vales
+                <span className="text-sm font-normal text-neutral-500">
+                  (pendente: {currency(pendingAdvancesTotal)})
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Valor</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {advances.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-neutral-500">
+                          Nenhum vale lançado ainda.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {advances.map((advance) => (
+                      <TableRow key={advance.id}>
+                        <TableCell>{advance.date.toISOString().slice(0, 10)}</TableCell>
+                        <TableCell>{currency(Number(advance.amount))}</TableCell>
+                        <TableCell className="text-neutral-500">
+                          {advance.description ?? "—"}
+                        </TableCell>
+                        <TableCell>
+                          {advance.paymentId ? (
+                            <Badge variant="secondary">Pago</Badge>
+                          ) : (
+                            <Badge variant="destructive">Pendente</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

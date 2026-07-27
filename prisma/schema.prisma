@@ -1,0 +1,298 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MovementType {
+  ENTRADA
+  SAIDA
+}
+
+enum Unit {
+  KG
+  G
+  L
+  ML
+  UN
+  PECA
+  FARDO
+  PCT
+  CX
+}
+
+model Role {
+  id                    String   @id @default(cuid())
+  name                  String   @unique
+  canManageEstoque      Boolean  @default(false)
+  canManageReceitas     Boolean  @default(false)
+  canManageUsuarios     Boolean  @default(false)
+  canViewRelatorios     Boolean  @default(false)
+  canManageFuncionarios Boolean  @default(false)
+  createdAt             DateTime @default(now())
+
+  users User[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  roleId       String
+  role         Role     @relation(fields: [roleId], references: [id])
+  createdAt    DateTime @default(now())
+
+  movements StockMovement[]
+  revenues  Revenue[]
+  advances  Advance[]
+  payments  Payment[]
+  employee  Employee?
+
+  @@index([roleId])
+}
+
+enum OvertimeMode {
+  HORA_EXTRA
+  BANCO_HORAS
+}
+
+model AppSettings {
+  id                  String       @id @default("settings")
+  overtimeMode        OvertimeMode @default(HORA_EXTRA)
+  dailyExpectedHours  Decimal      @default(8) @db.Decimal(4, 2)
+  overtimeRate        Decimal      @default(1.5) @db.Decimal(4, 2)
+  inssBrackets        Json         @default("[{\"upTo\":1412.00,\"rate\":0.075},{\"upTo\":2666.68,\"rate\":0.09},{\"upTo\":4000.03,\"rate\":0.12},{\"upTo\":7786.02,\"rate\":0.14}]")
+  irrfBrackets        Json         @default("[{\"upTo\":2259.20,\"rate\":0},{\"upTo\":2826.65,\"rate\":0.075},{\"upTo\":3751.05,\"rate\":0.15},{\"upTo\":4664.68,\"rate\":0.225},{\"upTo\":null,\"rate\":0.275}]")
+  irrfDependentDeduction Decimal   @default(189.59) @db.Decimal(10, 2)
+  valeTransporteRate  Decimal      @default(6) @db.Decimal(4, 2)
+  updatedAt           DateTime     @updatedAt
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  ingredients Ingredient[]
+}
+
+model Ingredient {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  unit         Unit
+  unitPrice    Decimal  @default(0) @db.Decimal(10, 2)
+  currentStock Decimal  @default(0) @db.Decimal(10, 3)
+  minStock     Decimal  @default(0) @db.Decimal(10, 3)
+  idealStock   Decimal? @db.Decimal(10, 3)
+  includeInCmv Boolean  @default(true)
+  isProduced   Boolean  @default(false)
+  categoryId   String?
+  category     Category? @relation(fields: [categoryId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  movements        StockMovement[]
+  recipeIngredients RecipeIngredient[]
+
+  @@index([categoryId])
+}
+
+model StockMovement {
+  id           String       @id @default(cuid())
+  ingredient   Ingredient   @relation(fields: [ingredientId], references: [id])
+  ingredientId String
+  type         MovementType
+  quantity     Decimal      @db.Decimal(10, 3)
+  reason       String?
+  user         User         @relation(fields: [userId], references: [id])
+  userId       String
+  createdAt    DateTime     @default(now())
+
+  @@index([ingredientId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Revenue {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  amount    Decimal  @db.Decimal(10, 2)
+  note      String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([date])
+}
+
+model Recipe {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  instructions String?
+  yieldKg      Decimal? @db.Decimal(10, 3)
+  createdAt    DateTime @default(now())
+
+  ingredients RecipeIngredient[]
+}
+
+model RecipeIngredient {
+  id           String     @id @default(cuid())
+  recipe       Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipeId     String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  ingredientId String
+  quantity     Decimal    @db.Decimal(10, 3)
+
+  @@index([recipeId])
+  @@index([ingredientId])
+}
+
+model Store {
+  id           String   @id @default(cuid())
+  name         String
+  address      String?
+  latitude     Decimal  @db.Decimal(10, 7)
+  longitude    Decimal  @db.Decimal(10, 7)
+  radiusMeters Int      @default(150)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  employees Employee[]
+}
+
+model Employee {
+  id         String    @id @default(cuid())
+  name       String
+  role       String?
+  phone      String?
+  baseSalary Decimal   @default(0) @db.Decimal(10, 2)
+  dependents Int       @default(0)
+  hireDate   DateTime? @db.Date
+  scheduledStart String?
+  scheduledEnd   String?
+  weeklyDayOff   Int?
+  active     Boolean   @default(true)
+  userId     String?   @unique
+  user       User?     @relation(fields: [userId], references: [id])
+  storeId    String?
+  store      Store?    @relation(fields: [storeId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  timeEntries TimeEntry[]
+  advances    Advance[]
+  adjustments PayrollAdjustment[]
+  payments    Payment[]
+  dayOffs     DayOff[]
+
+  @@index([storeId])
+}
+
+model TimeEntry {
+  id         String    @id @default(cuid())
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId String
+  date       DateTime  @db.Date
+  clockIn    DateTime
+  clockInDistanceM  Int?
+  clockOut   DateTime?
+  clockOutDistanceM Int?
+  note       String?
+  createdAt  DateTime  @default(now())
+
+  @@index([employeeId])
+  @@index([date])
+}
+
+model DayOff {
+  id         String   @id @default(cuid())
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId String
+  date       DateTime @db.Date
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+}
+
+enum AdjustmentType {
+  BONUS
+  DESCONTO
+}
+
+model PayrollAdjustment {
+  id          String         @id @default(cuid())
+  employee    Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId  String
+  type        AdjustmentType
+  date        DateTime       @db.Date
+  amount      Decimal        @db.Decimal(10, 2)
+  description String?
+  paymentId   String?
+  payment     Payment?       @relation(fields: [paymentId], references: [id])
+  createdAt   DateTime       @default(now())
+
+  @@index([employeeId])
+  @@index([date])
+}
+
+model Advance {
+  id          String   @id @default(cuid())
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId  String
+  date        DateTime @db.Date
+  amount      Decimal  @db.Decimal(10, 2)
+  description String?
+  paymentId   String?
+  payment     Payment? @relation(fields: [paymentId], references: [id])
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+
+  @@index([employeeId])
+  @@index([date])
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  employee      Employee @relation(fields: [employeeId], references: [id])
+  employeeId    String
+  periodStart   DateTime @db.Date
+  periodEnd     DateTime @db.Date
+  baseSalary    Decimal  @db.Decimal(10, 2)
+  nightPremium  Decimal  @db.Decimal(10, 2)
+  overtimeHours Decimal  @default(0) @db.Decimal(6, 2)
+  overtimeAmount Decimal @default(0) @db.Decimal(10, 2)
+  bankedHours   Decimal  @default(0) @db.Decimal(6, 2)
+  lateDiscountMinutes Decimal @default(0) @db.Decimal(6, 2)
+  lateDiscountAmount  Decimal @default(0) @db.Decimal(10, 2)
+  faltaDays     Decimal  @default(0) @db.Decimal(4, 1)
+  faltaAmount   Decimal  @default(0) @db.Decimal(10, 2)
+  inssAmount    Decimal  @default(0) @db.Decimal(10, 2)
+  irrfAmount    Decimal  @default(0) @db.Decimal(10, 2)
+  valeTransporteAmount Decimal @default(0) @db.Decimal(10, 2)
+  bonusTotal    Decimal  @db.Decimal(10, 2)
+  discountTotal Decimal  @db.Decimal(10, 2)
+  advancesTotal Decimal  @db.Decimal(10, 2)
+  netAmount     Decimal  @db.Decimal(10, 2)
+  note          String?
+  paidAt        DateTime @default(now())
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+
+  advances    Advance[]
+  adjustments PayrollAdjustment[]
+
+  @@index([employeeId])
+}

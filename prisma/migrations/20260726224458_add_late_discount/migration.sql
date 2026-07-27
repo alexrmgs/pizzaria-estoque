@@ -1,0 +1,2 @@
+ALTER TABLE "Payment" ADD COLUMN "lateDiscountMinutes" DECIMAL(6,2) NOT NULL DEFAULT 0;
+ALTER TABLE "Payment" ADD COLUMN "lateDiscountAmount" DECIMAL(10,2) NOT NULL DEFAULT 0;
