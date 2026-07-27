@@ -7,17 +7,21 @@ async function main() {
   const password = process.env.SEED_ADMIN_PASSWORD ?? "changeme123";
   const name = process.env.SEED_ADMIN_NAME ?? "Administrador";
 
+  // `update` também fixa as permissões (não só `create`): o cargo "Administrador"
+  // pode já existir de uma migration antiga anterior a alguma permissão nova
+  // (ex: canManageFuncionarios foi adicionada depois, com default false), e
+  // nesse caso um upsert com update vazio deixaria o cargo incompleto.
+  const adminPermissions = {
+    canManageEstoque: true,
+    canManageReceitas: true,
+    canManageUsuarios: true,
+    canViewRelatorios: true,
+    canManageFuncionarios: true,
+  };
   const adminRole = await prisma.role.upsert({
     where: { name: "Administrador" },
-    update: {},
-    create: {
-      name: "Administrador",
-      canManageEstoque: true,
-      canManageReceitas: true,
-      canManageUsuarios: true,
-      canViewRelatorios: true,
-      canManageFuncionarios: true,
-    },
+    update: adminPermissions,
+    create: { name: "Administrador", ...adminPermissions },
   });
 
   await prisma.role.upsert({
