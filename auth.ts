@@ -5,6 +5,10 @@ import { prisma } from "@/lib/prisma";
 import type { RolePermissions } from "@/types/next-auth";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  // Necessário fora da Vercel (ex: Hostinger) — sem isso o Auth.js rejeita o
+  // host da requisição e mostra o erro genérico "problema de configuração
+  // do servidor" em qualquer tentativa de login.
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [
