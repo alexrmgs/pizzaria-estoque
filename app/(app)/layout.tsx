@@ -2,13 +2,15 @@ import Image from "next/image";
 import { requireUser } from "@/lib/dal";
 import { NavLinks } from "@/components/nav-links";
 import { SignOutButton } from "@/components/sign-out-button";
+import { MobileSidebar } from "@/components/mobile-sidebar";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
 
   return (
     <div className="flex flex-1 flex-col md:flex-row">
-      <aside className="flex flex-col gap-6 bg-sidebar p-4 text-sidebar-foreground md:w-64 print:hidden">
+      <MobileSidebar permissions={user.role} userName={user.name ?? ""} roleName={user.role.name} />
+      <aside className="hidden flex-col gap-6 bg-sidebar p-4 text-sidebar-foreground md:flex md:w-64 print:hidden">
         <div className="flex items-center gap-2 px-1">
           <Image src="/logo.png" alt="FB Pizzaria & Esfiharia" width={40} height={39} priority />
           <div>
