@@ -10,6 +10,13 @@ datasource db {
   provider = "postgresql"
 }
 
+enum RecipeType {
+  PRODUCAO
+  PIZZA
+  BEIRUTE
+  ESFIHA
+}
+
 enum MovementType {
   ENTRADA
   SAIDA
@@ -134,14 +141,17 @@ model Revenue {
 }
 
 model Recipe {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   name         String
+  type         RecipeType @default(PRODUCAO)
   description  String?
   instructions String?
-  yieldKg      Decimal? @db.Decimal(10, 3)
-  createdAt    DateTime @default(now())
+  yieldKg      Decimal?   @db.Decimal(10, 3)
+  createdAt    DateTime   @default(now())
 
   ingredients RecipeIngredient[]
+
+  @@index([type])
 }
 
 model RecipeIngredient {
@@ -151,6 +161,7 @@ model RecipeIngredient {
   ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
   ingredientId String
   quantity     Decimal    @db.Decimal(10, 3)
+  wastePercent Decimal    @default(0) @db.Decimal(5, 2)
 
   @@index([recipeId])
   @@index([ingredientId])

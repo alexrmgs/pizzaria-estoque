@@ -6,7 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 
 const recipeSchema = z.object({
-  name: z.string().trim().min(1, "Informe o nome da pizza."),
+  name: z.string().trim().min(1, "Informe o nome da receita."),
+  type: z.enum(["PRODUCAO", "PIZZA", "BEIRUTE", "ESFIHA"]),
   description: z.string().trim().max(1000).optional(),
   instructions: z.string().trim().max(5000).optional(),
   yieldKg: z.coerce.number().positive("O rendimento deve ser maior que zero.").nullable(),
@@ -14,6 +15,7 @@ const recipeSchema = z.object({
     .array(z.string().trim().min(1, "Selecione um ingrediente."))
     .min(1, "Adicione ao menos um ingrediente."),
   quantity: z.array(z.coerce.number().positive("A quantidade deve ser maior que zero.")),
+  wastePercent: z.array(z.coerce.number().min(0).max(99, "A perda deve ser menor que 100%.")),
 });
 
 export type RecipeFormState = { error?: string } | undefined;
@@ -21,14 +23,18 @@ export type RecipeFormState = { error?: string } | undefined;
 function parseRecipeForm(formData: FormData) {
   const yieldKgRaw = formData.get("yieldKg");
   const yieldKg = typeof yieldKgRaw === "string" && yieldKgRaw.trim() !== "" ? yieldKgRaw : null;
+  const ingredientId = formData.getAll("ingredientId");
+  const wastePercentRaw = formData.getAll("wastePercent");
 
   return recipeSchema.safeParse({
     name: formData.get("name"),
+    type: formData.get("type"),
     description: formData.get("description") || undefined,
     instructions: formData.get("instructions") || undefined,
     yieldKg,
-    ingredientId: formData.getAll("ingredientId"),
+    ingredientId,
     quantity: formData.getAll("quantity"),
+    wastePercent: ingredientId.map((_, index) => wastePercentRaw[index] || "0"),
   });
 }
 
@@ -43,11 +49,13 @@ export async function createRecipe(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const { name, description, instructions, yieldKg, ingredientId, quantity } = parsed.data;
+  const { name, type, description, instructions, yieldKg, ingredientId, quantity, wastePercent } =
+    parsed.data;
 
   await prisma.recipe.create({
     data: {
       name,
+      type,
       description,
       instructions,
       yieldKg,
@@ -55,6 +63,7 @@ export async function createRecipe(
         create: ingredientId.map((id, index) => ({
           ingredientId: id,
           quantity: quantity[index],
+          wastePercent: wastePercent[index],
         })),
       },
     },
@@ -75,7 +84,8 @@ export async function updateRecipe(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const { name, description, instructions, yieldKg, ingredientId, quantity } = parsed.data;
+  const { name, type, description, instructions, yieldKg, ingredientId, quantity, wastePercent } =
+    parsed.data;
 
   await prisma.$transaction([
     prisma.recipeIngredient.deleteMany({ where: { recipeId: id } }),
@@ -83,6 +93,7 @@ export async function updateRecipe(
       where: { id },
       data: {
         name,
+        type,
         description,
         instructions,
         yieldKg,
@@ -90,6 +101,7 @@ export async function updateRecipe(
           create: ingredientId.map((ingId, index) => ({
             ingredientId: ingId,
             quantity: quantity[index],
+            wastePercent: wastePercent[index],
           })),
         },
       },

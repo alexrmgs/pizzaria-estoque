@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { PrintButton } from "@/components/print-button";
+import { RECIPE_TYPE_LABELS } from "@/lib/recipe-cost";
 
 export default async function ImprimirReceitaPage({
   params,
@@ -30,7 +31,7 @@ export default async function ImprimirReceitaPage({
         <Image src="/logo.png" alt="FB Pizzaria & Esfiharia" width={48} height={47} />
         <div>
           <p className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">
-            FB Pizzaria &amp; Esfiharia
+            FB Pizzaria &amp; Esfiharia · {RECIPE_TYPE_LABELS[recipe.type]}
           </p>
           <h1 className="text-2xl font-bold">{recipe.name}</h1>
         </div>
@@ -42,7 +43,12 @@ export default async function ImprimirReceitaPage({
         <ul className="flex flex-col gap-1">
           {recipe.ingredients.map((item) => (
             <li key={item.id} className="flex justify-between border-b border-dashed py-1 text-sm">
-              <span>{item.ingredient.name}</span>
+              <span>
+                {item.ingredient.name}
+                {Number(item.wastePercent) > 0 && (
+                  <span className="text-neutral-500"> ({Number(item.wastePercent)}% perda)</span>
+                )}
+              </span>
               <span>
                 {item.quantity.toString()} {item.ingredient.unit}
               </span>
