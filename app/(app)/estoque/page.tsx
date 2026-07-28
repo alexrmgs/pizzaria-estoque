@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { IngredientDialog } from "./ingredient-dialog";
+import { DeleteIngredientButton } from "./delete-ingredient-button";
 import type { Prisma } from "@/lib/generated/prisma/client";
 
 const currency = (value: number) =>
@@ -177,20 +178,23 @@ export default async function EstoquePage({
                   </TableCell>
                   {user.role.canManageEstoque && (
                     <TableCell className="text-right">
-                      <IngredientDialog
-                        categories={categories}
-                        ingredient={{
-                          id: ingredient.id,
-                          name: ingredient.name,
-                          unit: ingredient.unit,
-                          unitPrice: ingredient.unitPrice.toString(),
-                          minStock: ingredient.minStock.toString(),
-                          idealStock: ingredient.idealStock?.toString() ?? null,
-                          includeInCmv: ingredient.includeInCmv,
-                          isProduced: ingredient.isProduced,
-                          categoryId: ingredient.categoryId,
-                        }}
-                      />
+                      <div className="flex justify-end gap-1">
+                        <IngredientDialog
+                          categories={categories}
+                          ingredient={{
+                            id: ingredient.id,
+                            name: ingredient.name,
+                            unit: ingredient.unit,
+                            unitPrice: ingredient.unitPrice.toString(),
+                            minStock: ingredient.minStock.toString(),
+                            idealStock: ingredient.idealStock?.toString() ?? null,
+                            includeInCmv: ingredient.includeInCmv,
+                            isProduced: ingredient.isProduced,
+                            categoryId: ingredient.categoryId,
+                          }}
+                        />
+                        <DeleteIngredientButton id={ingredient.id} name={ingredient.name} />
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>

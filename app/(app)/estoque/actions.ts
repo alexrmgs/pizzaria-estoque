@@ -111,3 +111,20 @@ export async function updateIngredient(
   revalidatePath("/lista-compras");
   revalidatePath("/producao");
 }
+
+export async function deleteIngredient(id: string) {
+  await requirePermission("canManageEstoque");
+
+  try {
+    await prisma.ingredient.delete({ where: { id } });
+  } catch {
+    throw new Error(
+      "Esse ingrediente já tem movimentações ou receitas vinculadas e não pode ser excluído.",
+    );
+  }
+
+  revalidatePath("/estoque");
+  revalidatePath("/dashboard");
+  revalidatePath("/lista-compras");
+  revalidatePath("/producao");
+}
