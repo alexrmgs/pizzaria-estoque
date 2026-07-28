@@ -14,19 +14,18 @@ import {
   ComboboxItem,
   ComboboxEmpty,
 } from "@/components/ui/combobox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createMovement } from "./actions";
 
 type Ingredient = { id: string; name: string; unit: string };
 
-export function MovementForm({ ingredients }: { ingredients: Ingredient[] }) {
+export function MovementForm({
+  ingredients,
+  type,
+}: {
+  ingredients: Ingredient[];
+  type: "ENTRADA" | "SAIDA";
+}) {
   const [isPending, startTransition] = useTransition();
   const [resetKey, setResetKey] = useState(0);
 
@@ -47,18 +46,24 @@ export function MovementForm({ ingredients }: { ingredients: Ingredient[] }) {
     label: `${ingredient.name} (${ingredient.unit})`,
   }));
 
+  const isEntrada = type === "ENTRADA";
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Registrar movimentação</CardTitle>
+        <CardTitle className="text-lg">
+          Registrar {isEntrada ? "entrada" : "saída"}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form key={resetKey} action={handleSubmit} className="flex flex-col gap-4">
+          <input type="hidden" name="type" value={type} />
+
           <div className="flex flex-col gap-2">
-            <Label htmlFor="ingredientId">Ingrediente</Label>
+            <Label htmlFor={`ingredientId-${type}`}>Ingrediente</Label>
             <Combobox items={ingredientItems} name="ingredientId" required>
               <ComboboxInput
-                id="ingredientId"
+                id={`ingredientId-${type}`}
                 placeholder="Buscar ingrediente..."
                 autoComplete="off"
               />
@@ -76,39 +81,28 @@ export function MovementForm({ ingredients }: { ingredients: Ingredient[] }) {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="type">Tipo</Label>
-            <Select
-              name="type"
-              autoComplete="off"
+            <Label htmlFor={`quantity-${type}`}>Quantidade</Label>
+            <Input
+              id={`quantity-${type}`}
+              name="quantity"
+              type="number"
+              step="0.001"
+              min="0"
               required
-              defaultValue="ENTRADA"
-              items={[
-                { value: "ENTRADA", label: "Entrada" },
-                { value: "SAIDA", label: "Saída" },
-              ]}
-            >
-              <SelectTrigger id="type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ENTRADA">Entrada</SelectItem>
-                <SelectItem value="SAIDA">Saída</SelectItem>
-              </SelectContent>
-            </Select>
+            />
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="quantity">Quantidade</Label>
-            <Input id="quantity" name="quantity" type="number" step="0.001" min="0" required />
+            <Label htmlFor={`reason-${type}`}>Motivo (opcional)</Label>
+            <Textarea
+              id={`reason-${type}`}
+              name="reason"
+              placeholder={isEntrada ? "Ex: compra, produção..." : "Ex: perda, ajuste, uso..."}
+            />
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="reason">Motivo (opcional)</Label>
-            <Textarea id="reason" name="reason" placeholder="Ex: compra, perda, ajuste..." />
-          </div>
-
-          <Button type="submit" disabled={isPending}>
-            {isPending ? "Registrando..." : "Registrar"}
+          <Button type="submit" disabled={isPending} variant={isEntrada ? "default" : "destructive"}>
+            {isPending ? "Registrando..." : `Registrar ${isEntrada ? "entrada" : "saída"}`}
           </Button>
         </form>
       </CardContent>
