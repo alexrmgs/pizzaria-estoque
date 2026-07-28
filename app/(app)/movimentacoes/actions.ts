@@ -63,3 +63,77 @@ export async function createMovement(
   revalidatePath("/dashboard");
   revalidatePath("/relatorios");
 }
+
+const batchItemSchema = z.object({
+  ingredientId: z.string().trim().min(1),
+  quantity: z.coerce.number().positive(),
+  reason: z.string().trim().max(500).optional(),
+});
+
+const batchSchema = z.object({
+  type: z.enum(["ENTRADA", "SAIDA"]),
+  items: z.array(batchItemSchema).min(1, "Adicione ao menos um item à lista."),
+});
+
+export type BatchMovementState = { error?: string; count?: number } | undefined;
+
+/**
+ * Confere e efetiva uma lista de movimentações do mesmo tipo de uma vez só,
+ * em vez de cada item virar uma movimentação assim que digitado.
+ */
+export async function createMovementsBatch(
+  type: "ENTRADA" | "SAIDA",
+  items: { ingredientId: string; quantity: number; reason?: string }[],
+): Promise<BatchMovementState> {
+  const user = await requirePermission("canManageEstoque");
+
+  const parsed = batchSchema.safeParse({ type, items });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const item of parsed.data.items) {
+        const ingredient = await tx.ingredient.findUniqueOrThrow({ where: { id: item.ingredientId } });
+        const current = Number(ingredient.currentStock);
+        if (parsed.data.type === "SAIDA" && item.quantity > current) {
+          throw new Error(
+            `Estoque insuficiente: há apenas ${current} ${ingredient.unit} de ${ingredient.name}.`,
+          );
+        }
+        await tx.stockMovement.create({
+          data: {
+            ingredientId: item.ingredientId,
+            type: parsed.data.type,
+            quantity: item.quantity,
+            reason: item.reason,
+            userId: user.id,
+          },
+        });
+        await tx.ingredient.update({
+          where: { id: item.ingredientId },
+          data: {
+            currentStock:
+              parsed.data.type === "ENTRADA"
+                ? { increment: item.quantity }
+                : { decrement: item.quantity },
+          },
+        });
+      }
+    });
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Não foi possível registrar as movimentações.",
+    };
+  }
+
+  revalidatePath("/movimentacoes");
+  revalidatePath("/estoque");
+  revalidatePath("/dashboard");
+  revalidatePath("/relatorios");
+  revalidatePath("/lista-compras");
+  revalidatePath("/producao");
+
+  return { count: parsed.data.items.length };
+}

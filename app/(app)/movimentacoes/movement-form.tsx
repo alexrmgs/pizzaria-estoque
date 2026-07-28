@@ -15,9 +15,26 @@ import {
   ComboboxEmpty,
 } from "@/components/ui/combobox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createMovement } from "./actions";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { createMovementsBatch } from "./actions";
 
 type Ingredient = { id: string; name: string; unit: string };
+
+type PendingItem = {
+  key: string;
+  ingredientId: string;
+  ingredientName: string;
+  unit: string;
+  quantity: number;
+  reason?: string;
+};
 
 export function MovementForm({
   ingredients,
@@ -27,85 +44,171 @@ export function MovementForm({
   type: "ENTRADA" | "SAIDA";
 }) {
   const [isPending, startTransition] = useTransition();
-  const [resetKey, setResetKey] = useState(0);
+  const [formKey, setFormKey] = useState(0);
+  const [items, setItems] = useState<PendingItem[]>([]);
 
-  function handleSubmit(formData: FormData) {
+  const isEntrada = type === "ENTRADA";
+  const ingredientItems = ingredients.map((i) => ({ value: i.id, label: `${i.name} (${i.unit})` }));
+  const ingredientById = new Map(ingredients.map((i) => [i.id, i]));
+
+  function handleAddItem(formData: FormData) {
+    const ingredientId = String(formData.get("ingredientId") ?? "");
+    const quantity = Number(formData.get("quantity"));
+    const reason = String(formData.get("reason") ?? "").trim() || undefined;
+
+    const ingredient = ingredientById.get(ingredientId);
+    if (!ingredient) {
+      toast.error("Selecione um ingrediente.");
+      return;
+    }
+    if (!quantity || quantity <= 0) {
+      toast.error("Informe uma quantidade válida.");
+      return;
+    }
+
+    setItems((prev) => [
+      ...prev,
+      {
+        key: `${ingredientId}-${Date.now()}-${Math.random()}`,
+        ingredientId,
+        ingredientName: ingredient.name,
+        unit: ingredient.unit,
+        quantity,
+        reason,
+      },
+    ]);
+    setFormKey((k) => k + 1);
+  }
+
+  function removeItem(key: string) {
+    setItems((prev) => prev.filter((item) => item.key !== key));
+  }
+
+  function handleConfirm() {
     startTransition(async () => {
-      const result = await createMovement(undefined, formData);
+      const result = await createMovementsBatch(
+        type,
+        items.map(({ ingredientId, quantity, reason }) => ({ ingredientId, quantity, reason })),
+      );
       if (result?.error) {
         toast.error(result.error);
       } else {
-        toast.success("Movimentação registrada com sucesso.");
-        setResetKey((key) => key + 1);
+        toast.success(
+          `${result?.count ?? items.length} ${isEntrada ? "entrada(s)" : "saída(s)"} efetivada(s) com sucesso.`,
+        );
+        setItems([]);
       }
     });
   }
 
-  const ingredientItems = ingredients.map((ingredient) => ({
-    value: ingredient.id,
-    label: `${ingredient.name} (${ingredient.unit})`,
-  }));
-
-  const isEntrada = type === "ENTRADA";
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">
-          Registrar {isEntrada ? "entrada" : "saída"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form key={resetKey} action={handleSubmit} className="flex flex-col gap-4">
-          <input type="hidden" name="type" value={type} />
+    <div className="flex flex-col gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">
+            Adicionar {isEntrada ? "entrada" : "saída"} à lista
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form key={formKey} action={handleAddItem} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`ingredientId-${type}`}>Ingrediente</Label>
+              <Combobox items={ingredientItems} name="ingredientId" required>
+                <ComboboxInput
+                  id={`ingredientId-${type}`}
+                  placeholder="Buscar ingrediente..."
+                  autoComplete="off"
+                />
+                <ComboboxContent>
+                  <ComboboxEmpty>Nenhum ingrediente encontrado.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(item: { value: string; label: string }) => (
+                      <ComboboxItem key={item.value} value={item}>
+                        {item.label}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`ingredientId-${type}`}>Ingrediente</Label>
-            <Combobox items={ingredientItems} name="ingredientId" required>
-              <ComboboxInput
-                id={`ingredientId-${type}`}
-                placeholder="Buscar ingrediente..."
-                autoComplete="off"
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`quantity-${type}`}>Quantidade</Label>
+              <Input
+                id={`quantity-${type}`}
+                name="quantity"
+                type="number"
+                step="0.001"
+                min="0"
+                required
               />
-              <ComboboxContent>
-                <ComboboxEmpty>Nenhum ingrediente encontrado.</ComboboxEmpty>
-                <ComboboxList>
-                  {(item: { value: string; label: string }) => (
-                    <ComboboxItem key={item.value} value={item}>
-                      {item.label}
-                    </ComboboxItem>
-                  )}
-                </ComboboxList>
-              </ComboboxContent>
-            </Combobox>
-          </div>
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`quantity-${type}`}>Quantidade</Label>
-            <Input
-              id={`quantity-${type}`}
-              name="quantity"
-              type="number"
-              step="0.001"
-              min="0"
-              required
-            />
-          </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`reason-${type}`}>Motivo (opcional)</Label>
+              <Textarea
+                id={`reason-${type}`}
+                name="reason"
+                placeholder={isEntrada ? "Ex: compra, produção..." : "Ex: perda, ajuste, uso..."}
+              />
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`reason-${type}`}>Motivo (opcional)</Label>
-            <Textarea
-              id={`reason-${type}`}
-              name="reason"
-              placeholder={isEntrada ? "Ex: compra, produção..." : "Ex: perda, ajuste, uso..."}
-            />
-          </div>
+            <Button type="submit" variant="outline">
+              + Adicionar à lista
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
-          <Button type="submit" disabled={isPending} variant={isEntrada ? "default" : "destructive"}>
-            {isPending ? "Registrando..." : `Registrar ${isEntrada ? "entrada" : "saída"}`}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+      {items.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">
+              Conferência ({items.length} {items.length === 1 ? "item" : "itens"})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ingrediente</TableHead>
+                    <TableHead>Quantidade</TableHead>
+                    <TableHead>Motivo</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((item) => (
+                    <TableRow key={item.key}>
+                      <TableCell className="font-medium">{item.ingredientName}</TableCell>
+                      <TableCell>
+                        {item.quantity} {item.unit}
+                      </TableCell>
+                      <TableCell className="text-neutral-500">{item.reason ?? "—"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" onClick={() => removeItem(item.key)}>
+                          Remover
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <Button
+              onClick={handleConfirm}
+              disabled={isPending}
+              variant={isEntrada ? "default" : "destructive"}
+            >
+              {isPending
+                ? "Efetivando..."
+                : `Efetivar ${items.length} ${isEntrada ? "entrada(s)" : "saída(s)"}`}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
