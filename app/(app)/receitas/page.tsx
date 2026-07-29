@@ -16,14 +16,24 @@ type RecipeWithIngredients = Prisma.RecipeGetPayload<{
   include: { ingredients: { include: { ingredient: true } } };
 }>;
 
+type RecipeIngredientOption = {
+  id: string;
+  name: string;
+  unit: string;
+  recipeUnit: string | null;
+  unitsPerPackage: string;
+};
+
 function RecipeGrid({
   recipes,
   ingredients,
   canManage,
+  canManageEstoque,
 }: {
   recipes: RecipeWithIngredients[];
-  ingredients: { id: string; name: string; unit: string; recipeUnit: string | null }[];
+  ingredients: RecipeIngredientOption[];
   canManage: boolean;
+  canManageEstoque: boolean;
 }) {
   if (recipes.length === 0) {
     return <p className="text-sm text-neutral-500">Nenhuma receita cadastrada nessa categoria ainda.</p>;
@@ -107,6 +117,7 @@ function RecipeGrid({
                   <>
                     <RecipeDialog
                       ingredients={ingredients}
+                      canManageEstoque={canManageEstoque}
                       recipe={{
                         id: recipe.id,
                         name: recipe.name,
@@ -136,6 +147,7 @@ function RecipeGrid({
 export default async function ReceitasPage() {
   const user = await requirePermission("canManageReceitas");
   const canManage = user.role.canManageReceitas;
+  const canManageEstoque = user.role.canManageEstoque;
 
   const [recipes, ingredients] = await Promise.all([
     prisma.recipe.findMany({
@@ -144,9 +156,16 @@ export default async function ReceitasPage() {
     }),
     prisma.ingredient.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true, unit: true, recipeUnit: true },
+      select: { id: true, name: true, unit: true, recipeUnit: true, unitsPerPackage: true },
     }),
   ]);
+  const ingredientOptions: RecipeIngredientOption[] = ingredients.map((i) => ({
+    id: i.id,
+    name: i.name,
+    unit: i.unit,
+    recipeUnit: i.recipeUnit,
+    unitsPerPackage: i.unitsPerPackage.toString(),
+  }));
 
   const byType = {
     PRODUCAO: recipes.filter((r) => r.type === "PRODUCAO"),
@@ -164,7 +183,9 @@ export default async function ReceitasPage() {
             Referência dos ingredientes de cada preparo. Não afeta o estoque.
           </p>
         </div>
-        {canManage && <RecipeDialog ingredients={ingredients} />}
+        {canManage && (
+          <RecipeDialog ingredients={ingredientOptions} canManageEstoque={canManageEstoque} />
+        )}
       </div>
 
       <Tabs defaultValue="PRODUCAO">
@@ -182,37 +203,73 @@ export default async function ReceitasPage() {
           </p>
           {canManage && (
             <div>
-              <RecipeDialog ingredients={ingredients} defaultType="PRODUCAO" />
+              <RecipeDialog
+                ingredients={ingredientOptions}
+                canManageEstoque={canManageEstoque}
+                defaultType="PRODUCAO"
+              />
             </div>
           )}
-          <RecipeGrid recipes={byType.PRODUCAO} ingredients={ingredients} canManage={canManage} />
+          <RecipeGrid
+            recipes={byType.PRODUCAO}
+            ingredients={ingredientOptions}
+            canManage={canManage}
+            canManageEstoque={canManageEstoque}
+          />
         </TabsContent>
 
         <TabsContent value="PIZZA" className="flex flex-col gap-4 pt-4">
           {canManage && (
             <div>
-              <RecipeDialog ingredients={ingredients} defaultType="PIZZA" />
+              <RecipeDialog
+                ingredients={ingredientOptions}
+                canManageEstoque={canManageEstoque}
+                defaultType="PIZZA"
+              />
             </div>
           )}
-          <RecipeGrid recipes={byType.PIZZA} ingredients={ingredients} canManage={canManage} />
+          <RecipeGrid
+            recipes={byType.PIZZA}
+            ingredients={ingredientOptions}
+            canManage={canManage}
+            canManageEstoque={canManageEstoque}
+          />
         </TabsContent>
 
         <TabsContent value="BEIRUTE" className="flex flex-col gap-4 pt-4">
           {canManage && (
             <div>
-              <RecipeDialog ingredients={ingredients} defaultType="BEIRUTE" />
+              <RecipeDialog
+                ingredients={ingredientOptions}
+                canManageEstoque={canManageEstoque}
+                defaultType="BEIRUTE"
+              />
             </div>
           )}
-          <RecipeGrid recipes={byType.BEIRUTE} ingredients={ingredients} canManage={canManage} />
+          <RecipeGrid
+            recipes={byType.BEIRUTE}
+            ingredients={ingredientOptions}
+            canManage={canManage}
+            canManageEstoque={canManageEstoque}
+          />
         </TabsContent>
 
         <TabsContent value="ESFIHA" className="flex flex-col gap-4 pt-4">
           {canManage && (
             <div>
-              <RecipeDialog ingredients={ingredients} defaultType="ESFIHA" />
+              <RecipeDialog
+                ingredients={ingredientOptions}
+                canManageEstoque={canManageEstoque}
+                defaultType="ESFIHA"
+              />
             </div>
           )}
-          <RecipeGrid recipes={byType.ESFIHA} ingredients={ingredients} canManage={canManage} />
+          <RecipeGrid
+            recipes={byType.ESFIHA}
+            ingredients={ingredientOptions}
+            canManage={canManage}
+            canManageEstoque={canManageEstoque}
+          />
         </TabsContent>
       </Tabs>
     </div>

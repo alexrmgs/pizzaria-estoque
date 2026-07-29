@@ -22,9 +22,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createRecipe, updateRecipe } from "./actions";
+import { setIngredientRecipeUnit } from "../estoque/actions";
 import { X } from "lucide-react";
 
-type Ingredient = { id: string; name: string; unit: string; recipeUnit: string | null };
+type Ingredient = {
+  id: string;
+  name: string;
+  unit: string;
+  recipeUnit: string | null;
+  unitsPerPackage: string;
+};
+
+const UNIT_OPTIONS = [
+  { value: "KG", label: "Quilograma (KG)" },
+  { value: "G", label: "Grama (G)" },
+  { value: "L", label: "Litro (L)" },
+  { value: "ML", label: "Mililitro (ML)" },
+  { value: "UN", label: "Unidade (UN)" },
+  { value: "PECA", label: "Peça" },
+  { value: "FARDO", label: "Fardo" },
+  { value: "PCT", label: "Pacote (PCT)" },
+  { value: "CX", label: "Caixa (CX)" },
+];
 
 type RecipeType = "PRODUCAO" | "PIZZA" | "BEIRUTE" | "ESFIHA";
 
@@ -52,14 +71,124 @@ type Recipe = {
   ingredients: { ingredientId: string; quantity: string; wastePercent: string }[];
 };
 
+type ConversionOverride = { recipeUnit: string | null; unitsPerPackage: string };
+
+/** Conversão de unidade de compra -> unidade de receita, editável direto na
+ * hora de montar a ficha (ex: fardo com 50 caixas, pote de 1,7kg usado em
+ * gramas). Continua sendo salva no ingrediente (`canManageEstoque`), não na
+ * receita — então some pra sempre depois de configurada uma vez. */
+function ConversionEditor({
+  ingredient,
+  override,
+  onSaved,
+}: {
+  ingredient: Ingredient;
+  override?: ConversionOverride;
+  onSaved: (ingredientId: string, override: ConversionOverride) => void;
+}) {
+  const current = override ?? { recipeUnit: ingredient.recipeUnit, unitsPerPackage: ingredient.unitsPerPackage };
+  const [editing, setEditing] = useState(false);
+  const [recipeUnit, setRecipeUnit] = useState(current.recipeUnit ?? "same");
+  const [unitsPerPackage, setUnitsPerPackage] = useState(current.unitsPerPackage || "1");
+  const [isPending, startTransition] = useTransition();
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setRecipeUnit(current.recipeUnit ?? "same");
+          setUnitsPerPackage(current.unitsPerPackage || "1");
+          setEditing(true);
+        }}
+        className="text-left text-xs text-muted-foreground underline decoration-dotted hover:text-foreground"
+      >
+        {current.recipeUnit
+          ? `Conversão: 1 ${ingredient.unit} = ${current.unitsPerPackage} ${current.recipeUnit} · editar`
+          : `Receita em ${ingredient.unit}. Usa uma unidade menor (caixa avulsa, gramas)? Configurar`}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-end gap-2 rounded border border-dashed p-2">
+      <div className="flex flex-col gap-1">
+        <Label className="text-xs">Unidade da receita</Label>
+        <Select
+          value={recipeUnit}
+          onValueChange={(value) => value && setRecipeUnit(value)}
+          items={[{ value: "same", label: `Mesma unidade (${ingredient.unit})` }, ...UNIT_OPTIONS]}
+        >
+          <SelectTrigger className="h-8 w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="same">Mesma unidade ({ingredient.unit})</SelectItem>
+            {UNIT_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {recipeUnit !== "same" && (
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">
+            Quantas {recipeUnit} tem em 1 {ingredient.unit}?
+          </Label>
+          <Input
+            type="number"
+            step="0.001"
+            min="0.001"
+            value={unitsPerPackage}
+            onChange={(e) => setUnitsPerPackage(e.target.value)}
+            className="h-8 w-28"
+          />
+        </div>
+      )}
+      <Button
+        type="button"
+        size="sm"
+        className="h-8"
+        disabled={isPending}
+        onClick={() => {
+          const finalRecipeUnit = recipeUnit === "same" ? null : recipeUnit;
+          const finalUnitsPerPackage = finalRecipeUnit ? Number(unitsPerPackage || "1") : 1;
+          startTransition(async () => {
+            try {
+              await setIngredientRecipeUnit(ingredient.id, finalRecipeUnit, finalUnitsPerPackage);
+              onSaved(ingredient.id, {
+                recipeUnit: finalRecipeUnit,
+                unitsPerPackage: String(finalUnitsPerPackage),
+              });
+              toast.success("Conversão salva no ingrediente.");
+              setEditing(false);
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Não foi possível salvar.");
+            }
+          });
+        }}
+      >
+        {isPending ? "Salvando..." : "Salvar"}
+      </Button>
+      <Button type="button" size="sm" variant="ghost" className="h-8" onClick={() => setEditing(false)}>
+        Cancelar
+      </Button>
+    </div>
+  );
+}
+
 export function RecipeDialog({
   ingredients,
   recipe,
   defaultType,
+  canManageEstoque,
 }: {
   ingredients: Ingredient[];
   recipe?: Recipe;
   defaultType?: RecipeType;
+  canManageEstoque: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -69,6 +198,7 @@ export function RecipeDialog({
       ? recipe.ingredients.map((ing, index) => ({ key: `existing-${index}`, ...ing }))
       : [{ key: "row-0", ingredientId: "", quantity: "", wastePercent: "0" }],
   );
+  const [conversionOverrides, setConversionOverrides] = useState<Record<string, ConversionOverride>>({});
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -192,6 +322,8 @@ export function RecipeDialog({
             <div className="flex flex-col gap-3">
               {rows.map((row) => {
                 const selected = ingredients.find((i) => i.id === row.ingredientId);
+                const override = selected ? conversionOverrides[selected.id] : undefined;
+                const effectiveRecipeUnit = override?.recipeUnit ?? selected?.recipeUnit ?? null;
                 return (
                   <div key={row.key} className="flex flex-col gap-1 rounded-lg border p-2">
                     <div className="flex items-end gap-2">
@@ -231,7 +363,7 @@ export function RecipeDialog({
                           required
                         />
                         <span className="w-8 text-xs text-neutral-500">
-                          {selected?.recipeUnit ?? selected?.unit ?? ""}
+                          {effectiveRecipeUnit ?? selected?.unit ?? ""}
                         </span>
                       </div>
                       <Button
@@ -257,6 +389,17 @@ export function RecipeDialog({
                         className="h-7 w-20"
                       />
                     </div>
+                    {selected && canManageEstoque && (
+                      <div className="pl-1">
+                        <ConversionEditor
+                          ingredient={selected}
+                          override={override}
+                          onSaved={(ingredientId, next) =>
+                            setConversionOverrides((prev) => ({ ...prev, [ingredientId]: next }))
+                          }
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}

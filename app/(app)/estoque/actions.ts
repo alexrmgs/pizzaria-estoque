@@ -131,6 +131,38 @@ export async function updateIngredient(
   revalidatePath("/receitas");
 }
 
+const recipeUnitSchema = z.object({
+  recipeUnit: z.enum(UNITS).nullable(),
+  unitsPerPackage: z.coerce.number().positive("Tem que ser maior que zero."),
+});
+
+/**
+ * Atalho usado direto na tela de Receitas: define (ou ajusta) a conversão de
+ * unidade de compra pra unidade de uso do ingrediente sem precisar abrir o
+ * cadastro em Estoque. Continua exigindo `canManageEstoque` porque mexe no
+ * cadastro mestre do ingrediente, não só na receita.
+ */
+export async function setIngredientRecipeUnit(
+  id: string,
+  recipeUnit: string | null,
+  unitsPerPackage: number,
+) {
+  await requirePermission("canManageEstoque");
+
+  const parsed = recipeUnitSchema.safeParse({ recipeUnit, unitsPerPackage });
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Dados inválidos.");
+  }
+
+  await prisma.ingredient.update({
+    where: { id },
+    data: { recipeUnit: parsed.data.recipeUnit, unitsPerPackage: parsed.data.unitsPerPackage },
+  });
+
+  revalidatePath("/estoque");
+  revalidatePath("/receitas");
+}
+
 export async function deleteIngredient(id: string) {
   await requirePermission("canManageEstoque");
 
