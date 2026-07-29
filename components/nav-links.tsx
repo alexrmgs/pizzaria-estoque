@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Permissions = {
@@ -32,15 +34,27 @@ function NavLink({ href, label }: NavItem) {
 }
 
 function NavGroup({ title, items }: { title: string; items: NavItem[] }) {
+  const [open, setOpen] = useState(false);
+
   if (items.length === 0) return null;
+
   return (
     <div className="flex flex-col gap-1">
-      <p className="px-3 pt-2 text-[11px] font-semibold tracking-wide text-sidebar-foreground/40 uppercase">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between rounded-md px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-sidebar-foreground/40 uppercase hover:text-sidebar-foreground/70"
+      >
         {title}
-      </p>
-      {items.map((item) => (
-        <NavLink key={item.href} {...item} />
-      ))}
+        <ChevronDown className={cn("size-3.5 transition-transform", !open && "-rotate-90")} />
+      </button>
+      {open && (
+        <div className="flex flex-col gap-1">
+          {items.map((item) => (
+            <NavLink key={item.href} {...item} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
