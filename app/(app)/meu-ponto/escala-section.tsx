@@ -23,14 +23,141 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requestSwap, respondToSwapAsEmployee, cancelSwapRequest } from "./swap-actions";
-import { WEEKDAY_NAMES, type FolgaDate } from "@/lib/schedule";
+import type { FolgaDate } from "@/lib/schedule";
+import { cn } from "@/lib/utils";
 
 function formatDate(iso: string) {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
 }
 
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function toISO(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+const MONTH_NAMES = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
+const WEEKDAY_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+const EMPLOYEE_COLORS = [
+  "bg-blue-100 text-blue-800",
+  "bg-green-100 text-green-800",
+  "bg-amber-100 text-amber-800",
+  "bg-purple-100 text-purple-800",
+  "bg-pink-100 text-pink-800",
+  "bg-cyan-100 text-cyan-800",
+];
+
 type RosterEmployee = { id: string; name: string; weeklyDayOff: number | null; folgas: FolgaDate[] };
+
+function ScheduleCalendar({
+  roster,
+  myEmployeeId,
+}: {
+  roster: RosterEmployee[];
+  myEmployeeId: string;
+}) {
+  const [monthOffset, setMonthOffset] = useState(0);
+  const today = new Date();
+  const viewDate = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+
+  const byDate = new Map<string, { id: string; name: string }[]>();
+  for (const employee of roster) {
+    for (const folga of employee.folgas) {
+      const list = byDate.get(folga.date) ?? [];
+      list.push({ id: employee.id, name: employee.name });
+      byDate.set(folga.date, list);
+    }
+  }
+
+  const firstDayOfMonth = new Date(year, month, 1);
+  const startWeekday = firstDayOfMonth.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const cells: (Date | null)[] = [];
+  for (let i = 0; i < startWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const employeeColor = (id: string) => {
+    const idx = roster.findIndex((e) => e.id === id);
+    return EMPLOYEE_COLORS[idx % EMPLOYEE_COLORS.length];
+  };
+  const todayISO = toISO(today);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <Button type="button" variant="outline" size="sm" onClick={() => setMonthOffset((m) => m - 1)}>
+          ← Anterior
+        </Button>
+        <p className="text-sm font-medium">
+          {MONTH_NAMES[month]} {year}
+        </p>
+        <Button type="button" variant="outline" size="sm" onClick={() => setMonthOffset((m) => m + 1)}>
+          Próximo →
+        </Button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-neutral-500">
+        {WEEKDAY_SHORT.map((w) => (
+          <div key={w}>{w}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((date, i) => {
+          if (!date) return <div key={i} className="min-h-20 rounded-lg" />;
+          const iso = toISO(date);
+          const people = byDate.get(iso) ?? [];
+          const isToday = iso === todayISO;
+          return (
+            <div
+              key={i}
+              className={cn(
+                "flex min-h-20 flex-col gap-0.5 rounded-lg border p-1",
+                isToday && "border-primary",
+              )}
+            >
+              <span
+                className={cn("text-xs", isToday ? "font-semibold text-primary" : "text-neutral-400")}
+              >
+                {date.getDate()}
+              </span>
+              {people.slice(0, 3).map((p) => (
+                <span
+                  key={p.id}
+                  className={cn("truncate rounded px-1 text-[10px] leading-tight", employeeColor(p.id))}
+                >
+                  {p.id === myEmployeeId ? "Você" : p.name.split(" ")[0]}
+                </span>
+              ))}
+              {people.length > 3 && (
+                <span className="text-[10px] text-neutral-400">+{people.length - 3}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 type SwapRequest = {
   id: string;
@@ -271,35 +398,20 @@ export function EscalaSection({
           <CardTitle className="text-lg">Escala da equipe</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <div className="rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Folga fixa</TableHead>
-                  <TableHead>Próximas folgas avulsas</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {roster.map((employee) => {
-                  const avulsas = employee.folgas.filter((f) => f.source === "avulsa").slice(0, 3);
-                  return (
-                    <TableRow key={employee.id}>
-                      <TableCell className="font-medium">
-                        {employee.name}
-                        {employee.id === myEmployeeId ? " (você)" : ""}
-                      </TableCell>
-                      <TableCell className="text-neutral-500">
-                        {employee.weeklyDayOff !== null ? WEEKDAY_NAMES[employee.weeklyDayOff] : "—"}
-                      </TableCell>
-                      <TableCell className="text-neutral-500">
-                        {avulsas.length > 0 ? avulsas.map((f) => formatDate(f.date)).join(", ") : "—"}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+          <ScheduleCalendar roster={roster} myEmployeeId={myEmployeeId} />
+
+          <div className="flex flex-wrap gap-2 text-xs text-neutral-500">
+            {roster.map((employee, i) => (
+              <span
+                key={employee.id}
+                className={cn(
+                  "rounded px-1.5 py-0.5",
+                  EMPLOYEE_COLORS[i % EMPLOYEE_COLORS.length],
+                )}
+              >
+                {employee.id === myEmployeeId ? "Você" : employee.name.split(" ")[0]}
+              </span>
+            ))}
           </div>
 
           <RequestSwapForm myEmployeeId={myEmployeeId} roster={roster} />
