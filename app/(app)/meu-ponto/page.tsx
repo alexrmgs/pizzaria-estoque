@@ -71,7 +71,7 @@ export default async function MeuPontoPage() {
     .sort((a, b) => a.months - b.months);
   const nextStreakTier = streakTiers.find((t) => t.months > preview.attendanceStreakMonths);
 
-  const [entries, advances] = await Promise.all([
+  const [entries, advances, pastPayments] = await Promise.all([
     prisma.timeEntry.findMany({
       where: { employeeId: employee.id, date: { gte: thirtyDaysAgo } },
       orderBy: { clockIn: "desc" },
@@ -81,6 +81,11 @@ export default async function MeuPontoPage() {
       where: { employeeId: employee.id },
       orderBy: { date: "desc" },
       take: 20,
+    }),
+    prisma.payment.findMany({
+      where: { employeeId: employee.id },
+      orderBy: { periodStart: "desc" },
+      take: 12,
     }),
   ]);
 
@@ -93,12 +98,15 @@ export default async function MeuPontoPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold">Olá, {employee.name.split(" ")[0]}</h1>
-        <p className="text-sm text-neutral-500">Bata seu ponto e acompanhe seu salário aqui.</p>
+        <p className="text-sm text-neutral-500">
+          Bata seu ponto e acompanhe seu desempenho e seu salário aqui.
+        </p>
       </div>
 
       <Tabs defaultValue="ponto">
         <TabsList>
           <TabsTrigger value="ponto">Ponto</TabsTrigger>
+          <TabsTrigger value="desempenho">Desempenho</TabsTrigger>
           <TabsTrigger value="salario">Salário e Vales</TabsTrigger>
         </TabsList>
 
@@ -125,66 +133,6 @@ export default async function MeuPontoPage() {
                 </p>
               )}
               <ClockButton isOpen={!!openEntry} hasStore={!!employee.store} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                Sua pontuação este mês
-                <span className="text-sm font-normal text-neutral-500">
-                  (desde {periodStart.toLocaleDateString("pt-BR")})
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-neutral-500">Pontualidade</p>
-                  <p className="text-lg font-semibold">{preview.attendanceScore}/100</p>
-                  {preview.lateOccurrences > 0 && (
-                    <p className="text-xs text-neutral-500">
-                      {preview.lateOccurrences} atraso{preview.lateOccurrences === 1 ? "" : "s"} além
-                      da tolerância
-                    </p>
-                  )}
-                </div>
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-neutral-500">Faltas/atestados no período</p>
-                  <p className="text-lg font-semibold">{preview.absenceCount}</p>
-                  {preview.absenceCount > 0 && (
-                    <p className="text-xs text-destructive">Zera o bônus e a sequência</p>
-                  )}
-                </div>
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-neutral-500">Sequência sem zerar</p>
-                  <p className="text-lg font-semibold">
-                    {preview.attendanceStreakMonths} mês
-                    {preview.attendanceStreakMonths === 1 ? "" : "es"}
-                  </p>
-                  {preview.attendanceStreakMultiplier > 1 ? (
-                    <p className="text-xs text-primary">
-                      Bônus multiplicado por {preview.attendanceStreakMultiplier}x
-                    </p>
-                  ) : nextStreakTier ? (
-                    <p className="text-xs text-neutral-500">
-                      Faltam {nextStreakTier.months - preview.attendanceStreakMonths} mês
-                      {nextStreakTier.months - preview.attendanceStreakMonths === 1 ? "" : "es"} pra
-                      bônus x{nextStreakTier.multiplier}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-neutral-500">Bônus estimado</p>
-                  <p className="text-lg font-semibold text-primary">
-                    {currency(preview.attendanceBonusAmount)}
-                  </p>
-                </div>
-              </div>
-              <p className="text-xs text-neutral-400">
-                Valores estimados com base no que já foi batido no ponto neste período — o valor
-                final é confirmado quando o pagamento fecha, junto com o resto do seu salário.
-              </p>
             </CardContent>
           </Card>
 
@@ -252,6 +200,113 @@ export default async function MeuPontoPage() {
                         </TableRow>
                       );
                     })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="desempenho" className="flex flex-col gap-6 pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                Sua pontuação este mês
+                <span className="text-sm font-normal text-neutral-500">
+                  (desde {periodStart.toLocaleDateString("pt-BR")})
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-neutral-500">Pontualidade</p>
+                  <p className="text-lg font-semibold">{preview.attendanceScore}/100</p>
+                  {preview.lateOccurrences > 0 && (
+                    <p className="text-xs text-neutral-500">
+                      {preview.lateOccurrences} atraso{preview.lateOccurrences === 1 ? "" : "s"} além
+                      da tolerância
+                    </p>
+                  )}
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-neutral-500">Faltas/atestados no período</p>
+                  <p className="text-lg font-semibold">{preview.absenceCount}</p>
+                  {preview.absenceCount > 0 && (
+                    <p className="text-xs text-destructive">Zera o bônus e a sequência</p>
+                  )}
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-neutral-500">Sequência sem zerar</p>
+                  <p className="text-lg font-semibold">
+                    {preview.attendanceStreakMonths} mês
+                    {preview.attendanceStreakMonths === 1 ? "" : "es"}
+                  </p>
+                  {preview.attendanceStreakMultiplier > 1 ? (
+                    <p className="text-xs text-primary">
+                      Bônus multiplicado por {preview.attendanceStreakMultiplier}x
+                    </p>
+                  ) : nextStreakTier ? (
+                    <p className="text-xs text-neutral-500">
+                      Faltam {nextStreakTier.months - preview.attendanceStreakMonths} mês
+                      {nextStreakTier.months - preview.attendanceStreakMonths === 1 ? "" : "es"} pra
+                      bônus x{nextStreakTier.multiplier}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-neutral-500">Bônus estimado</p>
+                  <p className="text-lg font-semibold text-primary">
+                    {currency(preview.attendanceBonusAmount)}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-neutral-400">
+                Valores estimados com base no que já foi batido no ponto neste período — o valor
+                final é confirmado quando o pagamento fecha, junto com o resto do seu salário.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Histórico de meses fechados</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Período</TableHead>
+                      <TableHead>Pontualidade</TableHead>
+                      <TableHead>Sequência</TableHead>
+                      <TableHead>Bônus recebido</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pastPayments.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-neutral-500">
+                          Nenhum mês fechado ainda.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {pastPayments.map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="text-neutral-500">
+                          {payment.periodStart.toISOString().slice(0, 10)} a{" "}
+                          {payment.periodEnd.toISOString().slice(0, 10)}
+                        </TableCell>
+                        <TableCell>{payment.attendanceScore}/100</TableCell>
+                        <TableCell>
+                          {payment.attendanceStreakMonths} mês
+                          {payment.attendanceStreakMonths === 1 ? "" : "es"}
+                        </TableCell>
+                        <TableCell className="font-medium text-primary">
+                          {currency(Number(payment.attendanceBonusAmount))}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>
