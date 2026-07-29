@@ -24,7 +24,7 @@ import {
 import { createRecipe, updateRecipe } from "./actions";
 import { X } from "lucide-react";
 
-type Ingredient = { id: string; name: string; unit: string };
+type Ingredient = { id: string; name: string; unit: string; recipeUnit: string | null };
 
 type RecipeType = "PRODUCAO" | "PIZZA" | "BEIRUTE" | "ESFIHA";
 
@@ -230,7 +230,9 @@ export function RecipeDialog({
                           className="w-20"
                           required
                         />
-                        <span className="w-8 text-xs text-neutral-500">{selected?.unit ?? ""}</span>
+                        <span className="w-8 text-xs text-neutral-500">
+                          {selected?.recipeUnit ?? selected?.unit ?? ""}
+                        </span>
                       </div>
                       <Button
                         type="button"

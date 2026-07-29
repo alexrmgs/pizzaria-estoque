@@ -44,6 +44,8 @@ type Ingredient = {
   includeInCmv: boolean;
   isProduced: boolean;
   categoryId: string | null;
+  recipeUnit: string | null;
+  unitsPerPackage: string;
 };
 
 type Category = { id: string; name: string };
@@ -58,6 +60,8 @@ export function IngredientDialog({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
+  const [unit, setUnit] = useState(ingredient?.unit ?? "KG");
+  const [recipeUnit, setRecipeUnit] = useState(ingredient?.recipeUnit ?? "same");
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -77,7 +81,11 @@ export function IngredientDialog({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (next) setError(undefined);
+        if (next) {
+          setError(undefined);
+          setUnit(ingredient?.unit ?? "KG");
+          setRecipeUnit(ingredient?.recipeUnit ?? "same");
+        }
       }}
     >
       <DialogTrigger
@@ -109,7 +117,8 @@ export function IngredientDialog({
               <Select
                 name="unit"
                 autoComplete="off"
-                defaultValue={ingredient?.unit ?? "KG"}
+                value={unit}
+                onValueChange={(value) => value && setUnit(value)}
                 required
                 items={UNIT_OPTIONS}
               >
@@ -162,6 +171,50 @@ export function IngredientDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="flex flex-col gap-2 rounded-lg border p-3">
+            <Label htmlFor="recipeUnit">Unidade usada nas receitas (opcional)</Label>
+            <Select
+              name="recipeUnit"
+              autoComplete="off"
+              value={recipeUnit}
+              onValueChange={(value) => value && setRecipeUnit(value)}
+              items={[{ value: "same", label: "Mesma unidade do estoque" }, ...UNIT_OPTIONS]}
+            >
+              <SelectTrigger id="recipeUnit" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="same">Mesma unidade do estoque</SelectItem>
+                {UNIT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Use quando a ficha técnica precisa de uma unidade menor do que a comprada — ex:
+              estoque em FARDO mas a receita usa CX, ou estoque em UN (pote de 1,7kg) mas a receita
+              usa G.
+            </p>
+            {recipeUnit !== "same" && (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="unitsPerPackage">
+                  Quantas {recipeUnit} tem em 1 {unit}?
+                </Label>
+                <Input
+                  id="unitsPerPackage"
+                  name="unitsPerPackage"
+                  type="number"
+                  step="0.001"
+                  min="0.001"
+                  defaultValue={ingredient?.unitsPerPackage ?? "1"}
+                  required
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

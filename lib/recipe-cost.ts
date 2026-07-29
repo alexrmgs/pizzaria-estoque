@@ -10,12 +10,25 @@ export function grossQuantity(netQuantity: number, wastePercent: number): number
   return netQuantity / factor;
 }
 
+/**
+ * Preço por unidade usada na receita, quando o ingrediente é comprado numa
+ * unidade maior (fardo, pacote com N caixas, pote de 1,7kg usado em
+ * gramas...). `unitsPerPackage` é quantas unidades de receita cabem em 1
+ * unidade de estoque — ex: 1 fardo = 50 caixas -> unitsPerPackage = 50; 1
+ * unidade de molho = 1700g -> unitsPerPackage = 1700. Sem conversão
+ * cadastrada, `unitsPerPackage` fica 1 e o preço não muda.
+ */
+export function recipeUnitPrice(unitPrice: number, unitsPerPackage: number): number {
+  return unitsPerPackage > 0 ? unitPrice / unitsPerPackage : unitPrice;
+}
+
 export function recipeItemCost(
   netQuantity: number,
   wastePercent: number,
   unitPrice: number,
+  unitsPerPackage: number = 1,
 ): number {
-  return grossQuantity(netQuantity, wastePercent) * unitPrice;
+  return grossQuantity(netQuantity, wastePercent) * recipeUnitPrice(unitPrice, unitsPerPackage);
 }
 
 export const RECIPE_TYPE_LABELS: Record<string, string> = {

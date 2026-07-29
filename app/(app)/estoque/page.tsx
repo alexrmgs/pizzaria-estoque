@@ -191,6 +191,8 @@ export default async function EstoquePage({
                             includeInCmv: ingredient.includeInCmv,
                             isProduced: ingredient.isProduced,
                             categoryId: ingredient.categoryId,
+                            recipeUnit: ingredient.recipeUnit,
+                            unitsPerPackage: ingredient.unitsPerPackage.toString(),
                           }}
                         />
                         <DeleteIngredientButton id={ingredient.id} name={ingredient.name} />

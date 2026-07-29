@@ -22,7 +22,7 @@ function RecipeGrid({
   canManage,
 }: {
   recipes: RecipeWithIngredients[];
-  ingredients: { id: string; name: string; unit: string }[];
+  ingredients: { id: string; name: string; unit: string; recipeUnit: string | null }[];
   canManage: boolean;
 }) {
   if (recipes.length === 0) {
@@ -39,6 +39,7 @@ function RecipeGrid({
               Number(item.quantity),
               Number(item.wastePercent),
               Number(item.ingredient.unitPrice),
+              Number(item.ingredient.unitsPerPackage),
             ),
           0,
         );
@@ -66,7 +67,7 @@ function RecipeGrid({
                       )}
                     </span>
                     <span className="text-neutral-500">
-                      {item.quantity.toString()} {item.ingredient.unit}
+                      {item.quantity.toString()} {item.ingredient.recipeUnit ?? item.ingredient.unit}
                     </span>
                   </li>
                 ))}
@@ -141,7 +142,10 @@ export default async function ReceitasPage() {
       orderBy: { name: "asc" },
       include: { ingredients: { include: { ingredient: true } } },
     }),
-    prisma.ingredient.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, unit: true } }),
+    prisma.ingredient.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, unit: true, recipeUnit: true },
+    }),
   ]);
 
   const byType = {

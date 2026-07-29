@@ -21,6 +21,11 @@ const ingredientSchema = z.object({
     .transform((value) => (value === "" || value === "none" ? null : value))
     .nullable()
     .optional(),
+  recipeUnit: z
+    .enum(UNITS)
+    .nullable()
+    .optional(),
+  unitsPerPackage: z.coerce.number().positive("Tem que ser maior que zero.").default(1),
 });
 
 export type IngredientFormState = { error?: string } | undefined;
@@ -29,6 +34,12 @@ function parseIngredientForm(formData: FormData) {
   const idealStockRaw = formData.get("idealStock");
   const idealStock =
     typeof idealStockRaw === "string" && idealStockRaw.trim() !== "" ? idealStockRaw : null;
+
+  const recipeUnitRaw = formData.get("recipeUnit");
+  const recipeUnit =
+    typeof recipeUnitRaw === "string" && recipeUnitRaw !== "" && recipeUnitRaw !== "same"
+      ? recipeUnitRaw
+      : null;
 
   return ingredientSchema.safeParse({
     name: formData.get("name"),
@@ -39,6 +50,8 @@ function parseIngredientForm(formData: FormData) {
     includeInCmv: formData.get("includeInCmv") === "on",
     isProduced: formData.get("isProduced") === "on",
     categoryId: formData.get("categoryId"),
+    recipeUnit,
+    unitsPerPackage: formData.get("unitsPerPackage") || 1,
   });
 }
 
@@ -64,6 +77,8 @@ export async function createIngredient(
         includeInCmv: parsed.data.includeInCmv,
         isProduced: parsed.data.isProduced,
         categoryId: parsed.data.categoryId ?? null,
+        recipeUnit: parsed.data.recipeUnit ?? null,
+        unitsPerPackage: parsed.data.unitsPerPackage,
       },
     });
   } catch {
@@ -74,6 +89,7 @@ export async function createIngredient(
   revalidatePath("/dashboard");
   revalidatePath("/lista-compras");
   revalidatePath("/producao");
+  revalidatePath("/receitas");
 }
 
 export async function updateIngredient(
@@ -100,6 +116,8 @@ export async function updateIngredient(
         includeInCmv: parsed.data.includeInCmv,
         isProduced: parsed.data.isProduced,
         categoryId: parsed.data.categoryId ?? null,
+        recipeUnit: parsed.data.recipeUnit ?? null,
+        unitsPerPackage: parsed.data.unitsPerPackage,
       },
     });
   } catch {
@@ -110,6 +128,7 @@ export async function updateIngredient(
   revalidatePath("/dashboard");
   revalidatePath("/lista-compras");
   revalidatePath("/producao");
+  revalidatePath("/receitas");
 }
 
 export async function deleteIngredient(id: string) {
@@ -127,4 +146,5 @@ export async function deleteIngredient(id: string) {
   revalidatePath("/dashboard");
   revalidatePath("/lista-compras");
   revalidatePath("/producao");
+  revalidatePath("/receitas");
 }

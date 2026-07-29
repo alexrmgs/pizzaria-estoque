@@ -50,7 +50,7 @@ export default async function ImprimirReceitaPage({
                 )}
               </span>
               <span>
-                {item.quantity.toString()} {item.ingredient.unit}
+                {item.quantity.toString()} {item.ingredient.recipeUnit ?? item.ingredient.unit}
               </span>
             </li>
           ))}
