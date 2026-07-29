@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SettingsForm } from "./settings-form";
 import { CltDeductionsForm } from "./clt-deductions-form";
+import { AttendanceScoreForm } from "./attendance-score-form";
 
 type Bracket = { upTo: number | null; rate: number };
+type Tier = { minScore: number; bonus: number };
 type ConfigLink = { href: string; title: string; description: string };
 
 function LinkGrid({ links }: { links: ConfigLink[] }) {
@@ -151,6 +153,20 @@ export default async function ConfiguracoesPage() {
                     irrfBrackets={settings.irrfBrackets as unknown as Bracket[]}
                     irrfDependentDeduction={settings.irrfDependentDeduction.toString()}
                     valeTransporteRate={settings.valeTransporteRate.toString()}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {settings && (
+              <Card className="max-w-2xl">
+                <CardHeader>
+                  <CardTitle className="text-lg">Pontuação e bônus de assiduidade</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <AttendanceScoreForm
+                    latePenaltyPoints={settings.latePenaltyPoints.toString()}
+                    attendanceBonusTiers={settings.attendanceBonusTiers as unknown as Tier[]}
                   />
                 </CardContent>
               </Card>

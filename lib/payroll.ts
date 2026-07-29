@@ -160,6 +160,35 @@ export function valeTransporteAmount(baseSalary: number, ratePercent: number): n
   return baseSalary * (ratePercent / 100);
 }
 
+// ---------- Pontuação de assiduidade e pontualidade ----------
+
+export type AttendanceBonusTier = { minScore: number; bonus: number };
+
+/**
+ * Pontuação de pontualidade do período: começa em 100 e perde pontos fixos
+ * a cada dia com atraso além da tolerância (não pelo tanto de minutos).
+ */
+export function attendanceScore(lateOccurrences: number, latePenaltyPoints: number): number {
+  return Math.max(0, 100 - lateOccurrences * latePenaltyPoints);
+}
+
+/**
+ * Bônus final do período: qualquer falta ou atestado no período zera o
+ * bônus, independente da pontuação de pontualidade. Sem faltas/atestados,
+ * o valor vem da maior faixa de `attendanceBonusTiers` cuja `minScore` a
+ * pontuação atingir (faixas não precisam estar ordenadas).
+ */
+export function attendanceBonusAmount(
+  score: number,
+  hasAbsenceOrAtestado: boolean,
+  tiers: AttendanceBonusTier[],
+): number {
+  if (hasAbsenceOrAtestado) return 0;
+  const eligible = tiers.filter((t) => score >= t.minScore);
+  if (eligible.length === 0) return 0;
+  return Math.max(...eligible.map((t) => t.bonus));
+}
+
 // ---------- Ciclo mensal de fechamento (vales do mês, pagamento no 5º dia útil seguinte) ----------
 
 /**

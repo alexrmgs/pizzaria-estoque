@@ -218,6 +218,7 @@ export default async function FuncionarioDetalhePage({
         dayOffs={dayOffs.map((dayOff) => ({
           id: dayOff.id,
           date: dayOff.date.toISOString().slice(0, 10),
+          type: dayOff.type,
           reason: dayOff.reason,
         }))}
       />

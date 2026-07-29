@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getAppSettings } from "@/lib/settings";
 import {
+  attendanceBonusAmount,
+  attendanceScore,
   discountableLateMinutes,
   excessHoursByDay,
   lateDiscountAmount,
@@ -9,6 +11,7 @@ import {
   nightPremiumAmount,
   overtimeAmount,
   shiftHours,
+  type AttendanceBonusTier,
 } from "@/lib/payroll";
 
 export type PaymentPreview = {
@@ -30,6 +33,10 @@ export type PaymentPreview = {
   bonusItems: { id: string; date: string; amount: number; description: string | null }[];
   discountItems: { id: string; date: string; amount: number; description: string | null }[];
   advanceItems: { id: string; date: string; amount: number; description: string | null }[];
+  attendanceScore: number;
+  lateOccurrences: number;
+  absenceCount: number;
+  attendanceBonusAmount: number;
 };
 
 export async function computePaymentPreview(
@@ -37,7 +44,7 @@ export async function computePaymentPreview(
   periodStart: Date,
   periodEnd: Date,
 ): Promise<PaymentPreview> {
-  const [employee, settings, timeEntries, adjustments, advances] = await Promise.all([
+  const [employee, settings, timeEntries, adjustments, advances, dayOffs] = await Promise.all([
     prisma.employee.findUniqueOrThrow({ where: { id: employeeId } }),
     getAppSettings(),
     prisma.timeEntry.findMany({
@@ -51,6 +58,9 @@ export async function computePaymentPreview(
       where: { employeeId, date: { gte: periodStart, lte: periodEnd }, paymentId: null },
       orderBy: { date: "asc" },
     }),
+    prisma.dayOff.findMany({
+      where: { employeeId, date: { gte: periodStart, lte: periodEnd } },
+    }),
   ]);
 
   const baseSalary = Number(employee.baseSalary);
@@ -58,6 +68,7 @@ export async function computePaymentPreview(
   let totalNightHours = 0;
   let lateMinutesTotal = 0;
   let lateDiscountMinutesTotal = 0;
+  let lateOccurrences = 0;
   const hoursByDay = new Map<string, number>();
   for (const entry of timeEntries) {
     if (!entry.clockOut) continue;
@@ -69,10 +80,20 @@ export async function computePaymentPreview(
 
     const late = lateMinutes(employee.scheduledStart, entry.clockIn);
     lateMinutesTotal += late;
-    lateDiscountMinutesTotal += discountableLateMinutes(late);
+    const discountable = discountableLateMinutes(late);
+    lateDiscountMinutesTotal += discountable;
+    if (discountable > 0) lateOccurrences += 1;
   }
   const nightPremium = nightPremiumAmount(baseSalary, totalNightHours);
   const lateDiscountPay = lateDiscountAmount(baseSalary, lateDiscountMinutesTotal);
+
+  const absenceCount = dayOffs.filter((d) => d.type === "ATESTADO" || d.type === "FALTA").length;
+  const scoreVal = attendanceScore(lateOccurrences, settings.latePenaltyPoints);
+  const attendanceBonusVal = attendanceBonusAmount(
+    scoreVal,
+    absenceCount > 0,
+    settings.attendanceBonusTiers as unknown as AttendanceBonusTier[],
+  );
 
   const dailyExpectedHours = Number(settings.dailyExpectedHours);
   const excessHours = excessHoursByDay(hoursByDay, dailyExpectedHours);
@@ -135,5 +156,9 @@ export async function computePaymentPreview(
     bonusItems,
     discountItems,
     advanceItems,
+    attendanceScore: scoreVal,
+    lateOccurrences,
+    absenceCount,
+    attendanceBonusAmount: attendanceBonusVal,
   };
 }

@@ -109,6 +109,7 @@ export async function deleteTimeEntry(employeeId: string, id: string) {
 
 const dayOffSchema = z.object({
   date: z.string().trim().min(1, "Informe a data."),
+  type: z.enum(["FOLGA", "ATESTADO", "FALTA"]),
   reason: z.string().trim().max(300).optional(),
 });
 
@@ -123,6 +124,7 @@ export async function addDayOff(
 
   const parsed = dayOffSchema.safeParse({
     date: formData.get("date"),
+    type: formData.get("type") || "FOLGA",
     reason: formData.get("reason") || undefined,
   });
   if (!parsed.success) {
@@ -133,19 +135,21 @@ export async function addDayOff(
 
   try {
     await prisma.dayOff.create({
-      data: { employeeId, date, reason: parsed.data.reason },
+      data: { employeeId, date, type: parsed.data.type, reason: parsed.data.reason },
     });
   } catch {
-    return { error: "Já existe uma folga cadastrada nesse dia." };
+    return { error: "Já existe um registro nesse dia." };
   }
 
   revalidatePath(`/funcionarios/${employeeId}`);
+  revalidatePath("/pagamentos");
 }
 
 export async function deleteDayOff(employeeId: string, id: string) {
   await requirePermission("canManageFuncionarios");
   await prisma.dayOff.delete({ where: { id } });
   revalidatePath(`/funcionarios/${employeeId}`);
+  revalidatePath("/pagamentos");
 }
 
 // ---------- Vales (advances) ----------
@@ -266,6 +270,7 @@ const closePaymentSchema = z.object({
   applyIrrf: z.coerce.boolean(),
   applyVt: z.coerce.boolean(),
   faltaDays: z.coerce.number().min(0).default(0),
+  applyAttendanceBonus: z.coerce.boolean(),
   note: z.string().trim().max(500).optional(),
 });
 
@@ -286,6 +291,7 @@ export async function closePayment(
     applyIrrf: formData.get("applyIrrf"),
     applyVt: formData.get("applyVt"),
     faltaDays: formData.get("faltaDays") || 0,
+    applyAttendanceBonus: formData.get("applyAttendanceBonus"),
     note: formData.get("note") || undefined,
   });
   if (!parsed.success) {
@@ -322,12 +328,14 @@ export async function closePayment(
   const vtVal = parsed.data.applyVt
     ? valeTransporteAmount(baseSalary, Number(settings.valeTransporteRate))
     : 0;
+  const attendanceBonusVal = parsed.data.applyAttendanceBonus ? preview.attendanceBonusAmount : 0;
 
   const netAmount =
     baseSalary +
     preview.nightPremium +
     preview.overtimeAmount +
-    preview.bonusTotal -
+    preview.bonusTotal +
+    attendanceBonusVal -
     preview.discountTotal -
     preview.advancesTotal -
     preview.lateDiscountAmount -
@@ -357,6 +365,8 @@ export async function closePayment(
         bonusTotal: preview.bonusTotal,
         discountTotal: preview.discountTotal,
         advancesTotal: preview.advancesTotal,
+        attendanceScore: preview.attendanceScore,
+        attendanceBonusAmount: attendanceBonusVal,
         netAmount,
         note: parsed.data.note,
         userId: user.id,

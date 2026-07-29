@@ -104,3 +104,47 @@ export async function updateCltDeductions(
 
   revalidatePath("/configuracoes");
 }
+
+const attendanceScoreSchema = z.object({
+  latePenaltyPoints: z.coerce.number().int().min(0).max(100),
+  tierMinScore: z.array(z.coerce.number().int().min(0).max(100)),
+  tierBonus: z.array(z.coerce.number().min(0)),
+});
+
+export type AttendanceScoreFormState = { error?: string } | undefined;
+
+export async function updateAttendanceScoreSettings(
+  _prevState: AttendanceScoreFormState,
+  formData: FormData,
+): Promise<AttendanceScoreFormState> {
+  await requirePermission("canManageFuncionarios");
+
+  const parsed = attendanceScoreSchema.safeParse({
+    latePenaltyPoints: formData.get("latePenaltyPoints"),
+    tierMinScore: formData.getAll("tierMinScore"),
+    tierBonus: formData.getAll("tierBonus"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+  if (parsed.data.tierMinScore.length === 0) {
+    return { error: "Adicione ao menos uma faixa de bônus." };
+  }
+
+  const attendanceBonusTiers = parsed.data.tierMinScore.map((minScore, i) => ({
+    minScore,
+    bonus: parsed.data.tierBonus[i],
+  }));
+
+  await prisma.appSettings.upsert({
+    where: { id: "settings" },
+    update: { latePenaltyPoints: parsed.data.latePenaltyPoints, attendanceBonusTiers },
+    create: {
+      id: "settings",
+      latePenaltyPoints: parsed.data.latePenaltyPoints,
+      attendanceBonusTiers,
+    },
+  });
+
+  revalidatePath("/configuracoes");
+}

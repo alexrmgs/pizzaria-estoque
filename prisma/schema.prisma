@@ -79,6 +79,8 @@ model AppSettings {
   irrfBrackets        Json         @default("[{\"upTo\":2259.20,\"rate\":0},{\"upTo\":2826.65,\"rate\":0.075},{\"upTo\":3751.05,\"rate\":0.15},{\"upTo\":4664.68,\"rate\":0.225},{\"upTo\":null,\"rate\":0.275}]")
   irrfDependentDeduction Decimal   @default(189.59) @db.Decimal(10, 2)
   valeTransporteRate  Decimal      @default(6) @db.Decimal(4, 2)
+  latePenaltyPoints   Int          @default(3)
+  attendanceBonusTiers Json        @default("[{\"minScore\":100,\"bonus\":0}]")
   updatedAt           DateTime     @updatedAt
 }
 
@@ -224,13 +226,20 @@ model TimeEntry {
   @@index([date])
 }
 
+enum AbsenceType {
+  FOLGA
+  ATESTADO
+  FALTA
+}
+
 model DayOff {
-  id         String   @id @default(cuid())
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id         String      @id @default(cuid())
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   employeeId String
-  date       DateTime @db.Date
+  date       DateTime    @db.Date
+  type       AbsenceType @default(FOLGA)
   reason     String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime    @default(now())
 
   @@unique([employeeId, date])
   @@index([employeeId])
@@ -295,6 +304,8 @@ model Payment {
   bonusTotal    Decimal  @db.Decimal(10, 2)
   discountTotal Decimal  @db.Decimal(10, 2)
   advancesTotal Decimal  @db.Decimal(10, 2)
+  attendanceScore  Int     @default(100)
+  attendanceBonusAmount Decimal @default(0) @db.Decimal(10, 2)
   netAmount     Decimal  @db.Decimal(10, 2)
   note          String?
   paidAt        DateTime @default(now())

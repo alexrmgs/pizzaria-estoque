@@ -1,0 +1,9 @@
+CREATE TYPE "AbsenceType" AS ENUM ('FOLGA', 'ATESTADO', 'FALTA');
+
+ALTER TABLE "DayOff" ADD COLUMN "type" "AbsenceType" NOT NULL DEFAULT 'FOLGA';
+
+ALTER TABLE "AppSettings" ADD COLUMN "latePenaltyPoints" INTEGER NOT NULL DEFAULT 3;
+ALTER TABLE "AppSettings" ADD COLUMN "attendanceBonusTiers" JSONB NOT NULL DEFAULT '[{"minScore":100,"bonus":0}]';
+
+ALTER TABLE "Payment" ADD COLUMN "attendanceScore" INTEGER NOT NULL DEFAULT 100;
+ALTER TABLE "Payment" ADD COLUMN "attendanceBonusAmount" DECIMAL(10,2) NOT NULL DEFAULT 0;

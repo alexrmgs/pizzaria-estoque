@@ -122,6 +122,48 @@ export default async function MeuPontoPage() {
 
           <Card>
             <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                Sua pontuação este mês
+                <span className="text-sm font-normal text-neutral-500">
+                  (desde {periodStart.toLocaleDateString("pt-BR")})
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-neutral-500">Pontualidade</p>
+                  <p className="text-lg font-semibold">{preview.attendanceScore}/100</p>
+                  {preview.lateOccurrences > 0 && (
+                    <p className="text-xs text-neutral-500">
+                      {preview.lateOccurrences} atraso{preview.lateOccurrences === 1 ? "" : "s"} além
+                      da tolerância
+                    </p>
+                  )}
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-neutral-500">Faltas/atestados no período</p>
+                  <p className="text-lg font-semibold">{preview.absenceCount}</p>
+                  {preview.absenceCount > 0 && (
+                    <p className="text-xs text-destructive">Zera o bônus deste período</p>
+                  )}
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-neutral-500">Bônus estimado</p>
+                  <p className="text-lg font-semibold text-primary">
+                    {currency(preview.attendanceBonusAmount)}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-neutral-400">
+                Valores estimados com base no que já foi batido no ponto neste período — o valor
+                final é confirmado quando o pagamento fecha, junto com o resto do seu salário.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle className="text-lg">Últimos registros de ponto</CardTitle>
             </CardHeader>
             <CardContent>

@@ -79,6 +79,7 @@ export function ClosePaymentDialog({
   const [applyVt, setApplyVt] = useState(false);
   const [applyFalta, setApplyFalta] = useState(false);
   const [faltaDays, setFaltaDays] = useState("0");
+  const [applyAttendanceBonus, setApplyAttendanceBonus] = useState(false);
 
   function loadPreview() {
     startTransition(async () => {
@@ -90,6 +91,7 @@ export function ClosePaymentDialog({
         setError(undefined);
         setPreview(result);
         setSalaryOverride(result.baseSalary.toFixed(2));
+        setApplyAttendanceBonus(result.attendanceBonusAmount > 0);
       }
     });
   }
@@ -151,6 +153,7 @@ export function ClosePaymentDialog({
           setApplyVt(false);
           setApplyFalta(false);
           setFaltaDays("0");
+          setApplyAttendanceBonus(false);
         }
       }}
     >
@@ -213,6 +216,11 @@ export function ClosePaymentDialog({
               <input type="hidden" name="applyIrrf" value={applyIrrf ? "on" : ""} />
               <input type="hidden" name="applyVt" value={applyVt ? "on" : ""} />
               <input type="hidden" name="faltaDays" value={applyFalta ? faltaDays : "0"} />
+              <input
+                type="hidden"
+                name="applyAttendanceBonus"
+                value={applyAttendanceBonus ? "on" : ""}
+              />
 
               <div className="flex flex-col gap-2">
                 <Label htmlFor="baseSalary">Salário base do período (R$)</Label>
@@ -272,6 +280,32 @@ export function ClosePaymentDialog({
                   <span className="text-neutral-500">Bônus</span>
                   <span className="font-medium text-primary">{currency(preview.bonusTotal)}</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">
+                    Pontuação de assiduidade/pontualidade ({preview.lateOccurrences} atraso
+                    {preview.lateOccurrences === 1 ? "" : "s"}
+                    {preview.absenceCount > 0
+                      ? `, ${preview.absenceCount} falta/atestado — bônus zerado`
+                      : ""}
+                    )
+                  </span>
+                  <span className="font-medium">{preview.attendanceScore}/100</span>
+                </div>
+                {preview.attendanceBonusAmount > 0 && (
+                  <div className="flex items-center justify-between gap-2">
+                    <label htmlFor="applyAttendanceBonus-cb" className="flex items-center gap-2 text-neutral-500">
+                      <Checkbox
+                        id="applyAttendanceBonus-cb"
+                        checked={applyAttendanceBonus}
+                        onCheckedChange={(v) => setApplyAttendanceBonus(v === true)}
+                      />
+                      Bônus de assiduidade/pontualidade
+                    </label>
+                    <span className="font-medium text-primary">
+                      {applyAttendanceBonus ? currency(preview.attendanceBonusAmount) : currency(0)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Descontos</span>
                   <span className="font-medium text-destructive">
@@ -365,7 +399,8 @@ export function ClosePaymentDialog({
                     salaryNum +
                       preview.nightPremium +
                       preview.overtimeAmount +
-                      preview.bonusTotal -
+                      preview.bonusTotal +
+                      (applyAttendanceBonus ? preview.attendanceBonusAmount : 0) -
                       preview.discountTotal -
                       preview.advancesTotal -
                       preview.lateDiscountAmount -
