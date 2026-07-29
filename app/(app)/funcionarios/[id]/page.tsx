@@ -18,6 +18,7 @@ const WEEKDAY_NAMES = [
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmployeeDialog } from "../employee-dialog";
+import { DismissEmployeeButton } from "../dismiss-employee-button";
 import { TimeEntriesSection } from "./time-entries-section";
 import { DayOffsSection } from "./day-offs-section";
 import { AdvancesSection } from "./advances-section";
@@ -127,6 +128,11 @@ export default async function FuncionarioDetalhePage({
                 userId: employee.userId,
                 storeId: employee.storeId,
               }}
+            />
+            <DismissEmployeeButton
+              id={employee.id}
+              name={employee.name}
+              active={employee.active}
             />
           </div>
         </div>

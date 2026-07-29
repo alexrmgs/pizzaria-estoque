@@ -134,3 +134,15 @@ export async function updateEmployee(
   revalidatePath("/funcionarios");
   revalidatePath(`/funcionarios/${id}`);
 }
+
+export async function setEmployeeActive(id: string, active: boolean) {
+  await requirePermission("canManageFuncionarios");
+
+  await prisma.employee.update({ where: { id }, data: { active } });
+
+  revalidatePath("/funcionarios");
+  revalidatePath(`/funcionarios/${id}`);
+  revalidatePath("/pagamentos");
+  revalidatePath("/vales");
+  revalidatePath("/dashboard");
+}

@@ -68,7 +68,7 @@ export function MobileSidebar({
                 />
                 <div>
                   <p className="text-sm leading-tight font-bold text-white">FB Pizzaria</p>
-                  <p className="text-[11px] leading-tight text-sidebar-foreground/60">
+                  <p className="text-[11px] leading-tight text-sidebar-foreground/80">
                     Pizzaria &amp; Esfiharia
                   </p>
                 </div>
@@ -89,7 +89,7 @@ export function MobileSidebar({
             <div className="mt-auto flex items-center justify-between gap-2 border-t border-sidebar-border pt-4">
               <div className="text-sm">
                 <p className="font-medium text-white">{userName}</p>
-                <p className="text-sidebar-foreground/60">{roleName}</p>
+                <p className="text-sidebar-foreground/80">{roleName}</p>
               </div>
               <SignOutButton />
             </div>

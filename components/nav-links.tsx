@@ -25,7 +25,7 @@ function NavLink({ href, label }: NavItem) {
         "rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent",
         pathname.startsWith(href)
           ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary"
-          : "text-sidebar-foreground/80",
+          : "text-sidebar-foreground",
       )}
     >
       {label}
@@ -43,7 +43,7 @@ function NavGroup({ title, items }: { title: string; items: NavItem[] }) {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between rounded-md px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-sidebar-foreground/40 uppercase hover:text-sidebar-foreground/70"
+        className="flex w-full items-center justify-between rounded-md px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-sidebar-foreground/70 uppercase hover:text-sidebar-foreground"
       >
         {title}
         <ChevronDown className={cn("size-3.5 transition-transform", !open && "-rotate-90")} />
