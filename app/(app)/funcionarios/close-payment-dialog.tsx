@@ -291,6 +291,18 @@ export function ClosePaymentDialog({
                   </span>
                   <span className="font-medium">{preview.attendanceScore}/100</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">
+                    Sequência sem zerar {preview.absenceCount > 0 ? "(zerou este mês)" : ""}
+                  </span>
+                  <span className="font-medium">
+                    {preview.attendanceStreakMonths} mês
+                    {preview.attendanceStreakMonths === 1 ? "" : "es"}
+                    {preview.attendanceStreakMultiplier > 1
+                      ? ` (bônus x${preview.attendanceStreakMultiplier})`
+                      : ""}
+                  </span>
+                </div>
                 {preview.attendanceBonusAmount > 0 && (
                   <div className="flex items-center justify-between gap-2">
                     <label htmlFor="applyAttendanceBonus-cb" className="flex items-center gap-2 text-neutral-500">

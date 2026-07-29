@@ -10,6 +10,7 @@ import { AttendanceScoreForm } from "./attendance-score-form";
 
 type Bracket = { upTo: number | null; rate: number };
 type Tier = { minScore: number; bonus: number };
+type StreakTier = { months: number; multiplier: number };
 type ConfigLink = { href: string; title: string; description: string };
 
 function LinkGrid({ links }: { links: ConfigLink[] }) {
@@ -167,6 +168,7 @@ export default async function ConfiguracoesPage() {
                   <AttendanceScoreForm
                     latePenaltyPoints={settings.latePenaltyPoints.toString()}
                     attendanceBonusTiers={settings.attendanceBonusTiers as unknown as Tier[]}
+                    attendanceStreakTiers={settings.attendanceStreakTiers as unknown as StreakTier[]}
                   />
                 </CardContent>
               </Card>

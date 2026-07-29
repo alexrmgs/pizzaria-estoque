@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateAttendanceScoreSettings } from "./actions";
 
-type Tier = { minScore: number; bonus: number };
-type Row = { key: string; minScore: string; bonus: string };
+type BonusTier = { minScore: number; bonus: number };
+type BonusRow = { key: string; minScore: string; bonus: string };
+type StreakTier = { months: number; multiplier: number };
+type StreakRow = { key: string; months: string; multiplier: string };
 
-function tiersToRows(tiers: Tier[]): Row[] {
+function bonusTiersToRows(tiers: BonusTier[]): BonusRow[] {
   return tiers.map((t, i) => ({
     key: `${i}-${Math.random()}`,
     minScore: String(t.minScore),
@@ -18,25 +20,49 @@ function tiersToRows(tiers: Tier[]): Row[] {
   }));
 }
 
-function newRow(): Row {
+function newBonusRow(): BonusRow {
   return { key: `new-${Math.random()}`, minScore: "", bonus: "" };
+}
+
+function streakTiersToRows(tiers: StreakTier[]): StreakRow[] {
+  return tiers.map((t, i) => ({
+    key: `${i}-${Math.random()}`,
+    months: String(t.months),
+    multiplier: String(t.multiplier),
+  }));
+}
+
+function newStreakRow(): StreakRow {
+  return { key: `new-${Math.random()}`, months: "", multiplier: "" };
 }
 
 export function AttendanceScoreForm({
   latePenaltyPoints,
   attendanceBonusTiers,
+  attendanceStreakTiers,
 }: {
   latePenaltyPoints: string;
-  attendanceBonusTiers: Tier[];
+  attendanceBonusTiers: BonusTier[];
+  attendanceStreakTiers: StreakTier[];
 }) {
-  const [rows, setRows] = useState<Row[]>(() => tiersToRows(attendanceBonusTiers));
+  const [bonusRows, setBonusRows] = useState<BonusRow[]>(() => bonusTiersToRows(attendanceBonusTiers));
+  const [streakRows, setStreakRows] = useState<StreakRow[]>(() =>
+    streakTiersToRows(attendanceStreakTiers),
+  );
   const [isPending, startTransition] = useTransition();
 
-  function updateRow(key: string, patch: Partial<Row>) {
-    setRows(rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  function updateBonusRow(key: string, patch: Partial<BonusRow>) {
+    setBonusRows(bonusRows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
-  function removeRow(key: string) {
-    setRows(rows.filter((r) => r.key !== key));
+  function removeBonusRow(key: string) {
+    setBonusRows(bonusRows.filter((r) => r.key !== key));
+  }
+
+  function updateStreakRow(key: string, patch: Partial<StreakRow>) {
+    setStreakRows(streakRows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  }
+  function removeStreakRow(key: string) {
+    setStreakRows(streakRows.filter((r) => r.key !== key));
   }
 
   function handleSubmit(formData: FormData) {
@@ -55,8 +81,8 @@ export function AttendanceScoreForm({
       <p className="text-xs text-muted-foreground">
         Cada funcionário começa o mês com 100 pontos de pontualidade. Atraso além da tolerância
         legal (5min) desconta pontos fixos por ocorrência. Qualquer falta ou atestado no período
-        zera o bônus, não importa a pontuação. O bônus final é calculado na hora de fechar o
-        pagamento e some da faixa correspondente à pontuação — some no pagamento do mês seguinte.
+        zera o bônus daquele mês e reseta a sequência abaixo. O bônus final é calculado na hora de
+        fechar o pagamento e some no pagamento do mês seguinte.
       </p>
 
       <div className="flex flex-col gap-2">
@@ -77,7 +103,7 @@ export function AttendanceScoreForm({
       <div className="flex flex-col gap-2">
         <p className="text-sm font-medium">Faixas de bônus por pontuação final</p>
         <div className="flex flex-col gap-2">
-          {rows.map((row) => (
+          {bonusRows.map((row) => (
             <div key={row.key} className="flex items-end gap-2">
               <div className="flex flex-col gap-1">
                 <Label className="text-xs">Pontuação mínima</Label>
@@ -88,7 +114,7 @@ export function AttendanceScoreForm({
                   min="0"
                   max="100"
                   value={row.minScore}
-                  onChange={(e) => updateRow(row.key, { minScore: e.target.value })}
+                  onChange={(e) => updateBonusRow(row.key, { minScore: e.target.value })}
                   required
                   className="h-9 w-32"
                 />
@@ -101,7 +127,7 @@ export function AttendanceScoreForm({
                   step="0.01"
                   min="0"
                   value={row.bonus}
-                  onChange={(e) => updateRow(row.key, { bonus: e.target.value })}
+                  onChange={(e) => updateBonusRow(row.key, { bonus: e.target.value })}
                   required
                   className="h-9 w-32"
                 />
@@ -110,8 +136,8 @@ export function AttendanceScoreForm({
                 type="button"
                 variant="ghost"
                 size="sm"
-                disabled={rows.length <= 1}
-                onClick={() => removeRow(row.key)}
+                disabled={bonusRows.length <= 1}
+                onClick={() => removeBonusRow(row.key)}
               >
                 Remover
               </Button>
@@ -123,7 +149,65 @@ export function AttendanceScoreForm({
           variant="outline"
           size="sm"
           className="w-fit"
-          onClick={() => setRows([...rows, newRow()])}
+          onClick={() => setBonusRows([...bonusRows, newBonusRow()])}
+        >
+          + Adicionar faixa
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <p className="text-sm font-medium">Faixas por sequência de meses sem zerar</p>
+        <p className="text-xs text-muted-foreground">
+          Multiplica o bônus do mês conforme quantos meses seguidos o funcionário fecha sem falta
+          nem atestado (o próprio mês em que ele bate a faixa já sai com o bônus multiplicado).
+        </p>
+        <div className="flex flex-col gap-2">
+          {streakRows.map((row) => (
+            <div key={row.key} className="flex items-end gap-2">
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs">A partir de quantos meses</Label>
+                <Input
+                  name="streakMonths"
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={row.months}
+                  onChange={(e) => updateStreakRow(row.key, { months: e.target.value })}
+                  required
+                  className="h-9 w-40"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs">Multiplicador (x)</Label>
+                <Input
+                  name="streakMultiplier"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={row.multiplier}
+                  onChange={(e) => updateStreakRow(row.key, { multiplier: e.target.value })}
+                  required
+                  className="h-9 w-32"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={streakRows.length <= 1}
+                onClick={() => removeStreakRow(row.key)}
+              >
+                Remover
+              </Button>
+            </div>
+          ))}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-fit"
+          onClick={() => setStreakRows([...streakRows, newStreakRow()])}
         >
           + Adicionar faixa
         </Button>

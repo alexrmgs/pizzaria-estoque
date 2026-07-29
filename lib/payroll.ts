@@ -189,6 +189,23 @@ export function attendanceBonusAmount(
   return Math.max(...eligible.map((t) => t.bonus));
 }
 
+export type AttendanceStreakTier = { months: number; multiplier: number };
+
+/**
+ * Multiplicador do bônus pela sequência de meses seguidos sem falta/atestado
+ * (a sequência já inclui o mês em fechamento, se ele também vier limpo — ver
+ * `payment-preview.ts`). Faixas não precisam estar ordenadas; a maior
+ * `months` que a sequência atingir vence.
+ */
+export function attendanceStreakMultiplier(
+  streakMonths: number,
+  tiers: AttendanceStreakTier[],
+): number {
+  const eligible = tiers.filter((t) => streakMonths >= t.months);
+  if (eligible.length === 0) return 1;
+  return Math.max(...eligible.map((t) => t.multiplier));
+}
+
 // ---------- Ciclo mensal de fechamento (vales do mês, pagamento no 5º dia útil seguinte) ----------
 
 /**

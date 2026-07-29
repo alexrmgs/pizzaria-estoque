@@ -254,7 +254,7 @@ export async function getPaymentPreview(
   await requirePermission("canManageFuncionarios");
 
   const periodStart = new Date(`${periodStartStr}T00:00:00`);
-  const periodEnd = new Date(`${periodEndStr}T23:59:59`);
+  const periodEnd = new Date(`${periodEndStr}T00:00:00`);
   if (periodEnd < periodStart) {
     return { error: "O período final deve ser depois do inicial." };
   }
@@ -308,7 +308,7 @@ export async function closePayment(
   }
 
   const periodStart = new Date(`${parsed.data.periodStart}T00:00:00`);
-  const periodEnd = new Date(`${parsed.data.periodEnd}T23:59:59`);
+  const periodEnd = new Date(`${parsed.data.periodEnd}T00:00:00`);
   const baseSalary = parsed.data.baseSalary;
 
   const grossForTax = baseSalary + preview.nightPremium + preview.overtimeAmount;
@@ -366,6 +366,7 @@ export async function closePayment(
         discountTotal: preview.discountTotal,
         advancesTotal: preview.advancesTotal,
         attendanceScore: preview.attendanceScore,
+        attendanceStreakMonths: preview.attendanceStreakMonths,
         attendanceBonusAmount: attendanceBonusVal,
         netAmount,
         note: parsed.data.note,

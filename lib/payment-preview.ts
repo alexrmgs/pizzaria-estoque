@@ -3,6 +3,7 @@ import { getAppSettings } from "@/lib/settings";
 import {
   attendanceBonusAmount,
   attendanceScore,
+  attendanceStreakMultiplier,
   discountableLateMinutes,
   excessHoursByDay,
   lateDiscountAmount,
@@ -12,6 +13,7 @@ import {
   overtimeAmount,
   shiftHours,
   type AttendanceBonusTier,
+  type AttendanceStreakTier,
 } from "@/lib/payroll";
 
 export type PaymentPreview = {
@@ -36,6 +38,8 @@ export type PaymentPreview = {
   attendanceScore: number;
   lateOccurrences: number;
   absenceCount: number;
+  attendanceStreakMonths: number;
+  attendanceStreakMultiplier: number;
   attendanceBonusAmount: number;
 };
 
@@ -63,6 +67,12 @@ export async function computePaymentPreview(
     }),
   ]);
 
+  const previousPayment = await prisma.payment.findFirst({
+    where: { employeeId, periodEnd: { lt: periodStart } },
+    orderBy: { periodEnd: "desc" },
+  });
+  const priorStreakMonths = previousPayment?.attendanceStreakMonths ?? 0;
+
   const baseSalary = Number(employee.baseSalary);
   let totalHours = 0;
   let totalNightHours = 0;
@@ -89,11 +99,21 @@ export async function computePaymentPreview(
 
   const absenceCount = dayOffs.filter((d) => d.type === "ATESTADO" || d.type === "FALTA").length;
   const scoreVal = attendanceScore(lateOccurrences, settings.latePenaltyPoints);
-  const attendanceBonusVal = attendanceBonusAmount(
+  const baseBonusVal = attendanceBonusAmount(
     scoreVal,
     absenceCount > 0,
     settings.attendanceBonusTiers as unknown as AttendanceBonusTier[],
   );
+
+  // A sequência já conta este período se ele vier limpo (sem falta/atestado)
+  // — ao bater a faixa (ex: 3º mês seguido), o bônus deste mesmo mês já
+  // multiplica, em vez de só valer a partir do mês seguinte.
+  const streakMonths = absenceCount > 0 ? 0 : priorStreakMonths + 1;
+  const streakMultiplier = attendanceStreakMultiplier(
+    streakMonths,
+    settings.attendanceStreakTiers as unknown as AttendanceStreakTier[],
+  );
+  const attendanceBonusVal = baseBonusVal * streakMultiplier;
 
   const dailyExpectedHours = Number(settings.dailyExpectedHours);
   const excessHours = excessHoursByDay(hoursByDay, dailyExpectedHours);
@@ -159,6 +179,8 @@ export async function computePaymentPreview(
     attendanceScore: scoreVal,
     lateOccurrences,
     absenceCount,
+    attendanceStreakMonths: streakMonths,
+    attendanceStreakMultiplier: streakMultiplier,
     attendanceBonusAmount: attendanceBonusVal,
   };
 }

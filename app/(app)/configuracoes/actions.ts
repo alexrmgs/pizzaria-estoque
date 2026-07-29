@@ -109,6 +109,8 @@ const attendanceScoreSchema = z.object({
   latePenaltyPoints: z.coerce.number().int().min(0).max(100),
   tierMinScore: z.array(z.coerce.number().int().min(0).max(100)),
   tierBonus: z.array(z.coerce.number().min(0)),
+  streakMonths: z.array(z.coerce.number().int().min(0)),
+  streakMultiplier: z.array(z.coerce.number().min(0)),
 });
 
 export type AttendanceScoreFormState = { error?: string } | undefined;
@@ -123,6 +125,8 @@ export async function updateAttendanceScoreSettings(
     latePenaltyPoints: formData.get("latePenaltyPoints"),
     tierMinScore: formData.getAll("tierMinScore"),
     tierBonus: formData.getAll("tierBonus"),
+    streakMonths: formData.getAll("streakMonths"),
+    streakMultiplier: formData.getAll("streakMultiplier"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -130,19 +134,31 @@ export async function updateAttendanceScoreSettings(
   if (parsed.data.tierMinScore.length === 0) {
     return { error: "Adicione ao menos uma faixa de bônus." };
   }
+  if (parsed.data.streakMonths.length === 0) {
+    return { error: "Adicione ao menos uma faixa de sequência." };
+  }
 
   const attendanceBonusTiers = parsed.data.tierMinScore.map((minScore, i) => ({
     minScore,
     bonus: parsed.data.tierBonus[i],
   }));
+  const attendanceStreakTiers = parsed.data.streakMonths.map((months, i) => ({
+    months,
+    multiplier: parsed.data.streakMultiplier[i],
+  }));
 
   await prisma.appSettings.upsert({
     where: { id: "settings" },
-    update: { latePenaltyPoints: parsed.data.latePenaltyPoints, attendanceBonusTiers },
+    update: {
+      latePenaltyPoints: parsed.data.latePenaltyPoints,
+      attendanceBonusTiers,
+      attendanceStreakTiers,
+    },
     create: {
       id: "settings",
       latePenaltyPoints: parsed.data.latePenaltyPoints,
       attendanceBonusTiers,
+      attendanceStreakTiers,
     },
   });
 

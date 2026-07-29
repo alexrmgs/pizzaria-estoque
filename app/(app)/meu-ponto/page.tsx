@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
-import { lateMinutes, nightHours, shiftHours } from "@/lib/payroll";
+import { lateMinutes, nightHours, shiftHours, type AttendanceStreakTier } from "@/lib/payroll";
 import { computePaymentPreview } from "@/lib/payment-preview";
+import { getAppSettings } from "@/lib/settings";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -61,7 +62,14 @@ export default async function MeuPontoPage() {
     periodStart.setHours(0, 0, 0, 0);
   }
 
-  const preview = await computePaymentPreview(employee.id, periodStart, periodEnd);
+  const [preview, settings] = await Promise.all([
+    computePaymentPreview(employee.id, periodStart, periodEnd),
+    getAppSettings(),
+  ]);
+  const streakTiers = (settings.attendanceStreakTiers as unknown as AttendanceStreakTier[])
+    .slice()
+    .sort((a, b) => a.months - b.months);
+  const nextStreakTier = streakTiers.find((t) => t.months > preview.attendanceStreakMonths);
 
   const [entries, advances] = await Promise.all([
     prisma.timeEntry.findMany({
@@ -130,7 +138,7 @@ export default async function MeuPontoPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-neutral-500">Pontualidade</p>
                   <p className="text-lg font-semibold">{preview.attendanceScore}/100</p>
@@ -145,8 +153,26 @@ export default async function MeuPontoPage() {
                   <p className="text-xs text-neutral-500">Faltas/atestados no período</p>
                   <p className="text-lg font-semibold">{preview.absenceCount}</p>
                   {preview.absenceCount > 0 && (
-                    <p className="text-xs text-destructive">Zera o bônus deste período</p>
+                    <p className="text-xs text-destructive">Zera o bônus e a sequência</p>
                   )}
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-neutral-500">Sequência sem zerar</p>
+                  <p className="text-lg font-semibold">
+                    {preview.attendanceStreakMonths} mês
+                    {preview.attendanceStreakMonths === 1 ? "" : "es"}
+                  </p>
+                  {preview.attendanceStreakMultiplier > 1 ? (
+                    <p className="text-xs text-primary">
+                      Bônus multiplicado por {preview.attendanceStreakMultiplier}x
+                    </p>
+                  ) : nextStreakTier ? (
+                    <p className="text-xs text-neutral-500">
+                      Faltam {nextStreakTier.months - preview.attendanceStreakMonths} mês
+                      {nextStreakTier.months - preview.attendanceStreakMonths === 1 ? "" : "es"} pra
+                      bônus x{nextStreakTier.multiplier}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-neutral-500">Bônus estimado</p>
