@@ -23,7 +23,11 @@ import {
 } from "@/components/ui/select";
 import { createRecipe, updateRecipe } from "./actions";
 import { setIngredientRecipeUnit } from "../estoque/actions";
+import { recipeItemCost } from "@/lib/recipe-cost";
 import { X } from "lucide-react";
+
+const currency = (value: number) =>
+  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 type Ingredient = {
   id: string;
@@ -31,6 +35,7 @@ type Ingredient = {
   unit: string;
   recipeUnit: string | null;
   unitsPerPackage: string;
+  unitPrice: string;
 };
 
 const UNIT_OPTIONS = [
@@ -230,6 +235,25 @@ export function RecipeDialog({
     );
   }
 
+  function updateRow(key: string, patch: Partial<RecipeIngredientRow>) {
+    setRows((prev) => prev.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+  }
+
+  function rowCost(row: RecipeIngredientRow): number {
+    const selected = ingredients.find((i) => i.id === row.ingredientId);
+    if (!selected) return 0;
+    const override = conversionOverrides[selected.id];
+    const effectiveUnitsPerPackage = Number(override?.unitsPerPackage ?? selected.unitsPerPackage);
+    return recipeItemCost(
+      Number(row.quantity || 0),
+      Number(row.wastePercent || 0),
+      Number(selected.unitPrice),
+      effectiveUnitsPerPackage,
+    );
+  }
+
+  const totalCost = rows.reduce((sum, row) => sum + rowCost(row), 0);
+
   return (
     <Dialog
       open={open}
@@ -358,7 +382,8 @@ export function RecipeDialog({
                           step="0.001"
                           min="0"
                           placeholder="Qtd."
-                          defaultValue={row.quantity}
+                          value={row.quantity}
+                          onChange={(e) => updateRow(row.key, { quantity: e.target.value })}
                           className="w-20"
                           required
                         />
@@ -376,18 +401,26 @@ export function RecipeDialog({
                         <X className="size-4" />
                       </Button>
                     </div>
-                    <div className="flex items-center gap-2 pl-1">
-                      <Label className="text-xs text-neutral-500">% de perda no preparo</Label>
-                      <Input
-                        name="wastePercent"
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="99"
-                        placeholder="0"
-                        defaultValue={row.wastePercent}
-                        className="h-7 w-20"
-                      />
+                    <div className="flex items-center justify-between gap-2 pl-1">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs text-neutral-500">% de perda no preparo</Label>
+                        <Input
+                          name="wastePercent"
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="99"
+                          placeholder="0"
+                          value={row.wastePercent}
+                          onChange={(e) => updateRow(row.key, { wastePercent: e.target.value })}
+                          className="h-7 w-20"
+                        />
+                      </div>
+                      {selected && (
+                        <span className="text-xs font-medium text-primary">
+                          ≈ {currency(rowCost(row))}
+                        </span>
+                      )}
                     </div>
                     {selected && canManageEstoque && (
                       <div className="pl-1">
@@ -403,6 +436,10 @@ export function RecipeDialog({
                   </div>
                 );
               })}
+            </div>
+            <div className="flex justify-between border-t pt-2 text-sm">
+              <span className="font-medium">Custo total da receita</span>
+              <span className="font-semibold text-primary">{currency(totalCost)}</span>
             </div>
             <p className="text-xs text-muted-foreground">
               Ex: a cebola perde peso na limpeza — se você usa 100g líquidos mas perde 20% no

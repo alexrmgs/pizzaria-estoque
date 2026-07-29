@@ -22,6 +22,7 @@ type RecipeIngredientOption = {
   unit: string;
   recipeUnit: string | null;
   unitsPerPackage: string;
+  unitPrice: string;
 };
 
 function RecipeGrid({
@@ -156,7 +157,14 @@ export default async function ReceitasPage() {
     }),
     prisma.ingredient.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true, unit: true, recipeUnit: true, unitsPerPackage: true },
+      select: {
+        id: true,
+        name: true,
+        unit: true,
+        recipeUnit: true,
+        unitsPerPackage: true,
+        unitPrice: true,
+      },
     }),
   ]);
   const ingredientOptions: RecipeIngredientOption[] = ingredients.map((i) => ({
@@ -165,6 +173,7 @@ export default async function ReceitasPage() {
     unit: i.unit,
     recipeUnit: i.recipeUnit,
     unitsPerPackage: i.unitsPerPackage.toString(),
+    unitPrice: i.unitPrice.toString(),
   }));
 
   const byType = {
