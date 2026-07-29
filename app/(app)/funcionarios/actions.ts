@@ -146,3 +146,20 @@ export async function setEmployeeActive(id: string, active: boolean) {
   revalidatePath("/vales");
   revalidatePath("/dashboard");
 }
+
+export async function deleteEmployee(id: string) {
+  await requirePermission("canManageFuncionarios");
+
+  try {
+    await prisma.employee.delete({ where: { id } });
+  } catch {
+    throw new Error(
+      "Esse funcionário já tem pagamentos fechados e não pode ser excluído — use \"Demitir\" pra tirar ele das telas de Pagamentos e Vales mantendo o histórico.",
+    );
+  }
+
+  revalidatePath("/funcionarios");
+  revalidatePath("/pagamentos");
+  revalidatePath("/vales");
+  revalidatePath("/dashboard");
+}

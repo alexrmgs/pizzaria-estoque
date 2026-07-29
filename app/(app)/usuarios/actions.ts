@@ -111,3 +111,22 @@ export async function updateUser(
 
   revalidatePath("/usuarios");
 }
+
+export async function deleteUser(id: string) {
+  const currentUser = await requirePermission("canManageUsuarios");
+
+  if (currentUser.id === id) {
+    throw new Error("Você não pode excluir a própria conta.");
+  }
+
+  try {
+    await prisma.user.delete({ where: { id } });
+  } catch {
+    throw new Error(
+      "Esse usuário já tem lançamentos vinculados (movimentações, pagamentos, vales) ou está ligado a um cadastro de funcionário, e não pode ser excluído.",
+    );
+  }
+
+  revalidatePath("/usuarios");
+  revalidatePath("/funcionarios");
+}

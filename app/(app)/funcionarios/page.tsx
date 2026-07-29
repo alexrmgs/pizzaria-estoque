@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { EmployeeDialog } from "./employee-dialog";
 import { DismissEmployeeButton } from "./dismiss-employee-button";
+import { DeleteEmployeeButton } from "./delete-employee-button";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -121,6 +122,7 @@ export default async function FuncionariosPage() {
                         name={employee.name}
                         active={employee.active}
                       />
+                      <DeleteEmployeeButton id={employee.id} name={employee.name} />
                     </div>
                   </TableCell>
                 </TableRow>

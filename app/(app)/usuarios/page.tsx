@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { UserDialog } from "./user-dialog";
 import { RoleSelect } from "./role-select";
+import { DeleteUserButton } from "./delete-user-button";
 
 export default async function UsuariosPage() {
   const currentUser = await requirePermission("canManageUsuarios");
@@ -56,10 +57,17 @@ export default async function UsuariosPage() {
                   {user.createdAt.toLocaleDateString("pt-BR")}
                 </TableCell>
                 <TableCell className="text-right">
-                  <UserDialog
-                    roles={roles}
-                    user={{ id: user.id, name: user.name, email: user.email, roleId: user.roleId }}
-                  />
+                  <div className="flex justify-end gap-2">
+                    <UserDialog
+                      roles={roles}
+                      user={{ id: user.id, name: user.name, email: user.email, roleId: user.roleId }}
+                    />
+                    <DeleteUserButton
+                      id={user.id}
+                      name={user.name}
+                      disabled={user.id === currentUser.id}
+                    />
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

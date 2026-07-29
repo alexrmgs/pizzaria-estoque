@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmployeeDialog } from "../employee-dialog";
 import { DismissEmployeeButton } from "../dismiss-employee-button";
+import { DeleteEmployeeButton } from "../delete-employee-button";
 import { TimeEntriesSection } from "./time-entries-section";
 import { DayOffsSection } from "./day-offs-section";
 import { AdvancesSection } from "./advances-section";
@@ -134,6 +135,7 @@ export default async function FuncionarioDetalhePage({
               name={employee.name}
               active={employee.active}
             />
+            <DeleteEmployeeButton id={employee.id} name={employee.name} redirectTo="/funcionarios" />
           </div>
         </div>
       </div>
