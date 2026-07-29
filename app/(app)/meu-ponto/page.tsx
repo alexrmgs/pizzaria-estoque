@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/dal";
 import { lateMinutes, nightHours, shiftHours, type AttendanceStreakTier } from "@/lib/payroll";
 import { computePaymentPreview } from "@/lib/payment-preview";
 import { getAppSettings } from "@/lib/settings";
+import { upcomingFolgas } from "@/lib/schedule";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +16,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ClockButton } from "./clock-button";
+import { EscalaSection } from "./escala-section";
+
+const DAYS_AHEAD = 60;
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -94,6 +98,68 @@ export default async function MeuPontoPage() {
     .filter((a) => a.paymentId === null)
     .reduce((sum, a) => sum + Number(a.amount), 0);
 
+  const scheduleWindowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const scheduleWindowEnd = new Date(scheduleWindowStart);
+  scheduleWindowEnd.setDate(scheduleWindowEnd.getDate() + DAYS_AHEAD);
+
+  const [allActiveEmployees, windowDayOffs, sentSwaps, receivedSwaps] = await Promise.all([
+    prisma.employee.findMany({
+      where: { active: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, weeklyDayOff: true },
+    }),
+    prisma.dayOff.findMany({
+      where: { date: { gte: scheduleWindowStart, lte: scheduleWindowEnd }, type: "FOLGA" },
+      select: { employeeId: true, date: true },
+    }),
+    prisma.shiftSwapRequest.findMany({
+      where: { requesterId: employee.id },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: { target: { select: { name: true } } },
+    }),
+    prisma.shiftSwapRequest.findMany({
+      where: { targetId: employee.id, status: "PENDENTE" },
+      orderBy: { createdAt: "desc" },
+      include: { requester: { select: { name: true } } },
+    }),
+  ]);
+
+  const avulsaByEmployee = new Map<string, Set<string>>();
+  for (const dayOff of windowDayOffs) {
+    const iso = dayOff.date.toISOString().slice(0, 10);
+    const set = avulsaByEmployee.get(dayOff.employeeId) ?? new Set<string>();
+    set.add(iso);
+    avulsaByEmployee.set(dayOff.employeeId, set);
+  }
+
+  const roster = allActiveEmployees.map((e) => ({
+    id: e.id,
+    name: e.name,
+    weeklyDayOff: e.weeklyDayOff,
+    folgas: upcomingFolgas(e.weeklyDayOff, avulsaByEmployee.get(e.id) ?? new Set(), DAYS_AHEAD, now),
+  }));
+
+  const sentSwapsData = sentSwaps.map((s) => ({
+    id: s.id,
+    requesterDate: s.requesterDate.toISOString().slice(0, 10),
+    targetDate: s.targetDate.toISOString().slice(0, 10),
+    status: s.status,
+    note: s.note,
+    createdAt: s.createdAt.toISOString(),
+    targetName: s.target.name,
+  }));
+
+  const receivedSwapsData = receivedSwaps.map((s) => ({
+    id: s.id,
+    requesterDate: s.requesterDate.toISOString().slice(0, 10),
+    targetDate: s.targetDate.toISOString().slice(0, 10),
+    status: s.status,
+    note: s.note,
+    createdAt: s.createdAt.toISOString(),
+    requesterName: s.requester.name,
+  }));
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -107,6 +173,7 @@ export default async function MeuPontoPage() {
         <TabsList>
           <TabsTrigger value="ponto">Ponto</TabsTrigger>
           <TabsTrigger value="desempenho">Desempenho</TabsTrigger>
+          <TabsTrigger value="escala">Escala</TabsTrigger>
           <TabsTrigger value="salario">Salário e Vales</TabsTrigger>
         </TabsList>
 
@@ -312,6 +379,15 @@ export default async function MeuPontoPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="escala" className="pt-4">
+          <EscalaSection
+            myEmployeeId={employee.id}
+            roster={roster}
+            sentSwaps={sentSwapsData}
+            receivedSwaps={receivedSwapsData}
+          />
         </TabsContent>
 
         <TabsContent value="salario" className="flex flex-col gap-6 pt-4">

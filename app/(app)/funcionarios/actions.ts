@@ -147,6 +147,65 @@ export async function setEmployeeActive(id: string, active: boolean) {
   revalidatePath("/dashboard");
 }
 
+export async function respondToSwapAsManager(swapId: string, approve: boolean) {
+  const user = await requirePermission("canManageFuncionarios");
+
+  const swap = await prisma.shiftSwapRequest.findUniqueOrThrow({
+    where: { id: swapId },
+    include: { requester: { select: { name: true } }, target: { select: { name: true } } },
+  });
+  if (swap.status !== "ACEITO_PELO_FUNCIONARIO") {
+    throw new Error("Essa solicitação ainda não foi aceita pelo colega, ou já foi finalizada.");
+  }
+
+  if (!approve) {
+    await prisma.shiftSwapRequest.update({
+      where: { id: swapId },
+      data: { status: "RECUSADO_PELA_GERENCIA", managerId: user.id, managerRespondedAt: new Date() },
+    });
+    revalidatePath("/funcionarios");
+    revalidatePath("/meu-ponto");
+    return;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.dayOff.deleteMany({
+      where: { employeeId: swap.requesterId, date: swap.requesterDate, type: "FOLGA" },
+    });
+    await tx.dayOff.deleteMany({
+      where: { employeeId: swap.targetId, date: swap.targetDate, type: "FOLGA" },
+    });
+    await tx.dayOff.upsert({
+      where: { employeeId_date: { employeeId: swap.requesterId, date: swap.targetDate } },
+      update: { type: "FOLGA", reason: `Troca de folga com ${swap.target.name}` },
+      create: {
+        employeeId: swap.requesterId,
+        date: swap.targetDate,
+        type: "FOLGA",
+        reason: `Troca de folga com ${swap.target.name}`,
+      },
+    });
+    await tx.dayOff.upsert({
+      where: { employeeId_date: { employeeId: swap.targetId, date: swap.requesterDate } },
+      update: { type: "FOLGA", reason: `Troca de folga com ${swap.requester.name}` },
+      create: {
+        employeeId: swap.targetId,
+        date: swap.requesterDate,
+        type: "FOLGA",
+        reason: `Troca de folga com ${swap.requester.name}`,
+      },
+    });
+    await tx.shiftSwapRequest.update({
+      where: { id: swapId },
+      data: { status: "APROVADO", managerId: user.id, managerRespondedAt: new Date() },
+    });
+  });
+
+  revalidatePath("/funcionarios");
+  revalidatePath("/meu-ponto");
+  revalidatePath("/dashboard");
+}
+
 export async function deleteEmployee(id: string) {
   await requirePermission("canManageFuncionarios");
 

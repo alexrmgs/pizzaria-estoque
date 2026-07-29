@@ -61,6 +61,7 @@ model User {
   advances  Advance[]
   payments  Payment[]
   employee  Employee?
+  approvedSwaps ShiftSwapRequest[]
 
   @@index([roleId])
 }
@@ -209,6 +210,8 @@ model Employee {
   adjustments PayrollAdjustment[]
   payments    Payment[]
   dayOffs     DayOff[]
+  swapRequestsSent     ShiftSwapRequest[] @relation("SwapRequester")
+  swapRequestsReceived ShiftSwapRequest[] @relation("SwapTarget")
 
   @@index([storeId])
 }
@@ -246,6 +249,42 @@ model DayOff {
 
   @@unique([employeeId, date])
   @@index([employeeId])
+}
+
+enum SwapStatus {
+  PENDENTE
+  ACEITO_PELO_FUNCIONARIO
+  RECUSADO_PELO_FUNCIONARIO
+  APROVADO
+  RECUSADO_PELA_GERENCIA
+  CANCELADO
+}
+
+/**
+ * Troca de folga entre dois funcionários: o solicitante propõe dar sua
+ * folga de `requesterDate` e assumir a folga de `targetDate` do colega. Só
+ * vira realidade (ajusta os registros de folga dos dois) quando o colega
+ * aceita E um gerente aprova.
+ */
+model ShiftSwapRequest {
+  id            String     @id @default(cuid())
+  requester     Employee   @relation("SwapRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  requesterId   String
+  target        Employee   @relation("SwapTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  targetId      String
+  requesterDate DateTime   @db.Date
+  targetDate    DateTime   @db.Date
+  status        SwapStatus @default(PENDENTE)
+  note          String?
+  targetRespondedAt  DateTime?
+  managerId          String?
+  manager            User?     @relation(fields: [managerId], references: [id])
+  managerRespondedAt DateTime?
+  createdAt     DateTime   @default(now())
+
+  @@index([requesterId])
+  @@index([targetId])
+  @@index([status])
 }
 
 enum AdjustmentType {

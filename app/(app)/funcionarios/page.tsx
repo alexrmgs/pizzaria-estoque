@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -14,6 +15,12 @@ import {
 import { EmployeeDialog } from "./employee-dialog";
 import { DismissEmployeeButton } from "./dismiss-employee-button";
 import { DeleteEmployeeButton } from "./delete-employee-button";
+import { SwapApprovalButtons } from "./swap-approval-buttons";
+
+function formatDate(iso: string) {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -21,13 +28,18 @@ const currency = (value: number) =>
 export default async function FuncionariosPage() {
   await requirePermission("canManageFuncionarios");
 
-  const [employees, users, stores] = await Promise.all([
+  const [employees, users, stores, pendingSwaps] = await Promise.all([
     prisma.employee.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] }),
     prisma.user.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true, email: true, employee: { select: { id: true } } },
     }),
     prisma.store.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.shiftSwapRequest.findMany({
+      where: { status: "ACEITO_PELO_FUNCIONARIO" },
+      orderBy: { targetRespondedAt: "asc" },
+      include: { requester: { select: { name: true } }, target: { select: { name: true } } },
+    }),
   ]);
 
   const unlinkedUsers = users.filter((u) => !u.employee);
@@ -43,6 +55,35 @@ export default async function FuncionariosPage() {
         </div>
         <EmployeeDialog availableUsers={unlinkedUsers} stores={stores} />
       </div>
+
+      {pendingSwaps.length > 0 && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-lg">Trocas de folga aguardando aprovação</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {pendingSwaps.map((swap) => (
+              <div
+                key={swap.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-white p-3"
+              >
+                <p className="text-sm">
+                  <span className="font-medium">{swap.requester.name}</span> dá a folga de{" "}
+                  <span className="font-medium">
+                    {formatDate(swap.requesterDate.toISOString().slice(0, 10))}
+                  </span>{" "}
+                  e assume a folga de <span className="font-medium">{swap.target.name}</span> em{" "}
+                  <span className="font-medium">
+                    {formatDate(swap.targetDate.toISOString().slice(0, 10))}
+                  </span>
+                  {swap.note ? <span className="text-neutral-500"> — &quot;{swap.note}&quot;</span> : ""}
+                </p>
+                <SwapApprovalButtons swapId={swap.id} />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="rounded-lg border bg-white">
         <Table>
