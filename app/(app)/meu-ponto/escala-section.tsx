@@ -123,15 +123,19 @@ function ScheduleCalendar({
       </div>
       <div className="grid grid-cols-7 gap-1">
         {cells.map((date, i) => {
-          if (!date) return <div key={i} className="min-h-24 rounded-lg" />;
+          if (!date) return <div key={i} className="rounded-lg" />;
           const iso = toISO(date);
           const offIds = new Set((byDate.get(iso) ?? []).map((p) => p.id));
           const isToday = iso === todayISO;
+          const label = (employee: RosterEmployee) =>
+            employee.id === myEmployeeId ? "Você" : employee.name.split(" ")[0];
+          const off = roster.filter((e) => offIds.has(e.id));
+          const working = roster.filter((e) => !offIds.has(e.id));
           return (
             <div
               key={i}
               className={cn(
-                "flex min-h-24 flex-col gap-0.5 rounded-lg border p-1",
+                "flex flex-col gap-1 rounded-lg border p-1",
                 isToday && "border-primary",
               )}
             >
@@ -140,21 +144,33 @@ function ScheduleCalendar({
               >
                 {date.getDate()}
               </span>
-              {roster.map((employee) => {
-                const isOff = offIds.has(employee.id);
-                const label = employee.id === myEmployeeId ? "Você" : employee.name.split(" ")[0];
-                return (
-                  <span
-                    key={employee.id}
-                    className={cn(
-                      "truncate rounded px-1 text-[10px] leading-tight",
-                      isOff ? employeeColor(employee.id) : "text-neutral-400",
-                    )}
-                  >
-                    {label}
-                  </span>
-                );
-              })}
+              <div className="grid grid-cols-2 gap-1">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[9px] font-medium text-neutral-400">Folga</span>
+                  {off.map((employee) => (
+                    <span
+                      key={employee.id}
+                      className={cn(
+                        "truncate rounded px-1 text-[10px] leading-tight",
+                        employeeColor(employee.id),
+                      )}
+                    >
+                      {label(employee)}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[9px] font-medium text-neutral-400">Trab.</span>
+                  {working.map((employee) => (
+                    <span
+                      key={employee.id}
+                      className="truncate rounded px-1 text-[10px] leading-tight text-neutral-500"
+                    >
+                      {label(employee)}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           );
         })}
