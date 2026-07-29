@@ -14,8 +14,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ClosePaymentDialog } from "../funcionarios/close-payment-dialog";
-import { ReopenPaymentButton } from "../funcionarios/reopen-payment-button";
 import { GenerateAdvancesButton } from "../vales/generate-advances-button";
+import { PaymentMonthSection } from "./payment-month-section";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -27,7 +27,7 @@ export default async function PagamentosPage() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-  const [employees, pendingAdvances, monthAdvances, lastPayments, recentPayments, settings] =
+  const [employees, pendingAdvances, monthAdvances, lastPayments, allPayments, settings] =
     await Promise.all([
       prisma.employee.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
       prisma.advance.findMany({ where: { paymentId: null } }),
@@ -42,8 +42,7 @@ export default async function PagamentosPage() {
         select: { employeeId: true, periodEnd: true },
       }),
       prisma.payment.findMany({
-        orderBy: { paidAt: "desc" },
-        take: 30,
+        orderBy: { periodStart: "desc" },
         include: { employee: { select: { name: true } } },
       }),
       getAppSettings(),
@@ -76,6 +75,59 @@ export default async function PagamentosPage() {
     irrfDependentDeduction: Number(settings.irrfDependentDeduction),
     valeTransporteRate: Number(settings.valeTransporteRate),
   };
+
+  // Agrupa o histórico de pagamentos por mês (com base no início do período),
+  // do mais recente pro mais antigo, cada um com o total líquido pago no mês.
+  type MonthGroup = {
+    key: string;
+    label: string;
+    totalNet: number;
+    payments: {
+      id: string;
+      employeeId: string;
+      employeeName: string;
+      periodStart: string;
+      periodEnd: string;
+      advancesTotal: number;
+      cltTotal: number;
+      netAmount: number;
+      paidAt: string;
+    }[];
+  };
+  const monthGroups: MonthGroup[] = [];
+  const monthGroupByKey = new Map<string, MonthGroup>();
+  for (const payment of allPayments) {
+    const key = `${payment.periodStart.getUTCFullYear()}-${String(payment.periodStart.getUTCMonth() + 1).padStart(2, "0")}`;
+    let group = monthGroupByKey.get(key);
+    if (!group) {
+      const label = payment.periodStart.toLocaleDateString("pt-BR", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      });
+      group = { key, label, totalNet: 0, payments: [] };
+      monthGroupByKey.set(key, group);
+      monthGroups.push(group);
+    }
+    const cltTotal =
+      Number(payment.faltaAmount) +
+      Number(payment.inssAmount) +
+      Number(payment.irrfAmount) +
+      Number(payment.valeTransporteAmount);
+    const netAmount = Number(payment.netAmount);
+    group.totalNet += netAmount;
+    group.payments.push({
+      id: payment.id,
+      employeeId: payment.employeeId,
+      employeeName: payment.employee.name,
+      periodStart: payment.periodStart.toISOString().slice(0, 10),
+      periodEnd: payment.periodEnd.toISOString().slice(0, 10),
+      advancesTotal: Number(payment.advancesTotal),
+      cltTotal,
+      netAmount,
+      paidAt: payment.paidAt.toLocaleDateString("pt-BR"),
+    });
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -202,7 +254,9 @@ export default async function PagamentosPage() {
                     {pendingOutrosVales > 0 ? currency(pendingOutrosVales) : "—"}
                   </TableCell>
                   <TableCell className="text-neutral-500">
-                    {lastPaymentDate ? lastPaymentDate.toLocaleDateString("pt-BR") : "Nunca"}
+                    {lastPaymentDate
+                      ? lastPaymentDate.toLocaleDateString("pt-BR", { timeZone: "UTC" })
+                      : "Nunca"}
                   </TableCell>
                   <TableCell>
                     {prevMonthClosed ? (
@@ -229,80 +283,24 @@ export default async function PagamentosPage() {
         </Table>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Últimos pagamentos fechados</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Funcionário</TableHead>
-                  <TableHead>Período</TableHead>
-                  <TableHead>Vales (com adiantamento)</TableHead>
-                  <TableHead>Descontos CLT</TableHead>
-                  <TableHead>Líquido</TableHead>
-                  <TableHead>Pago em</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentPayments.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-neutral-500">
-                      Nenhum pagamento fechado ainda.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {recentPayments.map((payment) => {
-                  const cltTotal =
-                    Number(payment.faltaAmount) +
-                    Number(payment.inssAmount) +
-                    Number(payment.irrfAmount) +
-                    Number(payment.valeTransporteAmount);
-                  return (
-                    <TableRow key={payment.id}>
-                      <TableCell className="font-medium">
-                        <Link
-                          href={`/funcionarios/${payment.employeeId}`}
-                          className="hover:underline"
-                        >
-                          {payment.employee.name}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="text-neutral-500">
-                        {payment.periodStart.toISOString().slice(0, 10)} a{" "}
-                        {payment.periodEnd.toISOString().slice(0, 10)}
-                      </TableCell>
-                      <TableCell className="text-destructive">
-                        {Number(payment.advancesTotal) > 0
-                          ? currency(Number(payment.advancesTotal))
-                          : "—"}
-                      </TableCell>
-                      <TableCell className="text-destructive">
-                        {cltTotal > 0 ? currency(cltTotal) : "—"}
-                      </TableCell>
-                      <TableCell className="font-semibold text-primary">
-                        {currency(Number(payment.netAmount))}
-                      </TableCell>
-                      <TableCell className="text-neutral-500">
-                        {payment.paidAt.toLocaleDateString("pt-BR")}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <ReopenPaymentButton
-                          employeeId={payment.employeeId}
-                          paymentId={payment.id}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+      <div>
+        <h2 className="mb-3 text-lg font-semibold">Histórico de pagamentos por mês</h2>
+        {monthGroups.length === 0 ? (
+          <p className="text-sm text-neutral-500">Nenhum pagamento fechado ainda.</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {monthGroups.map((group, index) => (
+              <PaymentMonthSection
+                key={group.key}
+                monthLabel={group.label}
+                payments={group.payments}
+                totalNet={group.totalNet}
+                defaultOpen={index === 0}
+              />
+            ))}
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
   );
 }
