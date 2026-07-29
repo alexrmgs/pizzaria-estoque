@@ -123,15 +123,15 @@ function ScheduleCalendar({
       </div>
       <div className="grid grid-cols-7 gap-1">
         {cells.map((date, i) => {
-          if (!date) return <div key={i} className="min-h-20 rounded-lg" />;
+          if (!date) return <div key={i} className="min-h-24 rounded-lg" />;
           const iso = toISO(date);
-          const people = byDate.get(iso) ?? [];
+          const offIds = new Set((byDate.get(iso) ?? []).map((p) => p.id));
           const isToday = iso === todayISO;
           return (
             <div
               key={i}
               className={cn(
-                "flex min-h-20 flex-col gap-0.5 rounded-lg border p-1",
+                "flex min-h-24 flex-col gap-0.5 rounded-lg border p-1",
                 isToday && "border-primary",
               )}
             >
@@ -140,17 +140,21 @@ function ScheduleCalendar({
               >
                 {date.getDate()}
               </span>
-              {people.slice(0, 3).map((p) => (
-                <span
-                  key={p.id}
-                  className={cn("truncate rounded px-1 text-[10px] leading-tight", employeeColor(p.id))}
-                >
-                  {p.id === myEmployeeId ? "Você" : p.name.split(" ")[0]}
-                </span>
-              ))}
-              {people.length > 3 && (
-                <span className="text-[10px] text-neutral-400">+{people.length - 3}</span>
-              )}
+              {roster.map((employee) => {
+                const isOff = offIds.has(employee.id);
+                const label = employee.id === myEmployeeId ? "Você" : employee.name.split(" ")[0];
+                return (
+                  <span
+                    key={employee.id}
+                    className={cn(
+                      "truncate rounded px-1 text-[10px] leading-tight",
+                      isOff ? employeeColor(employee.id) : "text-neutral-400",
+                    )}
+                  >
+                    {label}
+                  </span>
+                );
+              })}
             </div>
           );
         })}
@@ -400,18 +404,23 @@ export function EscalaSection({
         <CardContent className="flex flex-col gap-4">
           <ScheduleCalendar roster={roster} myEmployeeId={myEmployeeId} />
 
-          <div className="flex flex-wrap gap-2 text-xs text-neutral-500">
-            {roster.map((employee, i) => (
-              <span
-                key={employee.id}
-                className={cn(
-                  "rounded px-1.5 py-0.5",
-                  EMPLOYEE_COLORS[i % EMPLOYEE_COLORS.length],
-                )}
-              >
-                {employee.id === myEmployeeId ? "Você" : employee.name.split(" ")[0]}
-              </span>
-            ))}
+          <div className="flex flex-col gap-1">
+            <p className="text-xs text-neutral-400">
+              Colorido = de folga nesse dia · cinza = trabalhando
+            </p>
+            <div className="flex flex-wrap gap-2 text-xs text-neutral-500">
+              {roster.map((employee, i) => (
+                <span
+                  key={employee.id}
+                  className={cn(
+                    "rounded px-1.5 py-0.5",
+                    EMPLOYEE_COLORS[i % EMPLOYEE_COLORS.length],
+                  )}
+                >
+                  {employee.id === myEmployeeId ? "Você" : employee.name.split(" ")[0]}
+                </span>
+              ))}
+            </div>
           </div>
 
           <RequestSwapForm myEmployeeId={myEmployeeId} roster={roster} />
