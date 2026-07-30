@@ -71,12 +71,7 @@ export function NavLinks({ permissions }: { permissions: Permissions }) {
         ]
       : []),
     ...(permissions.canManageReceitas ? [{ href: "/receitas", label: "Receitas" }] : []),
-    ...(permissions.canViewRelatorios
-      ? [
-          { href: "/relatorios", label: "Relatórios" },
-          { href: "/financeiro", label: "Financeiro" },
-        ]
-      : []),
+    ...(permissions.canViewRelatorios ? [{ href: "/relatorios", label: "Relatórios" }] : []),
   ];
 
   const rhItems: NavItem[] = permissions.canManageFuncionarios
@@ -88,6 +83,10 @@ export function NavLinks({ permissions }: { permissions: Permissions }) {
         { href: "/feriados", label: "Feriados" },
         { href: "/lojas", label: "Lojas" },
       ]
+    : [];
+
+  const financeiroItems: NavItem[] = permissions.canViewRelatorios
+    ? [{ href: "/financeiro", label: "Financeiro" }]
     : [];
 
   const hasAdminAccess =
@@ -102,6 +101,7 @@ export function NavLinks({ permissions }: { permissions: Permissions }) {
 
       <NavGroup title="Gestão de Estoque" items={estoqueItems} />
       <NavGroup title="Gestão de RH" items={rhItems} />
+      <NavGroup title="Financeiro" items={financeiroItems} />
 
       {hasAdminAccess && (
         <div className="flex flex-col gap-1 border-t border-sidebar-border pt-2">
