@@ -68,7 +68,7 @@ export default async function DashboardPage({
 
   let periodContent = null;
   if (canViewRelatorios) {
-    const [entradas, saidas, revenues] = await Promise.all([
+    const [entradas, saidas, revenues, stores] = await Promise.all([
       prisma.stockMovement.findMany({
         where: { type: "ENTRADA", createdAt: { gte: from, lte: to } },
         include: { ingredient: { include: { category: true } } },
@@ -81,6 +81,7 @@ export default async function DashboardPage({
         where: { date: { gte: from, lte: to } },
         orderBy: { date: "desc" },
       }),
+      prisma.store.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     ]);
 
     const custoSaidas = saidas.reduce(
@@ -151,7 +152,7 @@ export default async function DashboardPage({
             Mês atual
           </Button>
           <div className="ml-auto">
-            <RevenueDialog />
+            <RevenueDialog stores={stores} />
           </div>
         </form>
 

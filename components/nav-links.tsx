@@ -71,7 +71,12 @@ export function NavLinks({ permissions }: { permissions: Permissions }) {
         ]
       : []),
     ...(permissions.canManageReceitas ? [{ href: "/receitas", label: "Receitas" }] : []),
-    ...(permissions.canViewRelatorios ? [{ href: "/relatorios", label: "Relatórios" }] : []),
+    ...(permissions.canViewRelatorios
+      ? [
+          { href: "/relatorios", label: "Relatórios" },
+          { href: "/financeiro", label: "Financeiro" },
+        ]
+      : []),
   ];
 
   const rhItems: NavItem[] = permissions.canManageFuncionarios

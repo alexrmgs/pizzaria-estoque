@@ -134,16 +134,20 @@ model StockMovement {
 }
 
 model Revenue {
-  id        String   @id @default(cuid())
-  date      DateTime @db.Date
-  amount    Decimal  @db.Decimal(10, 2)
-  note      String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  date       DateTime @db.Date
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id])
+  amount     Decimal  @db.Decimal(10, 2)
+  orderCount Int      @default(0)
+  note       String?
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  @@unique([date])
+  @@unique([date, storeId])
+  @@index([storeId])
 }
 
 model Recipe {
@@ -184,6 +188,7 @@ model Store {
   updatedAt    DateTime @updatedAt
 
   employees Employee[]
+  revenues  Revenue[]
 }
 
 model Holiday {
