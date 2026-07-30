@@ -41,6 +41,16 @@ export default async function ConfiguracoesPage() {
     redirect("/meu-ponto");
   }
 
+  const lojasLink: ConfigLink[] = role.canManageFuncionarios
+    ? [
+        {
+          href: "/lojas",
+          title: "Lojas",
+          description: "Unidades da FB Pizzaria — usado no ponto, no financeiro e no estoque.",
+        },
+      ]
+    : [];
+
   const estoqueLinks: ConfigLink[] = role.canManageEstoque
     ? [
         {
@@ -48,6 +58,7 @@ export default async function ConfiguracoesPage() {
           title: "Categorias",
           description: "Organize os ingredientes do estoque por categoria.",
         },
+        ...lojasLink,
       ]
     : [];
 
@@ -78,13 +89,11 @@ export default async function ConfiguracoesPage() {
           title: "Feriados",
           description: "Feriados nacionais, estaduais e municipais, usados no cálculo de faltas.",
         },
-        {
-          href: "/lojas",
-          title: "Lojas",
-          description: "Unidades da FB Pizzaria e confirmação de localização no ponto.",
-        },
+        ...lojasLink,
       ]
     : [];
+
+  const financeiroLinks: ConfigLink[] = role.canViewRelatorios ? [...lojasLink] : [];
 
   const sistemaLinks: ConfigLink[] = role.canManageUsuarios
     ? [
@@ -106,6 +115,7 @@ export default async function ConfiguracoesPage() {
   const tabs = [
     { value: "estoque", label: "Estoque", visible: role.canManageEstoque },
     { value: "rh", label: "Gestão de RH", visible: role.canManageFuncionarios },
+    { value: "financeiro", label: "Financeiro", visible: role.canViewRelatorios },
     { value: "sistema", label: "Sistema", visible: role.canManageUsuarios },
   ].filter((t) => t.visible);
   const defaultTab = tabs[0]?.value ?? "estoque";
@@ -183,6 +193,12 @@ export default async function ConfiguracoesPage() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+        )}
+
+        {role.canViewRelatorios && (
+          <TabsContent value="financeiro" className="flex flex-col gap-4 pt-4">
+            <LinkGrid links={financeiroLinks} />
           </TabsContent>
         )}
 
