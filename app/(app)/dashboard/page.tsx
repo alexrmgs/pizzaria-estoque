@@ -78,7 +78,9 @@ export default async function DashboardPage({
         include: { ingredient: true },
       }),
       prisma.revenue.findMany({
-        where: { date: { gte: from, lte: to } },
+        // O estoque/CMV aqui é só da FB Eusébio — faturamento de outras
+        // lojas não entra nessa conta pra não distorcer o CMV.
+        where: { date: { gte: from, lte: to }, store: { name: "FB EUSEBIO" } },
         orderBy: { date: "desc" },
       }),
       prisma.store.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -159,12 +161,12 @@ export default async function DashboardPage({
         <div className="grid gap-4 sm:grid-cols-3">
           <Card>
             <CardHeader className="pb-1">
-              <CardTitle className="text-sm text-neutral-500">Faturamento no período</CardTitle>
+              <CardTitle className="text-sm text-neutral-500">Faturamento no período (FB Eusébio)</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold">{currency(faturamentoTotal)}</p>
               <p className="mt-1 text-xs text-neutral-500">
-                {revenues.length} de {diasNoPeriodo} dia(s) lançado(s)
+                {revenues.length} de {diasNoPeriodo} dia(s) lançado(s) — só a loja com esse estoque
               </p>
             </CardContent>
           </Card>
@@ -188,7 +190,9 @@ export default async function DashboardPage({
                 {cmv !== null ? `${cmv.toFixed(1)}%` : "—"}
               </p>
               <p className="mt-1 text-xs text-neutral-500">
-                {cmv !== null ? "Custo ÷ faturamento do período" : "Lance o faturamento para calcular"}
+                {cmv !== null
+                  ? "Custo ÷ faturamento da FB Eusébio no período"
+                  : "Lance o faturamento da FB Eusébio para calcular"}
               </p>
             </CardContent>
           </Card>
