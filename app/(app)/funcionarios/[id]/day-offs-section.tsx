@@ -126,7 +126,16 @@ export function DayOffsSection({
           <div className="flex flex-col gap-1">
             <Label className="text-xs">Tipo</Label>
             <input type="hidden" name="type" value={type} />
-            <Select value={type} onValueChange={(v) => setType(v as AbsenceType)}>
+            <Select
+              value={type}
+              onValueChange={(v) => setType(v as AbsenceType)}
+              items={[
+                { value: "FOLGA", label: "Folga" },
+                { value: "ATESTADO", label: "Atestado" },
+                { value: "FALTA", label: "Falta" },
+                { value: "TRABALHA", label: "Trabalha (cancela a folga)" },
+              ]}
+            >
               <SelectTrigger className="h-9 w-48">
                 <SelectValue />
               </SelectTrigger>

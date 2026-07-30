@@ -78,7 +78,11 @@ export function RevenueDialog({ stores }: { stores: { id: string; name: string }
             <div className="flex flex-col gap-2">
               <Label htmlFor="storeId">Loja</Label>
               <input type="hidden" name="storeId" value={storeId} />
-              <Select value={storeId || undefined} onValueChange={(v) => setStoreId(v ?? "")}>
+              <Select
+                value={storeId || undefined}
+                onValueChange={(v) => setStoreId(v ?? "")}
+                items={stores.map((store) => ({ value: store.id, label: store.name }))}
+              >
                 <SelectTrigger id="storeId" className="w-full">
                   <SelectValue placeholder="Selecione a loja" />
                 </SelectTrigger>
