@@ -156,6 +156,7 @@ model Recipe {
   type         RecipeType @default(PRODUCAO)
   description  String?
   instructions String?
+  imageUrl     String?
   yieldKg      Decimal?   @db.Decimal(10, 3)
   createdAt    DateTime   @default(now())
 

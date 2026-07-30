@@ -60,12 +60,24 @@ function RecipeGrid({
         return (
           <Card key={recipe.id}>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between text-lg">
-                {recipe.name}
-              </CardTitle>
-              {recipe.description && (
-                <p className="text-sm text-neutral-500">{recipe.description}</p>
-              )}
+              <div className="flex items-start gap-3">
+                {recipe.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={recipe.imageUrl}
+                    alt={recipe.name}
+                    className="h-14 w-14 shrink-0 rounded-lg border object-cover"
+                  />
+                )}
+                <div>
+                  <CardTitle className="flex items-center justify-between text-lg">
+                    {recipe.name}
+                  </CardTitle>
+                  {recipe.description && (
+                    <p className="text-sm text-neutral-500">{recipe.description}</p>
+                  )}
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <ul className="flex flex-col gap-1 text-sm">
@@ -125,6 +137,7 @@ function RecipeGrid({
                         type: recipe.type,
                         description: recipe.description,
                         instructions: recipe.instructions,
+                        imageUrl: recipe.imageUrl,
                         yieldKg: recipe.yieldKg?.toString() ?? null,
                         ingredients: recipe.ingredients.map((item) => ({
                           ingredientId: item.ingredientId,

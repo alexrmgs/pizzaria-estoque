@@ -10,6 +10,12 @@ const recipeSchema = z.object({
   type: z.enum(["PRODUCAO", "PIZZA", "BEIRUTE", "ESFIHA"]),
   description: z.string().trim().max(1000).optional(),
   instructions: z.string().trim().max(5000).optional(),
+  imageUrl: z
+    .string()
+    .trim()
+    .max(4_000_000, "Imagem muito grande — escolha uma foto menor.")
+    .optional()
+    .transform((v) => (v ? v : null)),
   yieldKg: z.coerce.number().positive("O rendimento deve ser maior que zero.").nullable(),
   ingredientId: z
     .array(z.string().trim().min(1, "Selecione um ingrediente."))
@@ -31,6 +37,7 @@ function parseRecipeForm(formData: FormData) {
     type: formData.get("type"),
     description: formData.get("description") || undefined,
     instructions: formData.get("instructions") || undefined,
+    imageUrl: formData.get("imageUrl") || undefined,
     yieldKg,
     ingredientId,
     quantity: formData.getAll("quantity"),
@@ -49,7 +56,7 @@ export async function createRecipe(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const { name, type, description, instructions, yieldKg, ingredientId, quantity, wastePercent } =
+  const { name, type, description, instructions, imageUrl, yieldKg, ingredientId, quantity, wastePercent } =
     parsed.data;
 
   await prisma.recipe.create({
@@ -58,6 +65,7 @@ export async function createRecipe(
       type,
       description,
       instructions,
+      imageUrl,
       yieldKg,
       ingredients: {
         create: ingredientId.map((id, index) => ({
@@ -84,7 +92,7 @@ export async function updateRecipe(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const { name, type, description, instructions, yieldKg, ingredientId, quantity, wastePercent } =
+  const { name, type, description, instructions, imageUrl, yieldKg, ingredientId, quantity, wastePercent } =
     parsed.data;
 
   await prisma.$transaction([
@@ -96,6 +104,7 @@ export async function updateRecipe(
         type,
         description,
         instructions,
+        imageUrl,
         yieldKg,
         ingredients: {
           create: ingredientId.map((ingId, index) => ({

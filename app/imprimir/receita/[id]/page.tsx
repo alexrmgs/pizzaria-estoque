@@ -38,6 +38,18 @@ export default async function ImprimirReceitaPage({
       </div>
       {recipe.description && <p className="-mt-2 text-neutral-600">{recipe.description}</p>}
 
+      {recipe.imageUrl && (
+        <div>
+          <h2 className="mb-2 text-lg font-semibold">Como deve ficar pronto</h2>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={recipe.imageUrl}
+            alt={`Referência de ${recipe.name} pronto`}
+            className="max-h-80 w-full rounded-lg border object-cover"
+          />
+        </div>
+      )}
+
       <div>
         <h2 className="mb-2 text-lg font-semibold">Ingredientes</h2>
         <ul className="flex flex-col gap-1">

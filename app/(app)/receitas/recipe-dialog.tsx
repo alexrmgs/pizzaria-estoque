@@ -72,9 +72,41 @@ type Recipe = {
   type: RecipeType;
   description: string | null;
   instructions: string | null;
+  imageUrl: string | null;
   yieldKg: string | null;
   ingredients: { ingredientId: string; quantity: string; wastePercent: string }[];
 };
+
+const MAX_IMAGE_DIMENSION = 1000;
+const IMAGE_QUALITY = 0.82;
+
+/** Redimensiona a foto no navegador antes de enviar, pra não guardar fotos
+ * de câmera de celular (vários MB) direto no banco. */
+function resizeImageToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Não foi possível ler a imagem."));
+    reader.onload = () => {
+      const img = document.createElement("img");
+      img.onerror = () => reject(new Error("Arquivo de imagem inválido."));
+      img.onload = () => {
+        const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Não foi possível processar a imagem."));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", IMAGE_QUALITY));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 type ConversionOverride = { recipeUnit: string | null; unitsPerPackage: string };
 
@@ -204,6 +236,23 @@ export function RecipeDialog({
       : [{ key: "row-0", ingredientId: "", quantity: "", wastePercent: "0" }],
   );
   const [conversionOverrides, setConversionOverrides] = useState<Record<string, ConversionOverride>>({});
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(recipe?.imageUrl ?? null);
+  const [imageError, setImageError] = useState<string | undefined>();
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+
+  async function handleImageChange(file: File | null) {
+    if (!file) return;
+    setImageError(undefined);
+    setIsProcessingImage(true);
+    try {
+      const dataUrl = await resizeImageToDataUrl(file);
+      setImageDataUrl(dataUrl);
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : "Não foi possível processar a imagem.");
+    } finally {
+      setIsProcessingImage(false);
+    }
+  }
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -259,7 +308,11 @@ export function RecipeDialog({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (next) setType(recipe?.type ?? defaultType ?? "PRODUCAO");
+        if (next) {
+          setType(recipe?.type ?? defaultType ?? "PRODUCAO");
+          setImageDataUrl(recipe?.imageUrl ?? null);
+          setImageError(undefined);
+        }
       }}
     >
       <DialogTrigger
@@ -269,7 +322,7 @@ export function RecipeDialog({
           </Button>
         }
       />
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{recipe ? "Editar receita" : "Nova receita"}</DialogTitle>
         </DialogHeader>
@@ -322,6 +375,47 @@ export function RecipeDialog({
               placeholder="Descreva o passo a passo do preparo..."
               defaultValue={recipe?.instructions ?? ""}
             />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="image">Foto do prato pronto (opcional)</Label>
+            <input type="hidden" name="imageUrl" value={imageDataUrl ?? ""} />
+            <div className="flex items-end gap-3">
+              {imageDataUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={imageDataUrl}
+                  alt="Foto de referência do prato pronto"
+                  className="h-24 w-24 rounded-lg border object-cover"
+                />
+              )}
+              <div className="flex flex-col gap-2">
+                <Input
+                  id="image"
+                  type="file"
+                  accept="image/*"
+                  disabled={isProcessingImage}
+                  onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
+                />
+                {imageDataUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="self-start"
+                    onClick={() => setImageDataUrl(null)}
+                  >
+                    Remover foto
+                  </Button>
+                )}
+              </div>
+            </div>
+            {isProcessingImage && <p className="text-xs text-neutral-500">Processando imagem...</p>}
+            {imageError && <p className="text-xs text-destructive">{imageError}</p>}
+            <p className="text-xs text-neutral-500">
+              Mostra como o prato deve ficar pronto — aparece também na ficha impressa, como
+              referência pra equipe.
+            </p>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -452,7 +546,7 @@ export function RecipeDialog({
           </div>
 
           <DialogFooter>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending || isProcessingImage}>
               {isPending ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
