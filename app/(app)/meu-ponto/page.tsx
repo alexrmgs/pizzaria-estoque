@@ -445,7 +445,7 @@ export default async function MeuPontoPage() {
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-neutral-500">Líquido previsto</p>
                   <p className="text-lg font-semibold text-primary">
-                    {currency(preview.netAmount)}
+                    {currency(preview.netAmount - preview.faltaAmountAuto)}
                   </p>
                 </div>
               </div>
@@ -460,6 +460,21 @@ export default async function MeuPontoPage() {
                   <p className="mt-1 text-xs text-neutral-500">
                     A tolerância legal é de até 5 minutos por evento — acima disso, o atraso todo
                     entra no desconto.
+                  </p>
+                </div>
+              )}
+
+              {preview.faltaDaysAuto > 0 && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                  <p className="text-xs font-medium text-destructive">
+                    Desconto por falta: {currency(preview.faltaAmountAuto)} ({preview.faltaDaysAuto}{" "}
+                    dia{preview.faltaDaysAuto === 1 ? "" : "s"} — {preview.faltaDatesAuto
+                      .map((d) => d.split("-").reverse().join("/"))
+                      .join(", ")}
+                    )
+                  </p>
+                  <p className="mt-1 text-xs text-neutral-500">
+                    1/30 do salário por dia de falta sem justificativa, como manda a CLT.
                   </p>
                 </div>
               )}
