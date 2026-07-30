@@ -467,14 +467,23 @@ export default async function MeuPontoPage() {
               {preview.faltaDaysAuto > 0 && (
                 <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
                   <p className="text-xs font-medium text-destructive">
-                    Desconto por falta: {currency(preview.faltaAmountAuto)} ({preview.faltaDaysAuto}{" "}
-                    dia{preview.faltaDaysAuto === 1 ? "" : "s"} — {preview.faltaDatesAuto
-                      .map((d) => d.split("-").reverse().join("/"))
-                      .join(", ")}
-                    )
+                    Desconto por falta: {currency(preview.faltaAmountAuto)} — faltou em{" "}
+                    {preview.faltaDatesAuto.map((d) => d.split("-").reverse().join("/")).join(", ")}
+                    {preview.faltaDsrDaysAuto > 0 &&
+                      `, e perdeu o descanso semanal remunerado (DSR) da${
+                        preview.faltaDsrDaysAuto === 1 ? "" : "s"
+                      } semana${preview.faltaDsrDaysAuto === 1 ? "" : "s"}`}
+                    {preview.faltaHolidayDaysAuto > 0 &&
+                      ` e o pagamento de ${preview.faltaHolidayDaysAuto} feriado${
+                        preview.faltaHolidayDaysAuto === 1 ? "" : "s"
+                      } na mesma semana`}
+                    {" "}({preview.faltaDaysAuto} dia{preview.faltaDaysAuto === 1 ? "" : "s"} no
+                    total).
                   </p>
                   <p className="mt-1 text-xs text-neutral-500">
-                    1/30 do salário por dia de falta sem justificativa, como manda a CLT.
+                    Falta sem justificativa desconta o dia, o descanso semanal remunerado da semana
+                    e eventual feriado na mesma semana (1/30 do salário cada), como manda a Lei
+                    605/49.
                   </p>
                 </div>
               )}

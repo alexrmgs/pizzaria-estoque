@@ -74,6 +74,11 @@ export default async function ConfiguracoesPage() {
           description: "Lançamento rápido de vale para qualquer funcionário.",
         },
         {
+          href: "/feriados",
+          title: "Feriados",
+          description: "Feriados nacionais, estaduais e municipais, usados no cálculo de faltas.",
+        },
+        {
           href: "/lojas",
           title: "Lojas",
           description: "Unidades da FB Pizzaria e confirmação de localização no ponto.",

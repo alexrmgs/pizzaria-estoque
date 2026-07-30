@@ -186,6 +186,15 @@ model Store {
   employees Employee[]
 }
 
+model Holiday {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  name      String
+  createdAt DateTime @default(now())
+
+  @@unique([date])
+}
+
 model Employee {
   id         String    @id @default(cuid())
   name       String

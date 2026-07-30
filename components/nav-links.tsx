@@ -80,6 +80,7 @@ export function NavLinks({ permissions }: { permissions: Permissions }) {
         { href: "/escalas", label: "Escalas" },
         { href: "/pagamentos", label: "Pagamentos" },
         { href: "/vales", label: "Vales" },
+        { href: "/feriados", label: "Feriados" },
         { href: "/lojas", label: "Lojas" },
       ]
     : [];

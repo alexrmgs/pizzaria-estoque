@@ -371,10 +371,17 @@ export function ClosePaymentDialog({
                   </div>
                   {preview.faltaDatesAuto.length > 0 ? (
                     <p className="pl-6 text-xs text-muted-foreground">
-                      Detectado automaticamente pelas faltas registradas no período:{" "}
+                      Faltas registradas no período:{" "}
                       {preview.faltaDatesAuto.map((d) => d.split("-").reverse().join("/")).join(", ")}
-                      . Desconto de 1/30 do salário por dia, como manda a CLT. Ajuste o número acima
-                      se precisar.
+                      {" "}({preview.faltaDatesAuto.length} dia
+                      {preview.faltaDatesAuto.length === 1 ? "" : "s"})
+                      {preview.faltaDsrDaysAuto > 0 &&
+                        ` + ${preview.faltaDsrDaysAuto} dia${preview.faltaDsrDaysAuto === 1 ? "" : "s"} de DSR perdido`}
+                      {preview.faltaHolidayDaysAuto > 0 &&
+                        ` + ${preview.faltaHolidayDaysAuto} feriado${preview.faltaHolidayDaysAuto === 1 ? "" : "s"} na semana`}
+                      {" "}= {preview.faltaDaysAuto} dia{preview.faltaDaysAuto === 1 ? "" : "s"}{" "}
+                      descontado{preview.faltaDaysAuto === 1 ? "" : "s"} (1/30 do salário cada, Lei
+                      605/49). Ajuste o número acima se precisar.
                     </p>
                   ) : (
                     <p className="pl-6 text-xs text-muted-foreground">

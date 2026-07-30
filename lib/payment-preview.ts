@@ -7,6 +7,7 @@ import {
   discountableLateMinutes,
   excessHoursByDay,
   faltaAmount,
+  faltaDeductionDays,
   lateDiscountAmount,
   lateMinutes,
   nightHours,
@@ -44,6 +45,8 @@ export type PaymentPreview = {
   attendanceBonusAmount: number;
   faltaDatesAuto: string[];
   faltaDaysAuto: number;
+  faltaDsrDaysAuto: number;
+  faltaHolidayDaysAuto: number;
   faltaAmountAuto: number;
 };
 
@@ -52,7 +55,14 @@ export async function computePaymentPreview(
   periodStart: Date,
   periodEnd: Date,
 ): Promise<PaymentPreview> {
-  const [employee, settings, timeEntries, adjustments, advances, dayOffs] = await Promise.all([
+  // Janela estendida (6 dias pra cada lado) porque a semana de DSR de uma
+  // falta perto da borda do período pode cair fora do período em si.
+  const holidayWindowStart = new Date(periodStart);
+  holidayWindowStart.setDate(holidayWindowStart.getDate() - 6);
+  const holidayWindowEnd = new Date(periodEnd);
+  holidayWindowEnd.setDate(holidayWindowEnd.getDate() + 6);
+
+  const [employee, settings, timeEntries, adjustments, advances, dayOffs, holidays] = await Promise.all([
     prisma.employee.findUniqueOrThrow({ where: { id: employeeId } }),
     getAppSettings(),
     prisma.timeEntry.findMany({
@@ -68,6 +78,10 @@ export async function computePaymentPreview(
     }),
     prisma.dayOff.findMany({
       where: { employeeId, date: { gte: periodStart, lte: periodEnd } },
+    }),
+    prisma.holiday.findMany({
+      where: { date: { gte: holidayWindowStart, lte: holidayWindowEnd } },
+      select: { date: true },
     }),
   ]);
 
@@ -103,15 +117,18 @@ export async function computePaymentPreview(
 
   const absenceCount = dayOffs.filter((d) => d.type === "ATESTADO" || d.type === "FALTA").length;
 
-  // Desconto de falta conforme a CLT: 1/30 do salário por dia faltado sem
-  // justificativa, detectado a partir das faltas já registradas no período
-  // (em Funcionários → Folgas, atestados e faltas) — some automaticamente
-  // no fechamento, sem precisar digitar de novo.
+  // Desconto de falta conforme a CLT/Lei 605-49: 1/30 do salário por dia,
+  // contando o dia da falta em si + o DSR (descanso semanal remunerado) da
+  // semana em que ela ocorreu + qualquer feriado dentro dessa mesma semana
+  // — detectado a partir das faltas já registradas no período (em
+  // Funcionários → Folgas, atestados e faltas), sem precisar digitar de novo.
   const faltaDatesAuto = dayOffs
     .filter((d) => d.type === "FALTA")
     .map((d) => d.date.toISOString().slice(0, 10))
     .sort();
-  const faltaDaysAuto = faltaDatesAuto.length;
+  const holidayDates = new Set(holidays.map((h) => h.date.toISOString().slice(0, 10)));
+  const faltaDeduction = faltaDeductionDays(faltaDatesAuto, employee.weeklyDayOff, holidayDates);
+  const faltaDaysAuto = faltaDeduction.totalDays;
   const faltaAmountAutoVal = faltaAmount(baseSalary, faltaDaysAuto);
   const scoreVal = attendanceScore(lateOccurrences, settings.latePenaltyPoints);
   const baseBonusVal = attendanceBonusAmount(
@@ -199,6 +216,8 @@ export async function computePaymentPreview(
     attendanceBonusAmount: attendanceBonusVal,
     faltaDatesAuto,
     faltaDaysAuto,
+    faltaDsrDaysAuto: faltaDeduction.dsrDaysLost,
+    faltaHolidayDaysAuto: faltaDeduction.holidayDaysLost,
     faltaAmountAuto: faltaAmountAutoVal,
   };
 }

@@ -178,6 +178,84 @@ export function faltaAmount(baseSalary: number, faltaDays: number): number {
   return (baseSalary / 30) * faltaDays;
 }
 
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function toISODate(d: Date): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function fromISODate(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+export type FaltaDeduction = {
+  totalDays: number;
+  faltaDays: number;
+  dsrDaysLost: number;
+  holidayDaysLost: number;
+};
+
+/**
+ * Dias a descontar por falta injustificada, seguindo a Lei 605/49 (art. 6º):
+ * além do dia da falta em si, o funcionário perde o direito ao DSR
+ * (descanso semanal remunerado) da semana em que faltou, e a qualquer
+ * feriado que caia dentro dessa mesma semana — a falta quebra a
+ * "assiduidade integral" exigida pra receber esses dias como remunerados.
+ *
+ * A "semana" de cada falta é definida pela folga fixa semanal do
+ * funcionário (`weeklyDayOff`): os 7 dias terminando nessa folga. Faltas
+ * na mesma semana só derrubam 1 DSR (não um por falta) — é um só descanso
+ * por semana, não importa quantas faltas ocorreram nela.
+ *
+ * Sem folga fixa cadastrada não dá pra determinar a semana, então só os
+ * dias da falta em si são descontados (sem DSR/feriado).
+ */
+export function faltaDeductionDays(
+  faltaDates: string[],
+  weeklyDayOff: number | null,
+  holidayDates: Set<string>,
+): FaltaDeduction {
+  if (weeklyDayOff === null) {
+    return { totalDays: faltaDates.length, faltaDays: faltaDates.length, dsrDaysLost: 0, holidayDaysLost: 0 };
+  }
+
+  const faltasByWeek = new Map<string, number>();
+  for (const faltaStr of faltaDates) {
+    const falta = fromISODate(faltaStr);
+    const offset = (weeklyDayOff - falta.getDay() + 7) % 7;
+    const dsrDate = new Date(falta);
+    dsrDate.setDate(dsrDate.getDate() + offset);
+    const dsrKey = toISODate(dsrDate);
+    faltasByWeek.set(dsrKey, (faltasByWeek.get(dsrKey) ?? 0) + 1);
+  }
+
+  let faltaDaysTotal = 0;
+  let dsrDaysLost = 0;
+  let holidayDaysLost = 0;
+
+  for (const [dsrKey, count] of faltasByWeek) {
+    faltaDaysTotal += count;
+    dsrDaysLost += 1;
+
+    const dsrDateObj = fromISODate(dsrKey);
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(dsrDateObj);
+      day.setDate(day.getDate() - i);
+      if (holidayDates.has(toISODate(day))) holidayDaysLost += 1;
+    }
+  }
+
+  return {
+    totalDays: faltaDaysTotal + dsrDaysLost + holidayDaysLost,
+    faltaDays: faltaDaysTotal,
+    dsrDaysLost,
+    holidayDaysLost,
+  };
+}
+
 export function valeTransporteAmount(baseSalary: number, ratePercent: number): number {
   return baseSalary * (ratePercent / 100);
 }
