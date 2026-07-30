@@ -90,6 +90,28 @@ export function lateMinutes(scheduledStart: string | null | undefined, clockIn: 
   return diffMinutes > 0 ? diffMinutes : 0;
 }
 
+/**
+ * Quantos minutos faltam pro horário de entrada agendado (0 se já chegou a
+ * hora ou passou, ou se não tem horário cadastrado). Usado pra bloquear
+ * quem tenta bater entrada cedo demais.
+ */
+export function minutesBeforeScheduledStart(
+  scheduledStart: string | null | undefined,
+  now: Date,
+): number {
+  if (!scheduledStart) return 0;
+  const [hour, minute] = scheduledStart.split(":").map(Number);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return 0;
+
+  const scheduled = new Date(now);
+  scheduled.setHours(hour, minute, 0, 0);
+
+  const diffMinutes = Math.round((scheduled.getTime() - now.getTime()) / 60_000);
+  return diffMinutes > 0 ? diffMinutes : 0;
+}
+
+export const EARLY_CLOCK_IN_TOLERANCE_MINUTES = 10;
+
 // CLT Art. 58 §1º: variações de até 5 minutos no ponto não são descontadas
 // nem computadas. Acima disso, o atraso inteiro passa a ser descontável
 // (a tolerância é um limite, não um abatimento parcial).

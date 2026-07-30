@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
 import { distanceMeters } from "@/lib/geo";
+import { EARLY_CLOCK_IN_TOLERANCE_MINUTES, minutesBeforeScheduledStart } from "@/lib/payroll";
 
 type Coords = { latitude: number; longitude: number } | null;
 
@@ -66,6 +67,23 @@ export async function clockIn(coords: Coords) {
   if (todaysEntry) {
     throw new Error(
       "Você já bateu ponto hoje. Se o horário estiver errado, peça pra um administrador corrigir.",
+    );
+  }
+
+  const todaysDayOff = await prisma.dayOff.findUnique({
+    where: { employeeId_date: { employeeId: employee.id, date } },
+  });
+  const isWeeklyDayOff = employee.weeklyDayOff !== null && now.getDay() === employee.weeklyDayOff;
+  if (isWeeklyDayOff || todaysDayOff) {
+    throw new Error(
+      "Hoje é sua folga — não dá pra bater ponto. Se isso está errado, fale com um administrador.",
+    );
+  }
+
+  const earlyMinutes = minutesBeforeScheduledStart(employee.scheduledStart, now);
+  if (earlyMinutes > EARLY_CLOCK_IN_TOLERANCE_MINUTES) {
+    throw new Error(
+      `Ainda não deu sua hora — você só pode bater entrada a partir de ${EARLY_CLOCK_IN_TOLERANCE_MINUTES} minutos antes do seu horário (${employee.scheduledStart}). Faltam ${earlyMinutes} minutos.`,
     );
   }
 
