@@ -32,8 +32,11 @@ export default async function EscalasPage() {
       select: { id: true, name: true, weeklyDayOff: true },
     }),
     prisma.dayOff.findMany({
-      where: { date: { gte: windowStart, lte: windowEnd }, type: "FOLGA" },
-      select: { employeeId: true, date: true },
+      where: {
+        date: { gte: windowStart, lte: windowEnd },
+        type: { in: ["FOLGA", "TRABALHA"] },
+      },
+      select: { employeeId: true, date: true, type: true },
     }),
     prisma.shiftSwapRequest.findMany({
       where: { status: "ACEITO_PELO_FUNCIONARIO" },
@@ -48,18 +51,26 @@ export default async function EscalasPage() {
   ]);
 
   const avulsaByEmployee = new Map<string, Set<string>>();
+  const workOverrideByEmployee = new Map<string, Set<string>>();
   for (const dayOff of windowDayOffs) {
     const iso = dayOff.date.toISOString().slice(0, 10);
-    const set = avulsaByEmployee.get(dayOff.employeeId) ?? new Set<string>();
+    const map = dayOff.type === "TRABALHA" ? workOverrideByEmployee : avulsaByEmployee;
+    const set = map.get(dayOff.employeeId) ?? new Set<string>();
     set.add(iso);
-    avulsaByEmployee.set(dayOff.employeeId, set);
+    map.set(dayOff.employeeId, set);
   }
 
   const roster = activeEmployees.map((e) => ({
     id: e.id,
     name: e.name,
     weeklyDayOff: e.weeklyDayOff,
-    folgas: upcomingFolgas(e.weeklyDayOff, avulsaByEmployee.get(e.id) ?? new Set(), DAYS_AHEAD, now),
+    folgas: upcomingFolgas(
+      e.weeklyDayOff,
+      avulsaByEmployee.get(e.id) ?? new Set(),
+      DAYS_AHEAD,
+      now,
+      workOverrideByEmployee.get(e.id) ?? new Set(),
+    ),
   }));
 
   return (

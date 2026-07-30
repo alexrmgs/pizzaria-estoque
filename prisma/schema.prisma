@@ -236,6 +236,7 @@ enum AbsenceType {
   FOLGA
   ATESTADO
   FALTA
+  TRABALHA
 }
 
 model DayOff {

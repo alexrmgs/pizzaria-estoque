@@ -74,7 +74,8 @@ export async function clockIn(coords: Coords) {
     where: { employeeId_date: { employeeId: employee.id, date } },
   });
   const isWeeklyDayOff = employee.weeklyDayOff !== null && now.getDay() === employee.weeklyDayOff;
-  if (isWeeklyDayOff || todaysDayOff) {
+  const isWorkOverride = todaysDayOff?.type === "TRABALHA";
+  if (!isWorkOverride && (isWeeklyDayOff || todaysDayOff)) {
     throw new Error(
       "Hoje é sua folga — não dá pra bater ponto. Se isso está errado, fale com um administrador.",
     );

@@ -22,7 +22,7 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-type AbsenceType = "FOLGA" | "ATESTADO" | "FALTA";
+type AbsenceType = "FOLGA" | "ATESTADO" | "FALTA" | "TRABALHA";
 
 type DayOff = {
   id: string;
@@ -45,11 +45,13 @@ const TYPE_LABELS: Record<AbsenceType, string> = {
   FOLGA: "Folga",
   ATESTADO: "Atestado",
   FALTA: "Falta",
+  TRABALHA: "Trabalha (cancela a folga)",
 };
 
 function TypeBadge({ type }: { type: AbsenceType }) {
   if (type === "FOLGA") return <Badge variant="secondary">Folga</Badge>;
   if (type === "ATESTADO") return <Badge variant="outline">Atestado</Badge>;
+  if (type === "TRABALHA") return <Badge className="bg-primary/15 text-primary">Trabalha</Badge>;
   return <Badge variant="destructive">Falta</Badge>;
 }
 
@@ -102,7 +104,10 @@ export function DayOffsSection({
         <p className="text-xs text-muted-foreground">
           Registre aqui folgas avulsas, atestados médicos e faltas — isso evita confundir com falta
           na hora de fechar o pagamento e alimenta a pontuação de assiduidade/pontualidade do
-          funcionário (atestado e falta zeram o bônus do período; folga não afeta nada).
+          funcionário (atestado e falta zeram o bônus do período; folga não afeta nada). Use
+          &quot;Trabalha&quot; pra comprar a folga de um dia específico (ele passa a poder bater
+          ponto normalmente naquele dia, mesmo sendo a folga fixa semanal ou uma folga avulsa já
+          registrada) — se for remanejar pra outro dia, registre a folga também no novo dia.
         </p>
         <form action={handleSubmit} className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
@@ -122,13 +127,14 @@ export function DayOffsSection({
             <Label className="text-xs">Tipo</Label>
             <input type="hidden" name="type" value={type} />
             <Select value={type} onValueChange={(v) => setType(v as AbsenceType)}>
-              <SelectTrigger className="h-9 w-36">
+              <SelectTrigger className="h-9 w-48">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="FOLGA">Folga</SelectItem>
                 <SelectItem value="ATESTADO">Atestado</SelectItem>
                 <SelectItem value="FALTA">Falta</SelectItem>
+                <SelectItem value="TRABALHA">Trabalha (cancela a folga)</SelectItem>
               </SelectContent>
             </Select>
           </div>

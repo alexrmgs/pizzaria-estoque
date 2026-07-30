@@ -1,0 +1,1 @@
+ALTER TYPE "AbsenceType" ADD VALUE 'TRABALHA';

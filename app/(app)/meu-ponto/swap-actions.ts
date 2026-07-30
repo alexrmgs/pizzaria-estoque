@@ -13,12 +13,14 @@ async function getOwnEmployee(userId: string) {
 
 async function isFolgaDay(employeeId: string, weeklyDayOff: number | null, dateStr: string) {
   const date = new Date(`${dateStr}T00:00:00`);
-  const isWeekly = weeklyDayOff !== null && date.getDay() === weeklyDayOff;
-  if (isWeekly) return true;
   const dayOff = await prisma.dayOff.findUnique({
     where: { employeeId_date: { employeeId, date } },
   });
-  return dayOff?.type === "FOLGA";
+  // "Trabalha" cancela a folga naquele dia específico, mesmo sendo a folga
+  // fixa semanal (ex: a folga foi comprada ou remanejada pra outro dia).
+  if (dayOff?.type === "TRABALHA") return false;
+  const isWeekly = weeklyDayOff !== null && date.getDay() === weeklyDayOff;
+  return isWeekly || dayOff?.type === "FOLGA";
 }
 
 const requestSwapSchema = z.object({

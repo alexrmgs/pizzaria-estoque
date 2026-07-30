@@ -109,7 +109,7 @@ export async function deleteTimeEntry(employeeId: string, id: string) {
 
 const dayOffSchema = z.object({
   date: z.string().trim().min(1, "Informe a data."),
-  type: z.enum(["FOLGA", "ATESTADO", "FALTA"]),
+  type: z.enum(["FOLGA", "ATESTADO", "FALTA", "TRABALHA"]),
   reason: z.string().trim().max(300).optional(),
 });
 
@@ -143,6 +143,8 @@ export async function addDayOff(
 
   revalidatePath(`/funcionarios/${employeeId}`);
   revalidatePath("/pagamentos");
+  revalidatePath("/escalas");
+  revalidatePath("/meu-ponto");
 }
 
 export async function deleteDayOff(employeeId: string, id: string) {
@@ -150,6 +152,8 @@ export async function deleteDayOff(employeeId: string, id: string) {
   await prisma.dayOff.delete({ where: { id } });
   revalidatePath(`/funcionarios/${employeeId}`);
   revalidatePath("/pagamentos");
+  revalidatePath("/escalas");
+  revalidatePath("/meu-ponto");
 }
 
 // ---------- Vales (advances) ----------

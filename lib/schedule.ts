@@ -15,7 +15,9 @@ export type FolgaDate = { date: string; source: "semanal" | "avulsa" };
 /**
  * Dias de folga de um funcionário dentro de uma janela a partir de hoje:
  * a folga fixa semanal (`weeklyDayOff`) mais qualquer folga avulsa
- * registrada (`avulsaDates`, no formato YYYY-MM-DD). Datas construídas em
+ * registrada (`avulsaDates`, no formato YYYY-MM-DD), exceto datas em
+ * `workOverrideDates` — dias marcados como "Trabalha" (folga comprada ou
+ * remanejada), que cancelam a folga só naquele dia. Datas construídas em
  * horário local e lidas via toISOString — seguro porque o processo roda em
  * America/Sao_Paulo (UTC-3): meia-noite local nunca cruza pro dia UTC
  * anterior.
@@ -25,6 +27,7 @@ export function upcomingFolgas(
   avulsaDates: Set<string>,
   daysAhead: number,
   from: Date = new Date(),
+  workOverrideDates: Set<string> = new Set(),
 ): FolgaDate[] {
   const result: FolgaDate[] = [];
   const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
@@ -32,6 +35,7 @@ export function upcomingFolgas(
     const d = new Date(start);
     d.setDate(d.getDate() + i);
     const iso = d.toISOString().slice(0, 10);
+    if (workOverrideDates.has(iso)) continue;
     const isWeekly = weeklyDayOff !== null && d.getDay() === weeklyDayOff;
     const isAvulsa = avulsaDates.has(iso);
     if (isWeekly || isAvulsa) {
