@@ -73,9 +73,13 @@ export async function clockIn(coords: Coords) {
   const todaysDayOff = await prisma.dayOff.findUnique({
     where: { employeeId_date: { employeeId: employee.id, date } },
   });
+  // Só bloqueia em folga de verdade (fixa semanal ou avulsa). Atestado e
+  // falta são registros administrativos (geralmente lançados depois do
+  // fato) e não devem impedir o funcionário de bater ponto.
   const isWeeklyDayOff = employee.weeklyDayOff !== null && now.getDay() === employee.weeklyDayOff;
   const isWorkOverride = todaysDayOff?.type === "TRABALHA";
-  if (!isWorkOverride && (isWeeklyDayOff || todaysDayOff)) {
+  const isFolga = !isWorkOverride && (todaysDayOff?.type === "FOLGA" || isWeeklyDayOff);
+  if (isFolga) {
     throw new Error(
       "Hoje é sua folga — não dá pra bater ponto. Se isso está errado, fale com um administrador.",
     );
