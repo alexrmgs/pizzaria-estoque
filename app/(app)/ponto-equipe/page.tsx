@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { lateMinutes, shiftHours } from "@/lib/payroll";
+import { formatShiftDuration, lateMinutes, shiftHours } from "@/lib/payroll";
 
 const selectClassName =
   "h-9 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -238,7 +238,9 @@ export default async function PontoEquipePage({
                         {r.entry?.clockOut ? formatTime(r.entry.clockOut) : r.entry ? "—" : "—"}
                       </TableCell>
                       <TableCell className="text-neutral-500">
-                        {r.entry?.clockOut ? shiftHours(r.entry.clockIn, r.entry.clockOut).toFixed(2) : "—"}
+                        {r.entry?.clockOut
+                          ? formatShiftDuration(shiftHours(r.entry.clockIn, r.entry.clockOut))
+                          : "—"}
                       </TableCell>
                       <TableCell>
                         {late > 0 ? <Badge variant="destructive">{late} min</Badge> : "—"}

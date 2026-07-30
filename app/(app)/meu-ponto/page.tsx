@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
-import { lateMinutes, nightHours, shiftHours, type AttendanceStreakTier } from "@/lib/payroll";
+import {
+  formatShiftDuration,
+  lateMinutes,
+  nightHours,
+  shiftHours,
+  type AttendanceStreakTier,
+} from "@/lib/payroll";
 import { computePaymentPreview } from "@/lib/payment-preview";
 import { getAppSettings } from "@/lib/settings";
 import { upcomingFolgas } from "@/lib/schedule";
@@ -260,12 +266,12 @@ export default async function MeuPontoPage() {
                           </TableCell>
                           <TableCell>
                             {entry.clockOut
-                              ? shiftHours(entry.clockIn, entry.clockOut).toFixed(2)
+                              ? formatShiftDuration(shiftHours(entry.clockIn, entry.clockOut))
                               : "—"}
                             {entry.clockOut && nightHours(entry.clockIn, entry.clockOut) > 0 && (
                               <span className="text-neutral-500">
                                 {" "}
-                                ({nightHours(entry.clockIn, entry.clockOut).toFixed(2)}h noturnas)
+                                ({formatShiftDuration(nightHours(entry.clockIn, entry.clockOut))} noturnas)
                               </span>
                             )}
                           </TableCell>

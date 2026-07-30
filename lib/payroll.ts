@@ -14,6 +14,17 @@ export function shiftHours(clockIn: Date, clockOut: Date): number {
   return Math.max(0, (clockOut.getTime() - clockIn.getTime()) / 3_600_000);
 }
 
+/**
+ * Formata horas decimais (ex: 8.4667) como "8h28min" — evita confundir com
+ * horas:minutos (ex: "8.47" lido como "8:47" em vez de 8h28).
+ */
+export function formatShiftDuration(hours: number): string {
+  const totalMinutes = Math.round(hours * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${h}h${String(m).padStart(2, "0")}min`;
+}
+
 export function nightHours(clockIn: Date, clockOut: Date): number {
   if (clockOut <= clockIn) return 0;
 
