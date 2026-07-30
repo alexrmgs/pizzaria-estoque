@@ -97,61 +97,112 @@ export function ScheduleCalendar({
           Próximo →
         </Button>
       </div>
-      <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-neutral-500">
-        {WEEKDAY_SHORT.map((w) => (
-          <div key={w}>{w}</div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {cells.map((date, i) => {
-          if (!date) return <div key={i} className="rounded-lg" />;
-          const iso = toISO(date);
-          const offIds = new Set((byDate.get(iso) ?? []).map((p) => p.id));
-          const isToday = iso === todayISO;
-          const label = (employee: RosterEmployee) =>
-            employee.id === myEmployeeId ? "Você" : employee.name.split(" ")[0];
-          const off = roster.filter((e) => offIds.has(e.id));
-          const working = roster.filter((e) => !offIds.has(e.id));
-          return (
-            <div
-              key={i}
-              className={cn("flex flex-col gap-1 rounded-lg border p-1", isToday && "border-primary")}
-            >
-              <span
-                className={cn("text-xs", isToday ? "font-semibold text-primary" : "text-neutral-400")}
+      {/* Grade (telas médias pra cima) — em telas pequenas o texto fica cortado demais numa grade de 7 colunas */}
+      <div className="hidden sm:block">
+        <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-neutral-500">
+          {WEEKDAY_SHORT.map((w) => (
+            <div key={w}>{w}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {cells.map((date, i) => {
+            if (!date) return <div key={i} className="rounded-lg" />;
+            const iso = toISO(date);
+            const offIds = new Set((byDate.get(iso) ?? []).map((p) => p.id));
+            const isToday = iso === todayISO;
+            const label = (employee: RosterEmployee) =>
+              employee.id === myEmployeeId ? "Você" : employee.name.split(" ")[0];
+            const off = roster.filter((e) => offIds.has(e.id));
+            const working = roster.filter((e) => !offIds.has(e.id));
+            return (
+              <div
+                key={i}
+                className={cn("flex flex-col gap-1 rounded-lg border p-1", isToday && "border-primary")}
               >
-                {date.getDate()}
-              </span>
-              <div className="grid grid-cols-2 gap-1">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[9px] font-medium text-neutral-400">Folga</span>
-                  {off.map((employee) => (
-                    <span
-                      key={employee.id}
-                      className={cn(
-                        "truncate rounded px-1 text-[10px] leading-tight",
-                        employeeColor(employee.id),
-                      )}
-                    >
-                      {label(employee)}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[9px] font-medium text-neutral-400">Trab.</span>
-                  {working.map((employee) => (
-                    <span
-                      key={employee.id}
-                      className="truncate rounded px-1 text-[10px] leading-tight text-neutral-500"
-                    >
-                      {label(employee)}
-                    </span>
-                  ))}
+                <span
+                  className={cn("text-xs", isToday ? "font-semibold text-primary" : "text-neutral-400")}
+                >
+                  {date.getDate()}
+                </span>
+                <div className="grid grid-cols-2 gap-1">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-medium text-neutral-400">Folga</span>
+                    {off.map((employee) => (
+                      <span
+                        key={employee.id}
+                        className={cn(
+                          "truncate rounded px-1 text-[10px] leading-tight",
+                          employeeColor(employee.id),
+                        )}
+                      >
+                        {label(employee)}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-medium text-neutral-400">Trab.</span>
+                    {working.map((employee) => (
+                      <span
+                        key={employee.id}
+                        className="truncate rounded px-1 text-[10px] leading-tight text-neutral-500"
+                      >
+                        {label(employee)}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Lista (celular) — um bloco por dia, sem texto cortado */}
+      <div className="flex flex-col gap-2 sm:hidden">
+        {cells
+          .filter((date): date is Date => date !== null)
+          .map((date) => {
+            const iso = toISO(date);
+            const offIds = new Set((byDate.get(iso) ?? []).map((p) => p.id));
+            const isToday = iso === todayISO;
+            const label = (employee: RosterEmployee) =>
+              employee.id === myEmployeeId ? "Você" : employee.name.split(" ")[0];
+            const off = roster.filter((e) => offIds.has(e.id));
+            const working = roster.filter((e) => !offIds.has(e.id));
+            return (
+              <div
+                key={iso}
+                className={cn("rounded-lg border p-2", isToday && "border-primary bg-primary/5")}
+              >
+                <p className={cn("text-sm font-medium", isToday && "text-primary")}>
+                  {WEEKDAY_SHORT[date.getDay()]}, {date.getDate()}/{pad(date.getMonth() + 1)}
+                </p>
+                <div className="mt-1 flex flex-col gap-1 text-sm">
+                  <p>
+                    <span className="text-xs font-medium text-neutral-400">Folga: </span>
+                    {off.length === 0 ? (
+                      <span className="text-neutral-400">ninguém</span>
+                    ) : (
+                      off.map((employee) => (
+                        <span
+                          key={employee.id}
+                          className={cn("mr-1 rounded px-1.5 py-0.5", employeeColor(employee.id))}
+                        >
+                          {label(employee)}
+                        </span>
+                      ))
+                    )}
+                  </p>
+                  <p>
+                    <span className="text-xs font-medium text-neutral-400">Trabalhando: </span>
+                    <span className="text-neutral-600">
+                      {working.map((employee) => label(employee)).join(", ") || "—"}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            );
+          })}
       </div>
     </div>
   );
