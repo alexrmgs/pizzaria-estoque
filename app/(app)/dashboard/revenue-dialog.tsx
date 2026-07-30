@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { upsertRevenue } from "./actions";
+import { createRevenue, updateRevenue } from "./actions";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -29,13 +29,31 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function RevenueDialog({ stores }: { stores: { id: string; name: string }[] }) {
+type ExistingRevenue = {
+  id: string;
+  date: string; // YYYY-MM-DD
+  storeId: string;
+  amount: number;
+  orderCount: number;
+  note: string | null;
+};
+
+export function RevenueDialog({
+  stores,
+  revenue,
+  trigger,
+}: {
+  stores: { id: string; name: string }[];
+  revenue?: ExistingRevenue;
+  trigger?: React.ReactElement;
+}) {
+  const isEdit = !!revenue;
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
-  const [storeId, setStoreId] = useState(stores[0]?.id ?? "");
-  const [amount, setAmount] = useState("");
-  const [orderCount, setOrderCount] = useState("");
+  const [storeId, setStoreId] = useState(revenue?.storeId ?? stores[0]?.id ?? "");
+  const [amount, setAmount] = useState(revenue ? String(revenue.amount) : "");
+  const [orderCount, setOrderCount] = useState(revenue ? String(revenue.orderCount) : "");
 
   const amountNum = Number(amount || 0);
   const ordersNum = Number(orderCount || 0);
@@ -43,7 +61,9 @@ export function RevenueDialog({ stores }: { stores: { id: string; name: string }
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
-      const result = await upsertRevenue(undefined, formData);
+      const result = isEdit
+        ? await updateRevenue(revenue.id, undefined, formData)
+        : await createRevenue(undefined, formData);
       if (result?.error) {
         setError(result.error);
       } else {
@@ -59,21 +79,26 @@ export function RevenueDialog({ stores }: { stores: { id: string; name: string }
         setOpen(next);
         if (next) {
           setError(undefined);
-          setAmount("");
-          setOrderCount("");
+          setStoreId(revenue?.storeId ?? stores[0]?.id ?? "");
+          setAmount(revenue ? String(revenue.amount) : "");
+          setOrderCount(revenue ? String(revenue.orderCount) : "");
         }
       }}
     >
-      <DialogTrigger render={<Button size="sm">+ Lançar faturamento</Button>} />
+      <DialogTrigger
+        render={trigger ?? (
+          <Button size="sm">{isEdit ? "Editar" : "+ Lançar faturamento"}</Button>
+        )}
+      />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Lançar faturamento</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar lançamento" : "Lançar faturamento"}</DialogTitle>
         </DialogHeader>
         <form action={handleSubmit} className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">
               <Label htmlFor="date">Data</Label>
-              <Input id="date" name="date" type="date" defaultValue={todayISO()} required />
+              <Input id="date" name="date" type="date" defaultValue={revenue?.date ?? todayISO()} required />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="storeId">Loja</Label>
@@ -130,11 +155,14 @@ export function RevenueDialog({ stores }: { stores: { id: string; name: string }
           )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="note">Observação (opcional)</Label>
-            <Textarea id="note" name="note" rows={2} />
+            <Textarea id="note" name="note" rows={2} defaultValue={revenue?.note ?? ""} />
           </div>
-          <p className="text-xs text-muted-foreground">
-            Se já existir um lançamento pra essa data e loja, ele será substituído.
-          </p>
+          {!isEdit && (
+            <p className="text-xs text-muted-foreground">
+              Já existe lançamento pra essa data e loja? Não dá pra criar outro — edite o lançamento
+              existente na tabela de lançamentos.
+            </p>
+          )}
           {error && <p className="text-sm text-red-600">{error}</p>}
           <DialogFooter>
             <Button type="submit" disabled={isPending || !storeId}>

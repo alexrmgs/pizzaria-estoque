@@ -570,7 +570,25 @@ export default async function FinanceiroPage({
                           </TableCell>
                           <TableCell className="text-neutral-500">{r.note ?? "—"}</TableCell>
                           <TableCell className="text-right">
-                            <DeleteRevenueButton id={r.id} />
+                            <div className="flex justify-end gap-1">
+                              <RevenueDialog
+                                stores={stores.map((s) => ({ id: s.id, name: s.name }))}
+                                revenue={{
+                                  id: r.id,
+                                  date: r.date.toISOString().slice(0, 10),
+                                  storeId: r.storeId,
+                                  amount: Number(r.amount),
+                                  orderCount: r.orderCount,
+                                  note: r.note,
+                                }}
+                                trigger={
+                                  <Button variant="ghost" size="sm">
+                                    Editar
+                                  </Button>
+                                }
+                              />
+                              <DeleteRevenueButton id={r.id} />
+                            </div>
                           </TableCell>
                         </TableRow>
                       );

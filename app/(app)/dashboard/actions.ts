@@ -15,7 +15,11 @@ const revenueSchema = z.object({
 
 export type RevenueFormState = { error?: string } | undefined;
 
-export async function upsertRevenue(
+function formatDatePt(date: Date) {
+  return date.toISOString().slice(0, 10).split("-").reverse().join("/");
+}
+
+export async function createRevenue(
   _prevState: RevenueFormState,
   formData: FormData,
 ): Promise<RevenueFormState> {
@@ -34,15 +38,64 @@ export async function upsertRevenue(
 
   const date = new Date(`${parsed.data.date}T00:00:00Z`);
 
-  await prisma.revenue.upsert({
+  const existing = await prisma.revenue.findUnique({
     where: { date_storeId: { date, storeId: parsed.data.storeId } },
-    update: {
+    include: { store: { select: { name: true } } },
+  });
+  if (existing) {
+    return {
+      error: `Já existe um lançamento de ${existing.store.name} em ${formatDatePt(date)}. Pra ajustar, edite esse lançamento na tabela em vez de criar outro.`,
+    };
+  }
+
+  await prisma.revenue.create({
+    data: {
+      date,
+      storeId: parsed.data.storeId,
       amount: parsed.data.amount,
       orderCount: parsed.data.orderCount,
       note: parsed.data.note,
       userId: user.id,
     },
-    create: {
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/financeiro");
+}
+
+export async function updateRevenue(
+  id: string,
+  _prevState: RevenueFormState,
+  formData: FormData,
+): Promise<RevenueFormState> {
+  const user = await requirePermission("canViewRelatorios");
+
+  const parsed = revenueSchema.safeParse({
+    date: formData.get("date"),
+    storeId: formData.get("storeId"),
+    amount: formData.get("amount"),
+    orderCount: formData.get("orderCount") || 0,
+    note: formData.get("note") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  const date = new Date(`${parsed.data.date}T00:00:00Z`);
+
+  const existing = await prisma.revenue.findUnique({
+    where: { date_storeId: { date, storeId: parsed.data.storeId } },
+    include: { store: { select: { name: true } } },
+  });
+  if (existing && existing.id !== id) {
+    return {
+      error: `Já existe um lançamento de ${existing.store.name} em ${formatDatePt(date)}. Pra ajustar, edite esse lançamento na tabela em vez de duplicar.`,
+    };
+  }
+
+  await prisma.revenue.update({
+    where: { id },
+    data: {
       date,
       storeId: parsed.data.storeId,
       amount: parsed.data.amount,
