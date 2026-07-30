@@ -382,6 +382,13 @@ export function ClosePaymentDialog({
                       {" "}= {preview.faltaDaysAuto} dia{preview.faltaDaysAuto === 1 ? "" : "s"}{" "}
                       descontado{preview.faltaDaysAuto === 1 ? "" : "s"} (1/30 do salário cada, Lei
                       605/49). Ajuste o número acima se precisar.
+                      {preview.faltaDsrDaysAuto === 0 && (
+                        <span className="mt-1 block text-amber-600">
+                          Esse funcionário não tem folga fixa semanal cadastrada, então não dá pra
+                          calcular o DSR perdido — só o dia da falta está contando. Cadastre a folga
+                          fixa dele (editar funcionário) pra esse cálculo ficar completo.
+                        </span>
+                      )}
                     </p>
                   ) : (
                     <p className="pl-6 text-xs text-muted-foreground">

@@ -485,6 +485,13 @@ export default async function MeuPontoPage() {
                     e eventual feriado na mesma semana (1/30 do salário cada), como manda a Lei
                     605/49.
                   </p>
+                  {preview.faltaDsrDaysAuto === 0 && (
+                    <p className="mt-1 text-xs text-amber-600">
+                      Sem folga fixa semanal cadastrada, não dá pra calcular o DSR perdido — só o
+                      dia da falta está contando aqui. Peça pra um administrador cadastrar sua folga
+                      fixa.
+                    </p>
+                  )}
                 </div>
               )}
 
