@@ -77,6 +77,7 @@ export function NavLinks({ permissions }: { permissions: Permissions }) {
   const rhItems: NavItem[] = permissions.canManageFuncionarios
     ? [
         { href: "/funcionarios", label: "Funcionários" },
+        { href: "/ponto-equipe", label: "Ponto da Equipe" },
         { href: "/escalas", label: "Escalas" },
         { href: "/pagamentos", label: "Pagamentos" },
         { href: "/vales", label: "Vales" },
