@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -16,6 +16,24 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "FB Pizzaria & Esfiharia — Estoque",
   description: "Controle de estoque e fichas técnicas da FB Pizzaria & Esfiharia",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "FB Gestão",
+  },
+  other: {
+    // iOS ainda depende dessa tag legada (com prefixo apple-) pro modo
+    // standalone em versões mais antigas do Safari — o Next nessa versão só
+    // gera a tag padrão sem prefixo (mobile-web-app-capable).
+    "apple-mobile-web-app-capable": "yes",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#fe9400",
 };
 
 export default function RootLayout({
