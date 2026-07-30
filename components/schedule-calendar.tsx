@@ -5,12 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import type { FolgaDate } from "@/lib/schedule";
-
-export function formatDate(iso: string) {
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
-}
+import { formatDate, STATUS_LABELS, type FolgaDate, type SwapRequest } from "@/lib/schedule";
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -179,26 +174,6 @@ export function ScheduleLegend({ roster, myEmployeeId }: { roster: RosterEmploye
     </div>
   );
 }
-
-export type SwapRequest = {
-  id: string;
-  requesterDate: string;
-  targetDate: string;
-  status: string;
-  note: string | null;
-  createdAt: string;
-  requesterName?: string;
-  targetName?: string;
-};
-
-export const STATUS_LABELS: Record<string, { label: string; variant: "secondary" | "destructive" | "outline" }> = {
-  PENDENTE: { label: "Aguardando colega", variant: "outline" },
-  ACEITO_PELO_FUNCIONARIO: { label: "Aguardando gerência", variant: "outline" },
-  RECUSADO_PELO_FUNCIONARIO: { label: "Recusado pelo colega", variant: "destructive" },
-  APROVADO: { label: "Aprovado", variant: "secondary" },
-  RECUSADO_PELA_GERENCIA: { label: "Recusado pela gerência", variant: "destructive" },
-  CANCELADO: { label: "Cancelado", variant: "destructive" },
-};
 
 export function SwapRow({
   swap,

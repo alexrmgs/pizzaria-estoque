@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
-import { upcomingFolgas } from "@/lib/schedule";
+import { upcomingFolgas, formatDate, STATUS_LABELS } from "@/lib/schedule";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -11,12 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  ScheduleCalendar,
-  ScheduleLegend,
-  STATUS_LABELS,
-  formatDate,
-} from "@/components/schedule-calendar";
+import { ScheduleCalendar, ScheduleLegend } from "@/components/schedule-calendar";
 import { SwapApprovalButtons } from "../funcionarios/swap-approval-buttons";
 
 const DAYS_AHEAD = 60;

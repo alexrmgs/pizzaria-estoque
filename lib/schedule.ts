@@ -40,3 +40,31 @@ export function upcomingFolgas(
   }
   return result;
 }
+
+export function formatDate(iso: string) {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+export type SwapRequest = {
+  id: string;
+  requesterDate: string;
+  targetDate: string;
+  status: string;
+  note: string | null;
+  createdAt: string;
+  requesterName?: string;
+  targetName?: string;
+};
+
+export const STATUS_LABELS: Record<
+  string,
+  { label: string; variant: "secondary" | "destructive" | "outline" }
+> = {
+  PENDENTE: { label: "Aguardando colega", variant: "outline" },
+  ACEITO_PELO_FUNCIONARIO: { label: "Aguardando gerência", variant: "outline" },
+  RECUSADO_PELO_FUNCIONARIO: { label: "Recusado pelo colega", variant: "destructive" },
+  APROVADO: { label: "Aprovado", variant: "secondary" },
+  RECUSADO_PELA_GERENCIA: { label: "Recusado pela gerência", variant: "destructive" },
+  CANCELADO: { label: "Cancelado", variant: "destructive" },
+};

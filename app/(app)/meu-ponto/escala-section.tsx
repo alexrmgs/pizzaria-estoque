@@ -26,10 +26,9 @@ import {
   ScheduleCalendar,
   ScheduleLegend,
   SwapRow,
-  formatDate,
   type RosterEmployee,
-  type SwapRequest,
 } from "@/components/schedule-calendar";
+import { formatDate, type SwapRequest } from "@/lib/schedule";
 
 function RequestSwapForm({
   myEmployeeId,
