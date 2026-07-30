@@ -59,6 +59,11 @@ export default async function ConfiguracoesPage() {
           description: "Cadastro, ponto, vales, bônus/descontos e pagamentos.",
         },
         {
+          href: "/escalas",
+          title: "Escalas",
+          description: "Calendário de folgas da equipe e aprovação de trocas.",
+        },
+        {
           href: "/pagamentos",
           title: "Pagamentos",
           description: "Feche o pagamento de qualquer funcionário num só lugar.",
