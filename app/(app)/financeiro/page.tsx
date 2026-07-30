@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { RevenueDialog } from "../dashboard/revenue-dialog";
 import { DeleteRevenueButton } from "./delete-revenue-button";
+import { FinanceiroCharts } from "./financeiro-charts";
 import { buildYearlySummary, MONTH_NAMES_SHORT } from "@/lib/financeiro";
 
 const currency = (value: number) =>
@@ -197,6 +198,15 @@ export default async function FinanceiroPage({
               </CardContent>
             </Card>
           </div>
+
+          <FinanceiroCharts
+            monthlyTotals={summary.monthlyTotals}
+            stores={storesByAmount.map((s) => ({
+              storeId: s.storeId,
+              storeName: s.storeName,
+              totalAmount: s.totalAmount,
+            }))}
+          />
 
           <Card>
             <CardHeader>
