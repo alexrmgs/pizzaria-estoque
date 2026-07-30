@@ -92,6 +92,8 @@ export function ClosePaymentDialog({
         setPreview(result);
         setSalaryOverride(result.baseSalary.toFixed(2));
         setApplyAttendanceBonus(result.attendanceBonusAmount > 0);
+        setApplyFalta(result.faltaDaysAuto > 0);
+        setFaltaDays(String(result.faltaDaysAuto));
       }
     });
   }
@@ -343,27 +345,42 @@ export function ClosePaymentDialog({
               <div className="flex flex-col gap-3 rounded-lg border p-3">
                 <p className="text-sm font-medium">Descontos de carteira assinada (opcional)</p>
 
-                <div className="flex items-center justify-between gap-2">
-                  <label htmlFor="applyFalta-cb" className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      id="applyFalta-cb"
-                      checked={applyFalta}
-                      onCheckedChange={(v) => setApplyFalta(v === true)}
-                    />
-                    Faltas
-                  </label>
-                  {applyFalta && (
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        value={faltaDays}
-                        onChange={(e) => setFaltaDays(e.target.value)}
-                        className="h-8 w-20"
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <label htmlFor="applyFalta-cb" className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        id="applyFalta-cb"
+                        checked={applyFalta}
+                        onCheckedChange={(v) => setApplyFalta(v === true)}
                       />
-                      <span className="text-sm text-destructive">-{currency(faltaVal)}</span>
-                    </div>
+                      Faltas
+                    </label>
+                    {applyFalta && (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          value={faltaDays}
+                          onChange={(e) => setFaltaDays(e.target.value)}
+                          className="h-8 w-20"
+                        />
+                        <span className="text-sm text-destructive">-{currency(faltaVal)}</span>
+                      </div>
+                    )}
+                  </div>
+                  {preview.faltaDatesAuto.length > 0 ? (
+                    <p className="pl-6 text-xs text-muted-foreground">
+                      Detectado automaticamente pelas faltas registradas no período:{" "}
+                      {preview.faltaDatesAuto.map((d) => d.split("-").reverse().join("/")).join(", ")}
+                      . Desconto de 1/30 do salário por dia, como manda a CLT. Ajuste o número acima
+                      se precisar.
+                    </p>
+                  ) : (
+                    <p className="pl-6 text-xs text-muted-foreground">
+                      Nenhuma falta registrada no período. Se precisar descontar mesmo assim, marque
+                      e informe os dias manualmente.
+                    </p>
                   )}
                 </div>
 

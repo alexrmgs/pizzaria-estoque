@@ -6,6 +6,7 @@ import {
   attendanceStreakMultiplier,
   discountableLateMinutes,
   excessHoursByDay,
+  faltaAmount,
   lateDiscountAmount,
   lateMinutes,
   nightHours,
@@ -41,6 +42,9 @@ export type PaymentPreview = {
   attendanceStreakMonths: number;
   attendanceStreakMultiplier: number;
   attendanceBonusAmount: number;
+  faltaDatesAuto: string[];
+  faltaDaysAuto: number;
+  faltaAmountAuto: number;
 };
 
 export async function computePaymentPreview(
@@ -98,6 +102,17 @@ export async function computePaymentPreview(
   const lateDiscountPay = lateDiscountAmount(baseSalary, lateDiscountMinutesTotal);
 
   const absenceCount = dayOffs.filter((d) => d.type === "ATESTADO" || d.type === "FALTA").length;
+
+  // Desconto de falta conforme a CLT: 1/30 do salário por dia faltado sem
+  // justificativa, detectado a partir das faltas já registradas no período
+  // (em Funcionários → Folgas, atestados e faltas) — some automaticamente
+  // no fechamento, sem precisar digitar de novo.
+  const faltaDatesAuto = dayOffs
+    .filter((d) => d.type === "FALTA")
+    .map((d) => d.date.toISOString().slice(0, 10))
+    .sort();
+  const faltaDaysAuto = faltaDatesAuto.length;
+  const faltaAmountAutoVal = faltaAmount(baseSalary, faltaDaysAuto);
   const scoreVal = attendanceScore(lateOccurrences, settings.latePenaltyPoints);
   const baseBonusVal = attendanceBonusAmount(
     scoreVal,
@@ -182,5 +197,8 @@ export async function computePaymentPreview(
     attendanceStreakMonths: streakMonths,
     attendanceStreakMultiplier: streakMultiplier,
     attendanceBonusAmount: attendanceBonusVal,
+    faltaDatesAuto,
+    faltaDaysAuto,
+    faltaAmountAuto: faltaAmountAutoVal,
   };
 }
