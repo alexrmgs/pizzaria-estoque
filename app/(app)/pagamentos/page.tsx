@@ -69,6 +69,7 @@ export default async function PagamentosPage() {
     year: "numeric",
     timeZone: "UTC",
   });
+  const currentMonthLabel = now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
   const cltSettings = {
     inssBrackets: settings.inssBrackets as unknown as { upTo: number | null; rate: number }[],
@@ -212,6 +213,66 @@ export default async function PagamentosPage() {
           <p className="mt-2 text-xs text-muted-foreground">
             40% do salário bruto de cada funcionário ativo, lançado como vale no dia 20. Entra
             automaticamente como desconto quando você fechar o pagamento do mês.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Em andamento — folha de {currentMonthLabel}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Funcionário</TableHead>
+                  <TableHead>Salário base</TableHead>
+                  <TableHead>Adiantamento pago</TableHead>
+                  <TableHead>Outros vales</TableHead>
+                  <TableHead>Saldo restante (estimado)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {employees.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-neutral-500">
+                      Nenhum funcionário ativo.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {employees.map((employee) => {
+                  const baseSalary = Number(employee.baseSalary);
+                  const adiantamento = pendingAdiantamentoByEmployee.get(employee.id) ?? 0;
+                  const outrosVales = pendingOutrosValesByEmployee.get(employee.id) ?? 0;
+                  const estimatedRemaining = baseSalary - adiantamento - outrosVales;
+                  return (
+                    <TableRow key={employee.id}>
+                      <TableCell className="font-medium">
+                        <Link href={`/funcionarios/${employee.id}`} className="hover:underline">
+                          {employee.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{currency(baseSalary)}</TableCell>
+                      <TableCell className={adiantamento > 0 ? "text-destructive" : "text-neutral-500"}>
+                        {adiantamento > 0 ? currency(adiantamento) : "—"}
+                      </TableCell>
+                      <TableCell className={outrosVales > 0 ? "text-destructive" : "text-neutral-500"}>
+                        {outrosVales > 0 ? currency(outrosVales) : "—"}
+                      </TableCell>
+                      <TableCell className="font-medium text-primary">
+                        {currency(estimatedRemaining)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Estimativa simples (salário base − adiantamento − outros vales já lançados). Não inclui
+            horas extras, faltas, INSS/IRRF/VT nem bônus — esses só entram na conta certinha quando
+            você fechar a folha de {currentMonthLabel} (isso só é possível depois que o mês terminar).
           </p>
         </CardContent>
       </Card>
