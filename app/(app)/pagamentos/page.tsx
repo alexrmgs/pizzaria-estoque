@@ -2,7 +2,12 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
-import { nthBusinessDayOfMonth, previousMonthRange, SALARY_ADVANCE_TAG } from "@/lib/payroll";
+import {
+  formatShiftDuration,
+  nthBusinessDayOfMonth,
+  previousMonthRange,
+  SALARY_ADVANCE_TAG,
+} from "@/lib/payroll";
 import { computePaymentPreview } from "@/lib/payment-preview";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -254,7 +259,11 @@ export default async function PagamentosPage() {
                 <TableRow>
                   <TableHead>Funcionário</TableHead>
                   <TableHead>Salário base</TableHead>
+                  <TableHead>Horas normais</TableHead>
+                  <TableHead>{settings.overtimeMode === "HORA_EXTRA" ? "Horas extras" : "Banco de horas"}</TableHead>
                   <TableHead>Horas noturnas</TableHead>
+                  <TableHead>Atraso</TableHead>
+                  <TableHead>Desconto por atraso</TableHead>
                   <TableHead>Adiantamento pago</TableHead>
                   <TableHead>Outros vales</TableHead>
                   <TableHead>Saldo restante (estimado)</TableHead>
@@ -263,7 +272,7 @@ export default async function PagamentosPage() {
               <TableBody>
                 {employees.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-neutral-500">
+                    <TableCell colSpan={10} className="text-center text-neutral-500">
                       Nenhum funcionário ativo.
                     </TableCell>
                   </TableRow>
@@ -273,6 +282,8 @@ export default async function PagamentosPage() {
                   const adiantamento = pendingAdiantamentoByEmployee.get(employee.id) ?? 0;
                   const outrosVales = pendingOutrosValesByEmployee.get(employee.id) ?? 0;
                   const preview = inProgressByEmployee.get(employee.id);
+                  const excessHours = preview ? preview.overtimeHours + preview.bankedHours : 0;
+                  const regularHours = preview ? preview.totalHours - excessHours : 0;
                   return (
                     <TableRow key={employee.id}>
                       <TableCell className="font-medium">
@@ -282,8 +293,26 @@ export default async function PagamentosPage() {
                       </TableCell>
                       <TableCell>{currency(baseSalary)}</TableCell>
                       <TableCell className="text-neutral-500">
+                        {preview ? formatShiftDuration(regularHours) : "—"}
+                      </TableCell>
+                      <TableCell className="text-neutral-500">
+                        {preview && excessHours > 0 ? formatShiftDuration(excessHours) : "—"}
+                      </TableCell>
+                      <TableCell className="text-neutral-500">
                         {preview && preview.totalNightHours > 0
-                          ? `${preview.totalNightHours.toFixed(2)}h (${currency(preview.nightPremium)})`
+                          ? `${formatShiftDuration(preview.totalNightHours)} (${currency(preview.nightPremium)})`
+                          : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {preview && preview.lateMinutesTotal > 0 ? (
+                          <Badge variant="destructive">{preview.lateMinutesTotal} min</Badge>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell className="text-destructive">
+                        {preview && preview.lateDiscountAmount > 0
+                          ? currency(preview.lateDiscountAmount)
                           : "—"}
                       </TableCell>
                       <TableCell className={adiantamento > 0 ? "text-destructive" : "text-neutral-500"}>
@@ -302,10 +331,10 @@ export default async function PagamentosPage() {
             </Table>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Estimativa desde o último pagamento fechado até hoje — já inclui horas noturnas, horas
-            extras/banco de horas, bônus, adiantamento e outros vales lançados no período. Não inclui
-            faltas nem INSS/IRRF/VT (esses só entram na conta final quando você fechar a folha de{" "}
-            {currentMonthLabel}, o que só é possível depois que o mês terminar).
+            Estimativa desde o último pagamento fechado até hoje — já inclui horas trabalhadas,
+            extras/banco de horas, noturnas, atraso, bônus, adiantamento e outros vales lançados no
+            período. Não inclui faltas nem INSS/IRRF/VT (esses só entram na conta final quando você
+            fechar a folha de {currentMonthLabel}, o que só é possível depois que o mês terminar).
           </p>
         </CardContent>
       </Card>
