@@ -64,6 +64,112 @@ export async function createMovement(
   revalidatePath("/relatorios");
 }
 
+export async function updateMovement(
+  id: string,
+  _prevState: MovementFormState,
+  formData: FormData,
+): Promise<MovementFormState> {
+  await requirePermission("canManageEstoque");
+
+  const parsed = movementSchema.safeParse({
+    ingredientId: formData.get("ingredientId"),
+    type: formData.get("type"),
+    quantity: formData.get("quantity"),
+    reason: formData.get("reason") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  const { ingredientId, type, quantity, reason } = parsed.data;
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const old = await tx.stockMovement.findUniqueOrThrow({ where: { id } });
+
+      // Desfaz o efeito do lançamento antigo no ingrediente antigo antes de
+      // aplicar o novo — assim dá pra editar quantidade, tipo ou até trocar
+      // o ingrediente sem deixar o estoque incoerente.
+      await tx.ingredient.update({
+        where: { id: old.ingredientId },
+        data: {
+          currentStock:
+            old.type === "ENTRADA" ? { decrement: old.quantity } : { increment: old.quantity },
+        },
+      });
+
+      const ingredient = await tx.ingredient.findUniqueOrThrow({ where: { id: ingredientId } });
+      const current = Number(ingredient.currentStock);
+      if (type === "SAIDA" && quantity > current) {
+        throw new Error(
+          `Estoque insuficiente: depois de desfazer o lançamento antigo, há apenas ${current} ${ingredient.unit} de ${ingredient.name}.`,
+        );
+      }
+
+      await tx.ingredient.update({
+        where: { id: ingredientId },
+        data: {
+          currentStock: type === "ENTRADA" ? { increment: quantity } : { decrement: quantity },
+        },
+      });
+
+      await tx.stockMovement.update({
+        where: { id },
+        data: { ingredientId, type, quantity, reason },
+      });
+    });
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Não foi possível editar a movimentação." };
+  }
+
+  revalidatePath("/movimentacoes");
+  revalidatePath("/estoque");
+  revalidatePath("/dashboard");
+  revalidatePath("/relatorios");
+}
+
+export type DeleteMovementState = { error?: string } | undefined;
+
+export async function deleteMovement(id: string): Promise<DeleteMovementState> {
+  await requirePermission("canManageEstoque");
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const movement = await tx.stockMovement.findUniqueOrThrow({
+        where: { id },
+        include: { ingredient: true },
+      });
+
+      const current = Number(movement.ingredient.currentStock);
+      const quantity = Number(movement.quantity);
+      if (movement.type === "ENTRADA" && quantity > current) {
+        throw new Error(
+          `Não dá pra excluir: removeria mais estoque do que existe hoje de ${movement.ingredient.name} (provavelmente esse estoque já foi usado em outras movimentações).`,
+        );
+      }
+
+      await tx.ingredient.update({
+        where: { id: movement.ingredientId },
+        data: {
+          currentStock:
+            movement.type === "ENTRADA" ? { decrement: quantity } : { increment: quantity },
+        },
+      });
+
+      await tx.stockMovement.delete({ where: { id } });
+    });
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Não foi possível excluir a movimentação.",
+    };
+  }
+
+  revalidatePath("/movimentacoes");
+  revalidatePath("/estoque");
+  revalidatePath("/dashboard");
+  revalidatePath("/relatorios");
+}
+
 const batchItemSchema = z.object({
   ingredientId: z.string().trim().min(1),
   quantity: z.coerce.number().positive(),

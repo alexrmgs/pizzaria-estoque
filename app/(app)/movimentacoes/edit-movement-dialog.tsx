@@ -1,0 +1,152 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { updateMovement } from "./actions";
+
+type Ingredient = { id: string; name: string; unit: string };
+
+type MovementValues = {
+  id: string;
+  ingredientId: string;
+  type: "ENTRADA" | "SAIDA";
+  quantity: string;
+  reason: string | null;
+};
+
+export function EditMovementDialog({
+  movement,
+  ingredients,
+}: {
+  movement: MovementValues;
+  ingredients: Ingredient[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | undefined>();
+  const [isPending, startTransition] = useTransition();
+  const [ingredientId, setIngredientId] = useState(movement.ingredientId);
+  const [type, setType] = useState<"ENTRADA" | "SAIDA">(movement.type);
+
+  function handleSubmit(formData: FormData) {
+    startTransition(async () => {
+      const result = await updateMovement(movement.id, undefined, formData);
+      if (result?.error) {
+        setError(result.error);
+      } else {
+        toast.success("Movimentação atualizada.");
+        setOpen(false);
+      }
+    });
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) {
+          setError(undefined);
+          setIngredientId(movement.ingredientId);
+          setType(movement.type);
+        }
+      }}
+    >
+      <DialogTrigger render={<Button variant="ghost" size="sm">Editar</Button>} />
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar movimentação</DialogTitle>
+        </DialogHeader>
+        <form action={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="ingredientId">Ingrediente</Label>
+            <input type="hidden" name="ingredientId" value={ingredientId} />
+            <Select
+              value={ingredientId || undefined}
+              onValueChange={(v) => setIngredientId(v ?? "")}
+              items={ingredients.map((i) => ({ value: i.id, label: `${i.name} (${i.unit})` }))}
+            >
+              <SelectTrigger id="ingredientId" className="w-full">
+                <SelectValue placeholder="Selecione o ingrediente" />
+              </SelectTrigger>
+              <SelectContent>
+                {ingredients.map((ingredient) => (
+                  <SelectItem key={ingredient.id} value={ingredient.id}>
+                    {ingredient.name} ({ingredient.unit})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="type">Tipo</Label>
+            <input type="hidden" name="type" value={type} />
+            <Select
+              value={type}
+              onValueChange={(v) => setType(v as "ENTRADA" | "SAIDA")}
+              items={[
+                { value: "ENTRADA", label: "Entrada" },
+                { value: "SAIDA", label: "Saída" },
+              ]}
+            >
+              <SelectTrigger id="type" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ENTRADA">Entrada</SelectItem>
+                <SelectItem value="SAIDA">Saída</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="quantity">Quantidade</Label>
+            <Input
+              id="quantity"
+              name="quantity"
+              type="number"
+              step="0.001"
+              min="0"
+              defaultValue={movement.quantity}
+              required
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="reason">Motivo (opcional)</Label>
+            <Textarea id="reason" name="reason" defaultValue={movement.reason ?? ""} />
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            O estoque do ingrediente é recalculado automaticamente ao salvar.
+          </p>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <DialogFooter>
+            <Button type="submit" disabled={isPending || !ingredientId}>
+              {isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

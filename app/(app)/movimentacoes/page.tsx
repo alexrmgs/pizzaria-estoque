@@ -10,17 +10,29 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MovementForm } from "./movement-form";
+import { EditMovementDialog } from "./edit-movement-dialog";
+import { DeleteMovementButton } from "./delete-movement-button";
 
 type Movement = {
   id: string;
+  type: "ENTRADA" | "SAIDA";
   createdAt: Date;
   quantity: unknown;
   reason: string | null;
+  ingredientId: string;
   ingredient: { name: string; unit: string };
   user: { name: string };
 };
 
-function MovementsTable({ movements }: { movements: Movement[] }) {
+type IngredientOption = { id: string; name: string; unit: string };
+
+function MovementsTable({
+  movements,
+  ingredients,
+}: {
+  movements: Movement[];
+  ingredients: IngredientOption[];
+}) {
   return (
     <div className="rounded-lg border bg-white">
       <Table>
@@ -31,12 +43,13 @@ function MovementsTable({ movements }: { movements: Movement[] }) {
             <TableHead>Quantidade</TableHead>
             <TableHead>Funcionário</TableHead>
             <TableHead>Motivo</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {movements.length === 0 && (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-neutral-500">
+              <TableCell colSpan={6} className="text-center text-neutral-500">
                 Nenhuma movimentação registrada ainda.
               </TableCell>
             </TableRow>
@@ -50,6 +63,21 @@ function MovementsTable({ movements }: { movements: Movement[] }) {
               </TableCell>
               <TableCell>{movement.user.name}</TableCell>
               <TableCell className="text-neutral-500">{movement.reason ?? "—"}</TableCell>
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-1">
+                  <EditMovementDialog
+                    ingredients={ingredients}
+                    movement={{
+                      id: movement.id,
+                      ingredientId: movement.ingredientId,
+                      type: movement.type,
+                      quantity: String(movement.quantity),
+                      reason: movement.reason,
+                    }}
+                  />
+                  <DeleteMovementButton id={movement.id} />
+                </div>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -93,14 +121,14 @@ export default async function MovimentacoesPage() {
         <TabsContent value="entrada" className="pt-4">
           <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
             <MovementForm ingredients={ingredients} type="ENTRADA" />
-            <MovementsTable movements={entradas} />
+            <MovementsTable movements={entradas} ingredients={ingredients} />
           </div>
         </TabsContent>
 
         <TabsContent value="saida" className="pt-4">
           <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
             <MovementForm ingredients={ingredients} type="SAIDA" />
-            <MovementsTable movements={saidas} />
+            <MovementsTable movements={saidas} ingredients={ingredients} />
           </div>
         </TabsContent>
       </Tabs>
