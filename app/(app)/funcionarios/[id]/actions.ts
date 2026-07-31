@@ -302,6 +302,20 @@ export async function closePayment(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
+  const periodStart = new Date(`${parsed.data.periodStart}T00:00:00`);
+  const periodEnd = new Date(`${parsed.data.periodEnd}T00:00:00`);
+
+  const overlapping = await prisma.payment.findFirst({
+    where: { employeeId, periodStart: { lte: periodEnd }, periodEnd: { gte: periodStart } },
+    orderBy: { periodStart: "asc" },
+  });
+  if (overlapping) {
+    const fmt = (d: Date) => d.toISOString().slice(0, 10).split("-").reverse().join("/");
+    return {
+      error: `Já existe um pagamento fechado cobrindo esse período (${fmt(overlapping.periodStart)} a ${fmt(overlapping.periodEnd)}). Desfaça esse pagamento antes de fechar de novo pra evitar duplicar.`,
+    };
+  }
+
   const [preview, employee, settings] = await Promise.all([
     getPaymentPreview(employeeId, parsed.data.periodStart, parsed.data.periodEnd),
     prisma.employee.findUniqueOrThrow({ where: { id: employeeId } }),
@@ -311,8 +325,6 @@ export async function closePayment(
     return { error: preview.error };
   }
 
-  const periodStart = new Date(`${parsed.data.periodStart}T00:00:00`);
-  const periodEnd = new Date(`${parsed.data.periodEnd}T00:00:00`);
   const baseSalary = parsed.data.baseSalary;
 
   const grossForTax = baseSalary + preview.nightPremium + preview.overtimeAmount;
@@ -348,52 +360,68 @@ export async function closePayment(
     irrfVal -
     vtVal;
 
-  await prisma.$transaction(async (tx) => {
-    const payment = await tx.payment.create({
-      data: {
-        employeeId,
-        periodStart,
-        periodEnd,
-        baseSalary,
-        nightPremium: preview.nightPremium,
-        overtimeHours: preview.overtimeHours,
-        overtimeAmount: preview.overtimeAmount,
-        bankedHours: preview.bankedHours,
-        lateDiscountMinutes: preview.lateDiscountMinutes,
-        lateDiscountAmount: preview.lateDiscountAmount,
-        faltaDays: parsed.data.faltaDays,
-        faltaAmount: faltaVal,
-        inssAmount: inssVal,
-        irrfAmount: irrfVal,
-        valeTransporteAmount: vtVal,
-        bonusTotal: preview.bonusTotal,
-        discountTotal: preview.discountTotal,
-        advancesTotal: preview.advancesTotal,
-        attendanceScore: preview.attendanceScore,
-        attendanceStreakMonths: preview.attendanceStreakMonths,
-        attendanceBonusAmount: attendanceBonusVal,
-        netAmount,
-        note: parsed.data.note,
-        userId: user.id,
-      },
+  try {
+    await prisma.$transaction(async (tx) => {
+      const raceOverlap = await tx.payment.findFirst({
+        where: { employeeId, periodStart: { lte: periodEnd }, periodEnd: { gte: periodStart } },
+      });
+      if (raceOverlap) {
+        throw new Error("__DUPLICATE_PAYMENT__");
+      }
+
+      const payment = await tx.payment.create({
+        data: {
+          employeeId,
+          periodStart,
+          periodEnd,
+          baseSalary,
+          nightPremium: preview.nightPremium,
+          overtimeHours: preview.overtimeHours,
+          overtimeAmount: preview.overtimeAmount,
+          bankedHours: preview.bankedHours,
+          lateDiscountMinutes: preview.lateDiscountMinutes,
+          lateDiscountAmount: preview.lateDiscountAmount,
+          faltaDays: parsed.data.faltaDays,
+          faltaAmount: faltaVal,
+          inssAmount: inssVal,
+          irrfAmount: irrfVal,
+          valeTransporteAmount: vtVal,
+          bonusTotal: preview.bonusTotal,
+          discountTotal: preview.discountTotal,
+          advancesTotal: preview.advancesTotal,
+          attendanceScore: preview.attendanceScore,
+          attendanceStreakMonths: preview.attendanceStreakMonths,
+          attendanceBonusAmount: attendanceBonusVal,
+          netAmount,
+          note: parsed.data.note,
+          userId: user.id,
+        },
+      });
+
+      const adjustmentIds = [...preview.bonusItems, ...preview.discountItems].map((i) => i.id);
+      if (adjustmentIds.length > 0) {
+        await tx.payrollAdjustment.updateMany({
+          where: { id: { in: adjustmentIds } },
+          data: { paymentId: payment.id },
+        });
+      }
+
+      const advanceIds = preview.advanceItems.map((i) => i.id);
+      if (advanceIds.length > 0) {
+        await tx.advance.updateMany({
+          where: { id: { in: advanceIds } },
+          data: { paymentId: payment.id },
+        });
+      }
     });
-
-    const adjustmentIds = [...preview.bonusItems, ...preview.discountItems].map((i) => i.id);
-    if (adjustmentIds.length > 0) {
-      await tx.payrollAdjustment.updateMany({
-        where: { id: { in: adjustmentIds } },
-        data: { paymentId: payment.id },
-      });
+  } catch (error) {
+    if (error instanceof Error && error.message === "__DUPLICATE_PAYMENT__") {
+      return {
+        error: "Esse período acabou de ser fechado em outro pagamento. Recarregue a página e confira.",
+      };
     }
-
-    const advanceIds = preview.advanceItems.map((i) => i.id);
-    if (advanceIds.length > 0) {
-      await tx.advance.updateMany({
-        where: { id: { in: advanceIds } },
-        data: { paymentId: payment.id },
-      });
-    }
-  });
+    throw error;
+  }
 
   revalidatePath(`/funcionarios/${employeeId}`);
   revalidatePath("/pagamentos");
