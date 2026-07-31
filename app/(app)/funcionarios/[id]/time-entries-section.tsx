@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { addTimeEntry, deleteTimeEntry } from "./actions";
 import { EditTimeEntryDialog } from "./edit-time-entry-dialog";
+import { formatShiftDuration } from "@/lib/payroll";
 
 type TimeEntry = {
   id: string;
@@ -126,9 +127,11 @@ export function TimeEntriesSection({
                   <TableCell>{entry.date}</TableCell>
                   <TableCell>{entry.clockIn}</TableCell>
                   <TableCell>{entry.clockOut ?? "—"}</TableCell>
-                  <TableCell>{entry.hours !== null ? entry.hours.toFixed(2) : "—"}</TableCell>
                   <TableCell>
-                    {entry.nightHours > 0 ? entry.nightHours.toFixed(2) : "—"}
+                    {entry.hours !== null ? formatShiftDuration(entry.hours) : "—"}
+                  </TableCell>
+                  <TableCell>
+                    {entry.nightHours > 0 ? formatShiftDuration(entry.nightHours) : "—"}
                   </TableCell>
                   <TableCell>
                     {entry.lateMinutes > 0 ? (
