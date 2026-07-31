@@ -25,6 +25,9 @@ import {
 } from "@/components/ui/table";
 import { createMovementsBatch } from "./actions";
 
+const currency = (value: number) =>
+  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 type Ingredient = { id: string; name: string; unit: string };
 
 type PendingItem = {
@@ -34,6 +37,7 @@ type PendingItem = {
   unit: string;
   quantity: number;
   reason?: string;
+  unitPrice?: number;
 };
 
 export function MovementForm({
@@ -55,6 +59,8 @@ export function MovementForm({
     const ingredientId = String(formData.get("ingredientId") ?? "");
     const quantity = Number(formData.get("quantity"));
     const reason = String(formData.get("reason") ?? "").trim() || undefined;
+    const unitPriceRaw = String(formData.get("unitPrice") ?? "").trim();
+    const unitPrice = isEntrada && unitPriceRaw !== "" ? Number(unitPriceRaw) : undefined;
 
     const ingredient = ingredientById.get(ingredientId);
     if (!ingredient) {
@@ -63,6 +69,10 @@ export function MovementForm({
     }
     if (!quantity || quantity <= 0) {
       toast.error("Informe uma quantidade válida.");
+      return;
+    }
+    if (unitPrice !== undefined && unitPrice <= 0) {
+      toast.error("O preço de compra deve ser maior que zero.");
       return;
     }
 
@@ -75,6 +85,7 @@ export function MovementForm({
         unit: ingredient.unit,
         quantity,
         reason,
+        unitPrice,
       },
     ]);
     setFormKey((k) => k + 1);
@@ -88,7 +99,12 @@ export function MovementForm({
     startTransition(async () => {
       const result = await createMovementsBatch(
         type,
-        items.map(({ ingredientId, quantity, reason }) => ({ ingredientId, quantity, reason })),
+        items.map(({ ingredientId, quantity, reason, unitPrice }) => ({
+          ingredientId,
+          quantity,
+          reason,
+          unitPrice,
+        })),
       );
       if (result?.error) {
         toast.error(result.error);
@@ -144,6 +160,23 @@ export function MovementForm({
               />
             </div>
 
+            {isEntrada && (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor={`unitPrice-${type}`}>Preço de compra dessa vez (opcional)</Label>
+                <Input
+                  id={`unitPrice-${type}`}
+                  name="unitPrice"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Deixe em branco pra manter o preço já cadastrado"
+                />
+                <p className="text-xs text-neutral-500">
+                  Se preencher, o preço cadastrado do ingrediente é atualizado pra esse valor.
+                </p>
+              </div>
+            )}
+
             <div className="flex flex-col gap-2">
               <Label htmlFor={`reason-${type}`}>Motivo (opcional)</Label>
               <Textarea
@@ -174,6 +207,7 @@ export function MovementForm({
                   <TableRow>
                     <TableHead>Ingrediente</TableHead>
                     <TableHead>Quantidade</TableHead>
+                    {isEntrada && <TableHead>Preço de compra</TableHead>}
                     <TableHead>Motivo</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -185,6 +219,11 @@ export function MovementForm({
                       <TableCell>
                         {item.quantity} {item.unit}
                       </TableCell>
+                      {isEntrada && (
+                        <TableCell className="text-neutral-500">
+                          {item.unitPrice !== undefined ? currency(item.unitPrice) : "—"}
+                        </TableCell>
+                      )}
                       <TableCell className="text-neutral-500">{item.reason ?? "—"}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" onClick={() => removeItem(item.key)}>

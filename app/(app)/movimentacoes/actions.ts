@@ -10,6 +10,7 @@ const movementSchema = z.object({
   type: z.enum(["ENTRADA", "SAIDA"]),
   quantity: z.coerce.number().positive("A quantidade deve ser maior que zero."),
   reason: z.string().trim().max(500).optional(),
+  unitPrice: z.coerce.number().positive().optional(),
 });
 
 export type MovementFormState = { error?: string } | undefined;
@@ -76,12 +77,13 @@ export async function updateMovement(
     type: formData.get("type"),
     quantity: formData.get("quantity"),
     reason: formData.get("reason") || undefined,
+    unitPrice: formData.get("unitPrice") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const { ingredientId, type, quantity, reason } = parsed.data;
+  const { ingredientId, type, quantity, reason, unitPrice } = parsed.data;
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -110,6 +112,7 @@ export async function updateMovement(
         where: { id: ingredientId },
         data: {
           currentStock: type === "ENTRADA" ? { increment: quantity } : { decrement: quantity },
+          ...(type === "ENTRADA" && unitPrice !== undefined ? { unitPrice } : {}),
         },
       });
 
@@ -174,6 +177,7 @@ const batchItemSchema = z.object({
   ingredientId: z.string().trim().min(1),
   quantity: z.coerce.number().positive(),
   reason: z.string().trim().max(500).optional(),
+  unitPrice: z.coerce.number().positive().optional(),
 });
 
 const batchSchema = z.object({
@@ -189,7 +193,7 @@ export type BatchMovementState = { error?: string; count?: number } | undefined;
  */
 export async function createMovementsBatch(
   type: "ENTRADA" | "SAIDA",
-  items: { ingredientId: string; quantity: number; reason?: string }[],
+  items: { ingredientId: string; quantity: number; reason?: string; unitPrice?: number }[],
 ): Promise<BatchMovementState> {
   const user = await requirePermission("canManageEstoque");
 
@@ -224,6 +228,9 @@ export async function createMovementsBatch(
               parsed.data.type === "ENTRADA"
                 ? { increment: item.quantity }
                 : { decrement: item.quantity },
+            ...(parsed.data.type === "ENTRADA" && item.unitPrice !== undefined
+              ? { unitPrice: item.unitPrice }
+              : {}),
           },
         });
       }

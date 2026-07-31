@@ -131,6 +131,23 @@ export function EditMovementDialog({
             />
           </div>
 
+          {type === "ENTRADA" && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="unitPrice">Preço de compra dessa vez (opcional)</Label>
+              <Input
+                id="unitPrice"
+                name="unitPrice"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Deixe em branco pra manter o preço já cadastrado"
+              />
+              <p className="text-xs text-neutral-500">
+                Se preencher, o preço cadastrado do ingrediente é atualizado pra esse valor.
+              </p>
+            </div>
+          )}
+
           <div className="flex flex-col gap-2">
             <Label htmlFor="reason">Motivo (opcional)</Label>
             <Textarea id="reason" name="reason" defaultValue={movement.reason ?? ""} />
