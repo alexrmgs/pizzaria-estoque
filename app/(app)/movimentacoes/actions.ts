@@ -15,6 +15,24 @@ const movementSchema = z.object({
 
 export type MovementFormState = { error?: string } | undefined;
 
+/**
+ * Custo médio ponderado: mistura o preço já cadastrado (aplicado ao estoque
+ * que já existia) com o preço da entrada nova, proporcional à quantidade de
+ * cada um — em vez de simplesmente sobrescrever o preço de todo o estoque
+ * pelo valor da compra mais recente.
+ */
+function weightedAveragePrice(
+  currentStock: number,
+  currentPrice: number,
+  incomingQuantity: number,
+  incomingPrice: number,
+): number {
+  const totalQuantity = currentStock + incomingQuantity;
+  if (totalQuantity <= 0) return incomingPrice;
+  const blended = (currentStock * currentPrice + incomingQuantity * incomingPrice) / totalQuantity;
+  return Math.round(blended * 100) / 100;
+}
+
 export async function createMovement(
   _prevState: MovementFormState,
   formData: FormData,
@@ -108,11 +126,15 @@ export async function updateMovement(
         );
       }
 
+      const newUnitPrice =
+        type === "ENTRADA" && unitPrice !== undefined
+          ? weightedAveragePrice(current, Number(ingredient.unitPrice), quantity, unitPrice)
+          : undefined;
       await tx.ingredient.update({
         where: { id: ingredientId },
         data: {
           currentStock: type === "ENTRADA" ? { increment: quantity } : { decrement: quantity },
-          ...(type === "ENTRADA" && unitPrice !== undefined ? { unitPrice } : {}),
+          ...(newUnitPrice !== undefined ? { unitPrice: newUnitPrice } : {}),
         },
       });
 
@@ -221,6 +243,10 @@ export async function createMovementsBatch(
             userId: user.id,
           },
         });
+        const newUnitPrice =
+          parsed.data.type === "ENTRADA" && item.unitPrice !== undefined
+            ? weightedAveragePrice(current, Number(ingredient.unitPrice), item.quantity, item.unitPrice)
+            : undefined;
         await tx.ingredient.update({
           where: { id: item.ingredientId },
           data: {
@@ -228,9 +254,7 @@ export async function createMovementsBatch(
               parsed.data.type === "ENTRADA"
                 ? { increment: item.quantity }
                 : { decrement: item.quantity },
-            ...(parsed.data.type === "ENTRADA" && item.unitPrice !== undefined
-              ? { unitPrice: item.unitPrice }
-              : {}),
+            ...(newUnitPrice !== undefined ? { unitPrice: newUnitPrice } : {}),
           },
         });
       }

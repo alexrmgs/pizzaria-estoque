@@ -172,7 +172,8 @@ export function MovementForm({
                   placeholder="Deixe em branco pra manter o preço já cadastrado"
                 />
                 <p className="text-xs text-neutral-500">
-                  Se preencher, o preço cadastrado do ingrediente é atualizado pra esse valor.
+                  Se preencher, o preço cadastrado é recalculado como média ponderada entre o
+                  estoque que já existe e essa compra — não sobrescreve direto.
                 </p>
               </div>
             )}
