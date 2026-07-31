@@ -39,7 +39,7 @@ export default async function PagamentosPage() {
       prisma.payment.findMany({
         orderBy: { periodEnd: "desc" },
         distinct: ["employeeId"],
-        select: { employeeId: true, periodEnd: true },
+        select: { employeeId: true, periodStart: true, periodEnd: true, netAmount: true, paidAt: true },
       }),
       prisma.payment.findMany({
         orderBy: { periodStart: "desc" },
@@ -57,7 +57,7 @@ export default async function PagamentosPage() {
         : pendingOutrosValesByEmployee;
     map.set(advance.employeeId, (map.get(advance.employeeId) ?? 0) + Number(advance.amount));
   }
-  const lastPaymentByEmployee = new Map(lastPayments.map((p) => [p.employeeId, p.periodEnd]));
+  const lastPaymentByEmployee = new Map(lastPayments.map((p) => [p.employeeId, p]));
 
   const prevMonth = previousMonthRange(now);
   const deadline = nthBusinessDayOfMonth(now.getFullYear(), now.getMonth(), 5);
@@ -67,6 +67,7 @@ export default async function PagamentosPage() {
   const prevMonthLabel = prevMonth.start.toLocaleDateString("pt-BR", {
     month: "long",
     year: "numeric",
+    timeZone: "UTC",
   });
 
   const cltSettings = {
@@ -127,6 +128,14 @@ export default async function PagamentosPage() {
       netAmount,
       paidAt: payment.paidAt.toLocaleDateString("pt-BR"),
     });
+  }
+
+  const employeesToPay: typeof employees = [];
+  const employeesPaid: typeof employees = [];
+  for (const employee of employees) {
+    const lastPayment = lastPaymentByEmployee.get(employee.id);
+    const prevMonthClosed = !!lastPayment && lastPayment.periodEnd >= prevMonth.end;
+    (prevMonthClosed ? employeesPaid : employeesToPay).push(employee);
   }
 
   return (
@@ -207,80 +216,129 @@ export default async function PagamentosPage() {
         </CardContent>
       </Card>
 
-      <div className="rounded-lg border bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Funcionário</TableHead>
-              <TableHead>Cargo</TableHead>
-              <TableHead>Salário base</TableHead>
-              <TableHead>Adiantamento pendente</TableHead>
-              <TableHead>Outros vales pendentes</TableHead>
-              <TableHead>Último pagamento</TableHead>
-              <TableHead>Folha de {prevMonthLabel}</TableHead>
-              <TableHead className="text-right">Ação</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {employees.length === 0 && (
+      <div>
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+          A pagar — folha de {prevMonthLabel}
+          {employeesToPay.length > 0 && (
+            <Badge variant={isOverdue ? "destructive" : "outline"}>{employeesToPay.length}</Badge>
+          )}
+        </h2>
+        <div className="rounded-lg border bg-white">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-neutral-500">
-                  Nenhum funcionário ativo.
-                </TableCell>
+                <TableHead>Funcionário</TableHead>
+                <TableHead>Cargo</TableHead>
+                <TableHead>Salário base</TableHead>
+                <TableHead>Adiantamento pendente</TableHead>
+                <TableHead>Outros vales pendentes</TableHead>
+                <TableHead>Último pagamento</TableHead>
+                <TableHead className="text-right">Ação</TableHead>
               </TableRow>
-            )}
-            {employees.map((employee) => {
-              const lastPaymentDate = lastPaymentByEmployee.get(employee.id);
-              const pendingAdiantamento = pendingAdiantamentoByEmployee.get(employee.id) ?? 0;
-              const pendingOutrosVales = pendingOutrosValesByEmployee.get(employee.id) ?? 0;
-              const prevMonthClosed = !!lastPaymentDate && lastPaymentDate >= prevMonth.end;
-              return (
-                <TableRow key={employee.id}>
-                  <TableCell className="font-medium">
-                    <Link href={`/funcionarios/${employee.id}`} className="hover:underline">
-                      {employee.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-neutral-500">{employee.role ?? "—"}</TableCell>
-                  <TableCell>{currency(Number(employee.baseSalary))}</TableCell>
-                  <TableCell
-                    className={pendingAdiantamento > 0 ? "text-destructive" : "text-neutral-500"}
-                  >
-                    {pendingAdiantamento > 0 ? currency(pendingAdiantamento) : "—"}
-                  </TableCell>
-                  <TableCell
-                    className={pendingOutrosVales > 0 ? "text-destructive" : "text-neutral-500"}
-                  >
-                    {pendingOutrosVales > 0 ? currency(pendingOutrosVales) : "—"}
-                  </TableCell>
-                  <TableCell className="text-neutral-500">
-                    {lastPaymentDate
-                      ? lastPaymentDate.toLocaleDateString("pt-BR", { timeZone: "UTC" })
-                      : "Nunca"}
-                  </TableCell>
-                  <TableCell>
-                    {prevMonthClosed ? (
-                      <Badge variant="secondary">Fechada</Badge>
-                    ) : (
-                      <Badge variant={isOverdue ? "destructive" : "outline"}>
-                        {isOverdue ? "Atrasada" : "Pendente"}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <ClosePaymentDialog
-                      employeeId={employee.id}
-                      employeeName={employee.name}
-                      baseSalary={Number(employee.baseSalary)}
-                      dependents={employee.dependents}
-                      cltSettings={cltSettings}
-                    />
+            </TableHeader>
+            <TableBody>
+              {employeesToPay.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-neutral-500">
+                    Todo mundo já está com a folha de {prevMonthLabel} fechada. 🎉
                   </TableCell>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+              )}
+              {employeesToPay.map((employee) => {
+                const lastPayment = lastPaymentByEmployee.get(employee.id);
+                const pendingAdiantamento = pendingAdiantamentoByEmployee.get(employee.id) ?? 0;
+                const pendingOutrosVales = pendingOutrosValesByEmployee.get(employee.id) ?? 0;
+                return (
+                  <TableRow key={employee.id}>
+                    <TableCell className="font-medium">
+                      <Link href={`/funcionarios/${employee.id}`} className="hover:underline">
+                        {employee.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-neutral-500">{employee.role ?? "—"}</TableCell>
+                    <TableCell>{currency(Number(employee.baseSalary))}</TableCell>
+                    <TableCell
+                      className={pendingAdiantamento > 0 ? "text-destructive" : "text-neutral-500"}
+                    >
+                      {pendingAdiantamento > 0 ? currency(pendingAdiantamento) : "—"}
+                    </TableCell>
+                    <TableCell
+                      className={pendingOutrosVales > 0 ? "text-destructive" : "text-neutral-500"}
+                    >
+                      {pendingOutrosVales > 0 ? currency(pendingOutrosVales) : "—"}
+                    </TableCell>
+                    <TableCell className="text-neutral-500">
+                      {lastPayment
+                        ? lastPayment.periodEnd.toLocaleDateString("pt-BR", { timeZone: "UTC" })
+                        : "Nunca"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <ClosePaymentDialog
+                        employeeId={employee.id}
+                        employeeName={employee.name}
+                        baseSalary={Number(employee.baseSalary)}
+                        dependents={employee.dependents}
+                        cltSettings={cltSettings}
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+          Pagos — folha de {prevMonthLabel}
+          {employeesPaid.length > 0 && <Badge variant="secondary">{employeesPaid.length}</Badge>}
+        </h2>
+        <div className="rounded-lg border bg-white">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Funcionário</TableHead>
+                <TableHead>Cargo</TableHead>
+                <TableHead>Período pago</TableHead>
+                <TableHead>Valor líquido</TableHead>
+                <TableHead>Fechado em</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {employeesPaid.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-neutral-500">
+                    Ninguém ainda com a folha de {prevMonthLabel} fechada.
+                  </TableCell>
+                </TableRow>
+              )}
+              {employeesPaid.map((employee) => {
+                const lastPayment = lastPaymentByEmployee.get(employee.id);
+                return (
+                  <TableRow key={employee.id}>
+                    <TableCell className="font-medium">
+                      <Link href={`/funcionarios/${employee.id}`} className="hover:underline">
+                        {employee.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-neutral-500">{employee.role ?? "—"}</TableCell>
+                    <TableCell className="text-neutral-500">
+                      {lastPayment &&
+                        `${lastPayment.periodStart.toLocaleDateString("pt-BR", { timeZone: "UTC" })} a ${lastPayment.periodEnd.toLocaleDateString("pt-BR", { timeZone: "UTC" })}`}
+                    </TableCell>
+                    <TableCell className="font-medium text-primary">
+                      {lastPayment && currency(Number(lastPayment.netAmount))}
+                    </TableCell>
+                    <TableCell className="text-neutral-500">
+                      {lastPayment && lastPayment.paidAt.toLocaleDateString("pt-BR")}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       <div>

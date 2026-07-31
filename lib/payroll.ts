@@ -335,9 +335,15 @@ export function nthBusinessDayOfMonth(year: number, month: number, n: number): D
   return date;
 }
 
-/** Início e fim (inclusive) do mês anterior ao de `reference`. */
+/**
+ * Início e fim (inclusive) do mês anterior ao de `reference`, em meia-noite
+ * UTC — pra comparar de forma segura com `Payment.periodStart`/`periodEnd`
+ * (`@db.Date`, que sempre volta do banco em meia-noite UTC). Construir com
+ * o horário local aqui causava uma diferença de algumas horas que fazia a
+ * comparação `>=` falhar mesmo quando o período já estava fechado.
+ */
 export function previousMonthRange(reference: Date): { start: Date; end: Date } {
-  const start = new Date(reference.getFullYear(), reference.getMonth() - 1, 1);
-  const end = new Date(reference.getFullYear(), reference.getMonth(), 0);
+  const start = new Date(Date.UTC(reference.getFullYear(), reference.getMonth() - 1, 1));
+  const end = new Date(Date.UTC(reference.getFullYear(), reference.getMonth(), 0));
   return { start, end };
 }
