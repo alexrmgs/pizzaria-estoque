@@ -1,6 +1,19 @@
 "use client";
 
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
@@ -31,7 +44,12 @@ export function FinanceiroCharts({
   stores,
 }: {
   monthlyTotals: { month: number; amount: number }[];
-  stores: { storeId: string; storeName: string; totalAmount: number }[];
+  stores: {
+    storeId: string;
+    storeName: string;
+    totalAmount: number;
+    months: { month: number; amount: number }[];
+  }[];
 }) {
   const trendData = monthlyTotals.map((m) => ({
     month: MONTH_NAMES_SHORT[m.month],
@@ -52,6 +70,14 @@ export function FinanceiroCharts({
       { label: s.storeName, color: STORE_COLORS[i % STORE_COLORS.length] },
     ]),
   );
+
+  const monthlyByStoreData = MONTH_NAMES_SHORT.map((label, month) => {
+    const row: Record<string, string | number> = { month: label };
+    for (const s of stores) {
+      row[s.storeName] = s.months.find((m) => m.month === month)?.amount ?? 0;
+    }
+    return row;
+  });
 
   if (stores.length === 0) return null;
 
@@ -82,6 +108,38 @@ export function FinanceiroCharts({
                 strokeWidth={2}
               />
             </AreaChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
+
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle className="text-lg">📊 Faturamento mensal por loja</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={storeConfig} className="aspect-auto h-72 w-full">
+            <LineChart data={monthlyByStoreData} margin={{ left: 8, right: 8, top: 8 }}>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="month" tickLine={false} axisLine={false} />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                width={80}
+                tickFormatter={(v: number) => currency(v)}
+              />
+              <ChartTooltip content={<ChartTooltipContent formatter={(value) => currency(Number(value))} />} />
+              <ChartLegend content={<ChartLegendContent />} />
+              {stores.map((s, i) => (
+                <Line
+                  key={s.storeId}
+                  dataKey={s.storeName}
+                  type="monotone"
+                  stroke={STORE_COLORS[i % STORE_COLORS.length]}
+                  strokeWidth={2}
+                  dot={false}
+                />
+              ))}
+            </LineChart>
           </ChartContainer>
         </CardContent>
       </Card>

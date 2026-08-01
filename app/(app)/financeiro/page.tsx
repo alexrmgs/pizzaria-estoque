@@ -205,6 +205,7 @@ export default async function FinanceiroPage({
               storeId: s.storeId,
               storeName: s.storeName,
               totalAmount: s.totalAmount,
+              months: s.months.map((m) => ({ month: m.month, amount: m.amount })),
             }))}
           />
 
