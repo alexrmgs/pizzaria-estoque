@@ -14,6 +14,7 @@ import {
 import { RevenueDialog } from "../dashboard/revenue-dialog";
 import { DeleteRevenueButton } from "./delete-revenue-button";
 import { FinanceiroCharts } from "./financeiro-charts";
+import { StoreDashboard } from "./store-dashboard";
 import { buildYearlySummary, MONTH_NAMES_SHORT } from "@/lib/financeiro";
 
 const currency = (value: number) =>
@@ -41,7 +42,8 @@ export default async function FinanceiroPage({
   await requirePermission("canViewRelatorios");
 
   const params = await searchParams;
-  const activeTab = params.tab === "lancamentos" ? "lancamentos" : "dashboard";
+  const tabParam = typeof params.tab === "string" ? params.tab : undefined;
+  const activeTab = tabParam === "lancamentos" || tabParam?.startsWith("store-") ? tabParam : "dashboard";
 
   const currentYear = new Date().getFullYear();
   const year = typeof params.year === "string" ? parseInt(params.year, 10) || currentYear : currentYear;
@@ -113,10 +115,17 @@ export default async function FinanceiroPage({
       </div>
 
       <Tabs defaultValue={activeTab}>
-        <TabsList>
-          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-          <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList>
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            {storesByAmount.map((s) => (
+              <TabsTrigger key={s.storeId} value={`store-${s.storeId}`}>
+                {s.storeName}
+              </TabsTrigger>
+            ))}
+            <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="dashboard" className="flex flex-col gap-6 pt-4">
           <div className="flex items-center justify-between rounded-lg border bg-white p-3">
@@ -458,6 +467,33 @@ export default async function FinanceiroPage({
             </CardContent>
           </Card>
         </TabsContent>
+
+        {storesByAmount.map((s) => (
+          <TabsContent key={s.storeId} value={`store-${s.storeId}`} className="flex flex-col gap-6 pt-4">
+            <div className="flex items-center justify-between rounded-lg border bg-white p-3">
+              <Button
+                variant="outline"
+                size="sm"
+                nativeButton={false}
+                render={<a href={`/financeiro?tab=store-${s.storeId}&year=${year - 1}`} />}
+              >
+                ← {year - 1}
+              </Button>
+              <p className="text-sm font-medium">
+                {s.storeName} — {year}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                nativeButton={false}
+                render={<a href={`/financeiro?tab=store-${s.storeId}&year=${year + 1}`} />}
+              >
+                {year + 1} →
+              </Button>
+            </div>
+            <StoreDashboard store={s} year={year} />
+          </TabsContent>
+        ))}
 
         <TabsContent value="lancamentos" className="flex flex-col gap-6 pt-4">
           <form className="flex flex-wrap items-end gap-3 rounded-lg border bg-white p-4">
