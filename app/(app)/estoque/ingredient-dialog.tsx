@@ -22,6 +22,9 @@ import {
 } from "@/components/ui/select";
 import { createIngredient, updateIngredient } from "./actions";
 
+const currency = (value: number) =>
+  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 const UNIT_OPTIONS = [
   { value: "KG", label: "Quilograma (KG)" },
   { value: "G", label: "Grama (G)" },
@@ -66,11 +69,13 @@ export function IngredientDialog({
   const [recipeUnit, setRecipeUnit] = useState(ingredient?.recipeUnit ?? "same");
   const [grossWeight, setGrossWeight] = useState(ingredient?.correctionGrossWeight ?? "");
   const [netWeight, setNetWeight] = useState(ingredient?.correctionNetWeight ?? "");
+  const [unitPrice, setUnitPrice] = useState(ingredient?.unitPrice ?? "");
 
   const grossNum = Number(grossWeight || 0);
   const netNum = Number(netWeight || 0);
   const correctionFactor = grossNum > 0 && netNum > 0 ? grossNum / netNum : null;
   const correctionInvalid = grossNum > 0 && netNum > 0 && netNum > grossNum;
+  const costPerNetUnit = correctionFactor !== null ? Number(unitPrice || 0) * correctionFactor : null;
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -96,6 +101,7 @@ export function IngredientDialog({
           setRecipeUnit(ingredient?.recipeUnit ?? "same");
           setGrossWeight(ingredient?.correctionGrossWeight ?? "");
           setNetWeight(ingredient?.correctionNetWeight ?? "");
+          setUnitPrice(ingredient?.unitPrice ?? "");
         }
       }}
     >
@@ -153,7 +159,8 @@ export function IngredientDialog({
                 type="number"
                 step="0.01"
                 min="0"
-                defaultValue={ingredient?.unitPrice}
+                value={unitPrice}
+                onChange={(e) => setUnitPrice(e.target.value)}
                 required
               />
             </div>
@@ -277,6 +284,13 @@ export function IngredientDialog({
                 Fator de correção: <span className="font-semibold">{correctionFactor.toFixed(3)}</span>
                 {" · "}
                 Perda: <span className="font-semibold">{((1 - netNum / grossNum) * 100).toFixed(1)}%</span>
+                {costPerNetUnit !== null && (
+                  <>
+                    {" · "}
+                    Custo do {unit} limpo:{" "}
+                    <span className="font-semibold">{currency(costPerNetUnit)}</span>
+                  </>
+                )}
               </p>
             )}
           </div>
