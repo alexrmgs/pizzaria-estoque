@@ -100,9 +100,15 @@ export default async function DashboardPage({
     const porIngrediente = new Map<string, Agg>();
     const porCategoria = new Map<string, number>();
 
+    let comprasTotal = 0;
     for (const m of entradas) {
       const qty = Number(m.quantity);
-      const value = qty * Number(m.ingredient.unitPrice);
+      // Usa o preço travado na hora da entrada (informado ou o cadastrado
+      // naquele momento); cai pro preço atual só em lançamentos antigos que
+      // ainda não tinham esse registro.
+      const unitPrice = m.unitPriceAtEntry !== null ? Number(m.unitPriceAtEntry) : Number(m.ingredient.unitPrice);
+      const value = qty * unitPrice;
+      comprasTotal += value;
 
       const current = porIngrediente.get(m.ingredientId) ?? {
         name: m.ingredient.name,
@@ -158,7 +164,7 @@ export default async function DashboardPage({
           </div>
         </form>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="pb-1">
               <CardTitle className="text-sm text-neutral-500">Faturamento no período (FB Eusébio)</CardTitle>
@@ -167,6 +173,17 @@ export default async function DashboardPage({
               <p className="text-2xl font-semibold">{currency(faturamentoTotal)}</p>
               <p className="mt-1 text-xs text-neutral-500">
                 {revenues.length} de {diasNoPeriodo} dia(s) lançado(s) — só a loja com esse estoque
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-sm text-neutral-500">Compras no período</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold">{currency(comprasTotal)}</p>
+              <p className="mt-1 text-xs text-neutral-500">
+                Preço de compra informado, ou o cadastrado quando deixado em branco
               </p>
             </CardContent>
           </Card>

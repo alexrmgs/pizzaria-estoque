@@ -140,7 +140,13 @@ export async function updateMovement(
 
       await tx.stockMovement.update({
         where: { id },
-        data: { ingredientId, type, quantity, reason },
+        data: {
+          ingredientId,
+          type,
+          quantity,
+          reason,
+          unitPriceAtEntry: type === "ENTRADA" ? (unitPrice ?? Number(ingredient.unitPrice)) : null,
+        },
       });
     });
   } catch (error) {
@@ -241,6 +247,12 @@ export async function createMovementsBatch(
             quantity: item.quantity,
             reason: item.reason,
             userId: user.id,
+            // Preço efetivo dessa entrada: o informado agora, ou o já
+            // cadastrado no ingrediente se deixado em branco — guardado
+            // aqui pra "quanto comprei no mês" continuar certo mesmo que
+            // o preço cadastrado mude depois.
+            unitPriceAtEntry:
+              parsed.data.type === "ENTRADA" ? (item.unitPrice ?? Number(ingredient.unitPrice)) : null,
           },
         });
         const newUnitPrice =

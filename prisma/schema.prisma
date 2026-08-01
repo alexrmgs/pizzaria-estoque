@@ -129,6 +129,7 @@ model StockMovement {
   user         User         @relation(fields: [userId], references: [id])
   userId       String
   createdAt    DateTime     @default(now())
+  unitPriceAtEntry Decimal? @db.Decimal(10, 2)
 
   @@index([ingredientId])
   @@index([userId])
