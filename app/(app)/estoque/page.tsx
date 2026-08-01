@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { IngredientDialog } from "./ingredient-dialog";
 import { DeleteIngredientButton } from "./delete-ingredient-button";
+import { ExcludeProducedFromCmvButton } from "./exclude-produced-from-cmv-button";
 import type { Prisma } from "@/lib/generated/prisma/client";
 
 const currency = (value: number) =>
@@ -250,10 +251,13 @@ export default async function EstoquePage({
               <p className="text-2xl font-semibold text-primary">{currency(producedTotalValue)}</p>
             </CardContent>
           </Card>
-          <p className="text-xs text-neutral-500">
-            Itens marcados como &quot;Produzido internamente&quot; no cadastro — preparados na
-            cozinha, não comprados prontos.
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-neutral-500">
+              Itens marcados como &quot;Produzido internamente&quot; no cadastro — preparados na
+              cozinha, não comprados prontos.
+            </p>
+            {user.role.canManageEstoque && <ExcludeProducedFromCmvButton />}
+          </div>
           <IngredientsTable
             ingredients={producedIngredients}
             categories={categories}

@@ -183,6 +183,25 @@ export async function setIngredientRecipeUnit(
   revalidatePath("/receitas");
 }
 
+/**
+ * Tira todos os itens "produzidos internamente" do cálculo do CMV de uma
+ * vez — evita contar duas vezes (os insumos crus já entram no CMV quando
+ * consumidos na produção; contar o item produzido também duplicaria).
+ */
+export async function excludeProducedFromCmv(): Promise<{ count: number }> {
+  await requirePermission("canManageEstoque");
+
+  const result = await prisma.ingredient.updateMany({
+    where: { isProduced: true, includeInCmv: true },
+    data: { includeInCmv: false },
+  });
+
+  revalidatePath("/estoque");
+  revalidatePath("/dashboard");
+
+  return { count: result.count };
+}
+
 export async function deleteIngredient(id: string) {
   await requirePermission("canManageEstoque");
 
