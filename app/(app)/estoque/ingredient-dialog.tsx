@@ -46,6 +46,8 @@ type Ingredient = {
   categoryId: string | null;
   recipeUnit: string | null;
   unitsPerPackage: string;
+  correctionGrossWeight: string | null;
+  correctionNetWeight: string | null;
 };
 
 type Category = { id: string; name: string };
@@ -62,6 +64,13 @@ export function IngredientDialog({
   const [isPending, startTransition] = useTransition();
   const [unit, setUnit] = useState(ingredient?.unit ?? "KG");
   const [recipeUnit, setRecipeUnit] = useState(ingredient?.recipeUnit ?? "same");
+  const [grossWeight, setGrossWeight] = useState(ingredient?.correctionGrossWeight ?? "");
+  const [netWeight, setNetWeight] = useState(ingredient?.correctionNetWeight ?? "");
+
+  const grossNum = Number(grossWeight || 0);
+  const netNum = Number(netWeight || 0);
+  const correctionFactor = grossNum > 0 && netNum > 0 ? grossNum / netNum : null;
+  const correctionInvalid = grossNum > 0 && netNum > 0 && netNum > grossNum;
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -85,6 +94,8 @@ export function IngredientDialog({
           setError(undefined);
           setUnit(ingredient?.unit ?? "KG");
           setRecipeUnit(ingredient?.recipeUnit ?? "same");
+          setGrossWeight(ingredient?.correctionGrossWeight ?? "");
+          setNetWeight(ingredient?.correctionNetWeight ?? "");
         }
       }}
     >
@@ -217,6 +228,59 @@ export function IngredientDialog({
             )}
           </div>
 
+          <div className="flex flex-col gap-2 rounded-lg border p-3">
+            <Label>Fator de correção (opcional)</Label>
+            <p className="text-xs text-muted-foreground">
+              Peso bruto (como comprado) e peso líquido (depois de limpo/preparado) — ex: 1kg de
+              cebola que sobra 800g limpa. Usado como sugestão de &quot;% de perda no
+              preparo&quot; ao montar fichas técnicas com esse ingrediente.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="correctionGrossWeight" className="text-xs">
+                  Peso bruto
+                </Label>
+                <Input
+                  id="correctionGrossWeight"
+                  name="correctionGrossWeight"
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  value={grossWeight}
+                  onChange={(e) => setGrossWeight(e.target.value)}
+                  placeholder="Ex: 1"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="correctionNetWeight" className="text-xs">
+                  Peso líquido
+                </Label>
+                <Input
+                  id="correctionNetWeight"
+                  name="correctionNetWeight"
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  value={netWeight}
+                  onChange={(e) => setNetWeight(e.target.value)}
+                  placeholder="Ex: 0,8"
+                />
+              </div>
+            </div>
+            {correctionInvalid && (
+              <p className="text-xs text-destructive">
+                O peso líquido não pode ser maior que o peso bruto.
+              </p>
+            )}
+            {correctionFactor !== null && !correctionInvalid && (
+              <p className="text-xs text-primary">
+                Fator de correção: <span className="font-semibold">{correctionFactor.toFixed(3)}</span>
+                {" · "}
+                Perda: <span className="font-semibold">{((1 - netNum / grossNum) * 100).toFixed(1)}%</span>
+              </p>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">
               <Label htmlFor="minStock">Estoque mínimo</Label>
@@ -277,7 +341,7 @@ export function IngredientDialog({
 
           {error && <p className="text-sm text-red-600">{error}</p>}
           <DialogFooter>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending || correctionInvalid}>
               {isPending ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>

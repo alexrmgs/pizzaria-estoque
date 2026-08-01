@@ -36,7 +36,19 @@ type Ingredient = {
   recipeUnit: string | null;
   unitsPerPackage: string;
   unitPrice: string;
+  correctionGrossWeight: string | null;
+  correctionNetWeight: string | null;
 };
+
+/** % de perda sugerida a partir do fator de correção cadastrado no
+ * ingrediente (peso bruto/líquido) — usada só como valor inicial ao
+ * escolher o ingrediente na receita; o usuário pode ajustar por linha. */
+function defaultWastePercent(ingredient: Ingredient): string | null {
+  const gross = Number(ingredient.correctionGrossWeight);
+  const net = Number(ingredient.correctionNetWeight);
+  if (!gross || !net || net > gross) return null;
+  return (((gross - net) / gross) * 100).toFixed(1);
+}
 
 const UNIT_OPTIONS = [
   { value: "KG", label: "Quilograma (KG)" },
@@ -279,8 +291,18 @@ export function RecipeDialog({
   }
 
   function setRowIngredient(key: string, ingredientId: string | null) {
+    const selected = ingredients.find((i) => i.id === ingredientId);
+    const suggestedWaste = selected ? defaultWastePercent(selected) : null;
     setRows((prev) =>
-      prev.map((row) => (row.key === key ? { ...row, ingredientId: ingredientId ?? "" } : row)),
+      prev.map((row) =>
+        row.key === key
+          ? {
+              ...row,
+              ingredientId: ingredientId ?? "",
+              wastePercent: suggestedWaste ?? row.wastePercent,
+            }
+          : row,
+      ),
     );
   }
 

@@ -193,6 +193,8 @@ export default async function EstoquePage({
                             categoryId: ingredient.categoryId,
                             recipeUnit: ingredient.recipeUnit,
                             unitsPerPackage: ingredient.unitsPerPackage.toString(),
+                            correctionGrossWeight: ingredient.correctionGrossWeight?.toString() ?? null,
+                            correctionNetWeight: ingredient.correctionNetWeight?.toString() ?? null,
                           }}
                         />
                         <DeleteIngredientButton id={ingredient.id} name={ingredient.name} />

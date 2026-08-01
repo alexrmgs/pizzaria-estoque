@@ -23,6 +23,8 @@ type RecipeIngredientOption = {
   recipeUnit: string | null;
   unitsPerPackage: string;
   unitPrice: string;
+  correctionGrossWeight: string | null;
+  correctionNetWeight: string | null;
 };
 
 function RecipeGrid({
@@ -177,6 +179,8 @@ export default async function ReceitasPage() {
         recipeUnit: true,
         unitsPerPackage: true,
         unitPrice: true,
+        correctionGrossWeight: true,
+        correctionNetWeight: true,
       },
     }),
   ]);
@@ -185,6 +189,8 @@ export default async function ReceitasPage() {
     name: i.name,
     unit: i.unit,
     recipeUnit: i.recipeUnit,
+    correctionGrossWeight: i.correctionGrossWeight?.toString() ?? null,
+    correctionNetWeight: i.correctionNetWeight?.toString() ?? null,
     unitsPerPackage: i.unitsPerPackage.toString(),
     unitPrice: i.unitPrice.toString(),
   }));

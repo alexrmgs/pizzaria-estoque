@@ -26,7 +26,15 @@ const ingredientSchema = z.object({
     .nullable()
     .optional(),
   unitsPerPackage: z.coerce.number().positive("Tem que ser maior que zero.").default(1),
-});
+  correctionGrossWeight: z.coerce.number().positive("Deve ser maior que zero.").nullable(),
+  correctionNetWeight: z.coerce.number().positive("Deve ser maior que zero.").nullable(),
+}).refine(
+  (data) =>
+    data.correctionGrossWeight === null ||
+    data.correctionNetWeight === null ||
+    data.correctionNetWeight <= data.correctionGrossWeight,
+  { message: "O peso líquido não pode ser maior que o peso bruto.", path: ["correctionNetWeight"] },
+);
 
 export type IngredientFormState = { error?: string } | undefined;
 
@@ -41,6 +49,12 @@ function parseIngredientForm(formData: FormData) {
       ? recipeUnitRaw
       : null;
 
+  const grossRaw = formData.get("correctionGrossWeight");
+  const correctionGrossWeight =
+    typeof grossRaw === "string" && grossRaw.trim() !== "" ? grossRaw : null;
+  const netRaw = formData.get("correctionNetWeight");
+  const correctionNetWeight = typeof netRaw === "string" && netRaw.trim() !== "" ? netRaw : null;
+
   return ingredientSchema.safeParse({
     name: formData.get("name"),
     unit: formData.get("unit"),
@@ -51,6 +65,8 @@ function parseIngredientForm(formData: FormData) {
     isProduced: formData.get("isProduced") === "on",
     categoryId: formData.get("categoryId"),
     recipeUnit,
+    correctionGrossWeight,
+    correctionNetWeight,
     unitsPerPackage: formData.get("unitsPerPackage") || 1,
   });
 }
@@ -79,6 +95,8 @@ export async function createIngredient(
         categoryId: parsed.data.categoryId ?? null,
         recipeUnit: parsed.data.recipeUnit ?? null,
         unitsPerPackage: parsed.data.unitsPerPackage,
+        correctionGrossWeight: parsed.data.correctionGrossWeight,
+        correctionNetWeight: parsed.data.correctionNetWeight,
       },
     });
   } catch {
@@ -118,6 +136,8 @@ export async function updateIngredient(
         categoryId: parsed.data.categoryId ?? null,
         recipeUnit: parsed.data.recipeUnit ?? null,
         unitsPerPackage: parsed.data.unitsPerPackage,
+        correctionGrossWeight: parsed.data.correctionGrossWeight,
+        correctionNetWeight: parsed.data.correctionNetWeight,
       },
     });
   } catch {
