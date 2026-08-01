@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { PrintButton } from "@/components/print-button";
-import { RECIPE_TYPE_LABELS } from "@/lib/recipe-cost";
+import { RECIPE_TYPE_LABELS, formatRecipeQuantity } from "@/lib/recipe-cost";
 
 export default async function ImprimirReceitaPage({
   params,
@@ -62,7 +62,10 @@ export default async function ImprimirReceitaPage({
                 )}
               </span>
               <span>
-                {item.quantity.toString()} {item.ingredient.recipeUnit ?? item.ingredient.unit}
+                {formatRecipeQuantity(
+                  Number(item.quantity),
+                  item.ingredient.recipeUnit ?? item.ingredient.unit,
+                )}
               </span>
             </li>
           ))}

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RecipeDialog } from "./recipe-dialog";
 import { DeleteRecipeButton } from "./delete-recipe-button";
-import { recipeItemCost, RECIPE_TYPE_LABELS } from "@/lib/recipe-cost";
+import { recipeItemCost, RECIPE_TYPE_LABELS, formatRecipeQuantity } from "@/lib/recipe-cost";
 import type { Prisma } from "@/lib/generated/prisma/client";
 
 const currency = (value: number) =>
@@ -92,7 +92,10 @@ function RecipeGrid({
                       )}
                     </span>
                     <span className="text-neutral-500">
-                      {item.quantity.toString()} {item.ingredient.recipeUnit ?? item.ingredient.unit}
+                      {formatRecipeQuantity(
+                        Number(item.quantity),
+                        item.ingredient.recipeUnit ?? item.ingredient.unit,
+                      )}
                     </span>
                   </li>
                 ))}

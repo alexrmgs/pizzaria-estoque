@@ -31,6 +31,20 @@ export function recipeItemCost(
   return grossQuantity(netQuantity, wastePercent) * recipeUnitPrice(unitPrice, unitsPerPackage);
 }
 
+/**
+ * Formata a quantidade de um item de receita pra exibição — quilos viram
+ * gramas (ex: 0.15 KG -> "150 g"), porque fica mais fácil de visualizar na
+ * ficha impressa do que uma fração de quilo. Outras unidades ficam como
+ * estão.
+ */
+export function formatRecipeQuantity(quantity: number, unit: string): string {
+  if (unit === "KG") {
+    const grams = Math.round(quantity * 1000 * 10) / 10;
+    return `${grams.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} g`;
+  }
+  return `${quantity.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} ${unit}`;
+}
+
 export const RECIPE_TYPE_LABELS: Record<string, string> = {
   PRODUCAO: "Produção",
   PIZZA: "Pizza",
