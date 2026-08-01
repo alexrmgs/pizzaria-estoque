@@ -31,16 +31,19 @@ export function recipeItemCost(
   return grossQuantity(netQuantity, wastePercent) * recipeUnitPrice(unitPrice, unitsPerPackage);
 }
 
+const SMALLER_UNIT: Record<string, string> = { KG: "g", L: "ml" };
+
 /**
  * Formata a quantidade de um item de receita pra exibição — quilos viram
- * gramas (ex: 0.15 KG -> "150 g"), porque fica mais fácil de visualizar na
- * ficha impressa do que uma fração de quilo. Outras unidades ficam como
- * estão.
+ * gramas e litros viram mililitros (ex: 0.15 KG -> "150 g", 0.5 L ->
+ * "500 ml"), porque fica mais fácil de visualizar na ficha impressa do que
+ * uma fração de quilo/litro. Outras unidades ficam como estão.
  */
 export function formatRecipeQuantity(quantity: number, unit: string): string {
-  if (unit === "KG") {
-    const grams = Math.round(quantity * 1000 * 10) / 10;
-    return `${grams.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} g`;
+  const smaller = SMALLER_UNIT[unit];
+  if (smaller) {
+    const converted = Math.round(quantity * 1000 * 10) / 10;
+    return `${converted.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${smaller}`;
   }
   return `${quantity.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} ${unit}`;
 }
