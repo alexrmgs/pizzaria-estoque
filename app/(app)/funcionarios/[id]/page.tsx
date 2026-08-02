@@ -85,44 +85,6 @@ export default async function FuncionarioDetalhePage({
   const excessHours = hoursPreview.overtimeHours + hoursPreview.bankedHours;
   const regularHours = hoursPreview.totalHours - excessHours;
 
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-  const isThisMonth = (dateStr: string) => {
-    const d = new Date(`${dateStr}T00:00:00`);
-    return d >= monthStart && d <= monthEnd;
-  };
-  const monthLabel = now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-  const monthTimeEntries = timeEntries
-    .filter((entry) => isThisMonth(entry.date.toISOString().slice(0, 10)))
-    .map((entry) => ({
-      id: entry.id,
-      date: entry.date.toISOString().slice(0, 10),
-      clockIn: entry.clockIn.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-      clockOut: entry.clockOut
-        ? entry.clockOut.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-        : null,
-      hours: entry.clockOut ? shiftHours(entry.clockIn, entry.clockOut) : null,
-    }));
-  const monthAdvances = advances
-    .filter((a) => isThisMonth(a.date.toISOString().slice(0, 10)))
-    .map((a) => ({
-      id: a.id,
-      date: a.date.toISOString().slice(0, 10),
-      amount: Number(a.amount),
-      description: a.description,
-      settled: a.paymentId !== null,
-    }));
-  const monthAdjustments = adjustments
-    .filter((a) => isThisMonth(a.date.toISOString().slice(0, 10)))
-    .map((a) => ({
-      id: a.id,
-      type: a.type,
-      date: a.date.toISOString().slice(0, 10),
-      amount: Number(a.amount),
-      description: a.description,
-      settled: a.paymentId !== null,
-    }));
-
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -236,10 +198,22 @@ export default async function FuncionarioDetalhePage({
       </Card>
 
       <MonthOverviewSection
-        monthLabel={monthLabel}
-        timeEntries={monthTimeEntries}
-        advances={monthAdvances}
-        adjustments={monthAdjustments}
+        periodStart={periodStart.toLocaleDateString("pt-BR")}
+        periodEnd={periodEnd.toLocaleDateString("pt-BR")}
+        baseSalary={hoursPreview.baseSalary}
+        totalNightHours={hoursPreview.totalNightHours}
+        nightPremium={hoursPreview.nightPremium}
+        overtimeMode={hoursPreview.overtimeMode}
+        overtimeHours={hoursPreview.overtimeHours}
+        overtimeAmount={hoursPreview.overtimeAmount}
+        bankedHours={hoursPreview.bankedHours}
+        netAmount={hoursPreview.netAmount}
+        bonusTotal={hoursPreview.bonusTotal}
+        bonusItems={hoursPreview.bonusItems}
+        discountTotal={hoursPreview.discountTotal}
+        discountItems={hoursPreview.discountItems}
+        advancesTotal={hoursPreview.advancesTotal}
+        advanceItems={hoursPreview.advanceItems}
       />
 
       <TimeEntriesSection
