@@ -1,20 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ValeForm } from "./vale-form";
-import { DeleteValeButton } from "./delete-vale-button";
 import { GenerateAdvancesButton } from "./generate-advances-button";
-
-const currency = (value: number) =>
-  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+import { ValeMonthSection } from "./vale-month-section";
 
 export default async function ValesPage() {
   await requirePermission("canManageFuncionarios");
@@ -23,10 +11,52 @@ export default async function ValesPage() {
     prisma.employee.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     prisma.advance.findMany({
       orderBy: { date: "desc" },
-      take: 100,
+      take: 300,
       include: { employee: true },
     }),
   ]);
+
+  type MonthGroup = {
+    key: string;
+    label: string;
+    totalAmount: number;
+    pendingAmount: number;
+    advances: {
+      id: string;
+      employeeName: string;
+      date: string;
+      amount: number;
+      description: string | null;
+      paymentId: string | null;
+    }[];
+  };
+  const monthGroups: MonthGroup[] = [];
+  const monthGroupByKey = new Map<string, MonthGroup>();
+  for (const advance of advances) {
+    const key = `${advance.date.getUTCFullYear()}-${String(advance.date.getUTCMonth() + 1).padStart(2, "0")}`;
+    let group = monthGroupByKey.get(key);
+    if (!group) {
+      const label = advance.date.toLocaleDateString("pt-BR", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      });
+      group = { key, label, totalAmount: 0, pendingAmount: 0, advances: [] };
+      monthGroupByKey.set(key, group);
+      monthGroups.push(group);
+    }
+    const amount = Number(advance.amount);
+    group.totalAmount += amount;
+    if (!advance.paymentId) group.pendingAmount += amount;
+    group.advances.push({
+      id: advance.id,
+      employeeName: advance.employee.name,
+      date: advance.date.toISOString().slice(0, 10),
+      amount,
+      description: advance.description,
+      paymentId: advance.paymentId,
+    });
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -42,47 +72,22 @@ export default async function ValesPage() {
 
       <ValeForm employees={employees.map((e) => ({ id: e.id, name: e.name }))} />
 
-      <div className="rounded-lg border bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Funcionário</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead>Valor</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {advances.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-neutral-500">
-                  Nenhum vale lançado ainda.
-                </TableCell>
-              </TableRow>
-            )}
-            {advances.map((advance) => (
-              <TableRow key={advance.id}>
-                <TableCell className="font-medium">{advance.employee.name}</TableCell>
-                <TableCell>{advance.date.toISOString().slice(0, 10)}</TableCell>
-                <TableCell>{currency(Number(advance.amount))}</TableCell>
-                <TableCell className="text-neutral-500">{advance.description ?? "—"}</TableCell>
-                <TableCell>
-                  {advance.paymentId ? (
-                    <Badge variant="secondary">Pago</Badge>
-                  ) : (
-                    <Badge variant="destructive">Pendente</Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  {!advance.paymentId && <DeleteValeButton id={advance.id} />}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      {monthGroups.length === 0 ? (
+        <p className="text-sm text-neutral-500">Nenhum vale lançado ainda.</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {monthGroups.map((group, index) => (
+            <ValeMonthSection
+              key={group.key}
+              monthLabel={group.label}
+              advances={group.advances}
+              totalAmount={group.totalAmount}
+              pendingAmount={group.pendingAmount}
+              defaultOpen={index === 0}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
