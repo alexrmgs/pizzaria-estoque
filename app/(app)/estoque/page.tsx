@@ -91,6 +91,14 @@ function IngredientsTable({
                 {canManage && (
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        nativeButton={false}
+                        render={<Link href={`/estoque/${ingredient.id}`} />}
+                      >
+                        Histórico
+                      </Button>
                       <IngredientDialog
                         categories={categories}
                         ingredient={{
