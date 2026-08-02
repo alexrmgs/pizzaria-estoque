@@ -1,3 +1,5 @@
+import { todayInBrazil } from "@/lib/payroll";
+
 const WEEKDAY_NAMES = [
   "Domingo",
   "Segunda-feira",
@@ -17,10 +19,10 @@ export type FolgaDate = { date: string; source: "semanal" | "avulsa" };
  * a folga fixa semanal (`weeklyDayOff`) mais qualquer folga avulsa
  * registrada (`avulsaDates`, no formato YYYY-MM-DD), exceto datas em
  * `workOverrideDates` — dias marcados como "Trabalha" (folga comprada ou
- * remanejada), que cancelam a folga só naquele dia. Datas construídas em
- * horário local e lidas via toISOString — seguro porque o processo roda em
- * America/Sao_Paulo (UTC-3): meia-noite local nunca cruza pro dia UTC
- * anterior.
+ * remanejada), que cancelam a folga só naquele dia. `from` é normalizado
+ * pra "hoje em Brasília" via {@link todayInBrazil} e a janela é toda
+ * construída com `Date.UTC`, independente do fuso do processo Node (ver
+ * comentário em `todayInBrazil`).
  */
 export function upcomingFolgas(
   weeklyDayOff: number | null,
@@ -30,13 +32,14 @@ export function upcomingFolgas(
   workOverrideDates: Set<string> = new Set(),
 ): FolgaDate[] {
   const result: FolgaDate[] = [];
-  const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const start = todayInBrazil(from);
   for (let i = 0; i <= daysAhead; i++) {
-    const d = new Date(start);
-    d.setDate(d.getDate() + i);
+    const d = new Date(
+      Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate() + i),
+    );
     const iso = d.toISOString().slice(0, 10);
     if (workOverrideDates.has(iso)) continue;
-    const isWeekly = weeklyDayOff !== null && d.getDay() === weeklyDayOff;
+    const isWeekly = weeklyDayOff !== null && d.getUTCDay() === weeklyDayOff;
     const isAvulsa = avulsaDates.has(iso);
     if (isWeekly || isAvulsa) {
       result.push({ date: iso, source: isAvulsa ? "avulsa" : "semanal" });

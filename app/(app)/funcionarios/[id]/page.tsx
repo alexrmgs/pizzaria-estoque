@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
-import { lateMinutes, nightHours, shiftHours } from "@/lib/payroll";
+import { lateMinutes, nightHours, shiftHours, todayInBrazil } from "@/lib/payroll";
 import { computePaymentPreview } from "@/lib/payment-preview";
 import { getAppSettings } from "@/lib/settings";
 
@@ -63,19 +63,19 @@ export default async function FuncionarioDetalhePage({
     .map((u) => ({ id: u.id, name: u.name, email: u.email }));
 
   const lastPayment = payments[0];
-  const now = new Date();
-  const periodEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  const brazilToday = todayInBrazil();
+  const periodEnd = new Date(
+    Date.UTC(brazilToday.getUTCFullYear(), brazilToday.getUTCMonth(), brazilToday.getUTCDate(), 23, 59, 59),
+  );
   let periodStart: Date;
   if (lastPayment) {
-    periodStart = new Date(lastPayment.periodEnd);
-    periodStart.setDate(periodStart.getDate() + 1);
-    periodStart.setHours(0, 0, 0, 0);
+    periodStart = new Date(lastPayment.periodEnd.getTime() + 24 * 60 * 60 * 1000);
   } else if (employee.hireDate) {
     periodStart = new Date(employee.hireDate);
   } else {
-    periodStart = new Date(now);
-    periodStart.setDate(periodStart.getDate() - 60);
-    periodStart.setHours(0, 0, 0, 0);
+    periodStart = new Date(
+      Date.UTC(brazilToday.getUTCFullYear(), brazilToday.getUTCMonth(), brazilToday.getUTCDate() - 60),
+    );
   }
 
   const [hoursPreview, settings] = await Promise.all([

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { upcomingFolgas, formatDate, STATUS_LABELS } from "@/lib/schedule";
+import { todayInBrazil } from "@/lib/payroll";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -21,9 +22,10 @@ export default async function EscalasPage() {
   const myEmployee = await prisma.employee.findUnique({ where: { userId: user.id } });
 
   const now = new Date();
-  const windowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const windowEnd = new Date(windowStart);
-  windowEnd.setDate(windowEnd.getDate() + DAYS_AHEAD);
+  const windowStart = todayInBrazil(now);
+  const windowEnd = new Date(
+    Date.UTC(windowStart.getUTCFullYear(), windowStart.getUTCMonth(), windowStart.getUTCDate() + DAYS_AHEAD),
+  );
 
   const [activeEmployees, windowDayOffs, pendingSwaps, recentSwaps] = await Promise.all([
     prisma.employee.findMany({

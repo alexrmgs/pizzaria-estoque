@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
-import { LATE_TOLERANCE_MINUTES } from "@/lib/payroll";
+import { LATE_TOLERANCE_MINUTES, todayInBrazil, weekdayInBrazil } from "@/lib/payroll";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -289,9 +289,11 @@ export default async function DashboardPage({
   let rhContent = null;
   if (canManageFuncionarios) {
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-    const todayWeekday = now.getDay();
+    const todayStart = todayInBrazil(now);
+    const todayEnd = new Date(
+      Date.UTC(todayStart.getUTCFullYear(), todayStart.getUTCMonth(), todayStart.getUTCDate(), 23, 59, 59),
+    );
+    const todayWeekday = weekdayInBrazil(now);
 
     const [activeEmployees, todayEntries, todayDayOffs] = await Promise.all([
       prisma.employee.findMany({ where: { active: true }, orderBy: { name: "asc" } }),

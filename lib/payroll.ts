@@ -335,15 +335,47 @@ export function nthBusinessDayOfMonth(year: number, month: number, n: number): D
   return date;
 }
 
+/** America/Sao_Paulo é sempre UTC-3 (sem horário de verão desde 2019). */
+const BRAZIL_UTC_OFFSET_HOURS = 3;
+
 /**
- * Início e fim (inclusive) do mês anterior ao de `reference`, em meia-noite
- * UTC — pra comparar de forma segura com `Payment.periodStart`/`periodEnd`
- * (`@db.Date`, que sempre volta do banco em meia-noite UTC). Construir com
- * o horário local aqui causava uma diferença de algumas horas que fazia a
- * comparação `>=` falhar mesmo quando o período já estava fechado.
+ * Desloca um instante pro "relógio de parede" de Brasília, pra extrair
+ * ano/mês/dia/dia-da-semana corretos com `getUTC*` independente do fuso do
+ * processo Node. Em dev o `.env` define `TZ=America/Sao_Paulo`, mas esse
+ * `.env` não é versionado, então em produção (Vercel) o processo roda em
+ * UTC — `new Date().getDate()`/`getMonth()` locais nesse ambiente liam o dia
+ * UTC errado. Um ponto batido às 22h de Brasília já é 01h UTC do dia
+ * seguinte, e por isso um ponto de 31/07 (horário de Brasília) ficava salvo
+ * como 01/08.
+ */
+function toBrazilWallClock(instant: Date): Date {
+  return new Date(instant.getTime() - BRAZIL_UTC_OFFSET_HOURS * 60 * 60 * 1000);
+}
+
+/** Data de hoje em Brasília (meia-noite UTC), independente do fuso do processo. */
+export function todayInBrazil(now: Date = new Date()): Date {
+  const brazilNow = toBrazilWallClock(now);
+  return new Date(
+    Date.UTC(brazilNow.getUTCFullYear(), brazilNow.getUTCMonth(), brazilNow.getUTCDate()),
+  );
+}
+
+/** Dia da semana (0=domingo) de `now` em Brasília, independente do fuso do processo. */
+export function weekdayInBrazil(now: Date = new Date()): number {
+  return toBrazilWallClock(now).getUTCDay();
+}
+
+/**
+ * Início e fim (inclusive) do mês anterior ao de `reference` em Brasília, em
+ * meia-noite UTC — pra comparar de forma segura com
+ * `Payment.periodStart`/`periodEnd` (`@db.Date`, que sempre volta do banco
+ * em meia-noite UTC).
  */
 export function previousMonthRange(reference: Date): { start: Date; end: Date } {
-  const start = new Date(Date.UTC(reference.getFullYear(), reference.getMonth() - 1, 1));
-  const end = new Date(Date.UTC(reference.getFullYear(), reference.getMonth(), 0));
+  const brazilReference = toBrazilWallClock(reference);
+  const year = brazilReference.getUTCFullYear();
+  const month = brazilReference.getUTCMonth();
+  const start = new Date(Date.UTC(year, month - 1, 1));
+  const end = new Date(Date.UTC(year, month, 0));
   return { start, end };
 }

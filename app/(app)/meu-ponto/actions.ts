@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
 import { distanceMeters } from "@/lib/geo";
-import { EARLY_CLOCK_IN_TOLERANCE_MINUTES, minutesBeforeScheduledStart } from "@/lib/payroll";
+import {
+  EARLY_CLOCK_IN_TOLERANCE_MINUTES,
+  minutesBeforeScheduledStart,
+  todayInBrazil,
+  weekdayInBrazil,
+} from "@/lib/payroll";
 
 type Coords = { latitude: number; longitude: number } | null;
 
@@ -59,7 +64,7 @@ export async function clockIn(coords: Coords) {
   }
 
   const now = new Date();
-  const date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const date = todayInBrazil(now);
 
   const todaysEntry = await prisma.timeEntry.findFirst({
     where: { employeeId: employee.id, date },
@@ -76,7 +81,8 @@ export async function clockIn(coords: Coords) {
   // Só bloqueia em folga de verdade (fixa semanal ou avulsa). Atestado e
   // falta são registros administrativos (geralmente lançados depois do
   // fato) e não devem impedir o funcionário de bater ponto.
-  const isWeeklyDayOff = employee.weeklyDayOff !== null && now.getDay() === employee.weeklyDayOff;
+  const isWeeklyDayOff =
+    employee.weeklyDayOff !== null && weekdayInBrazil(now) === employee.weeklyDayOff;
   const isWorkOverride = todaysDayOff?.type === "TRABALHA";
   const isFolga = !isWorkOverride && (todaysDayOff?.type === "FOLGA" || isWeeklyDayOff);
   if (isFolga) {

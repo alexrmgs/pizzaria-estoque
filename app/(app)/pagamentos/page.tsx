@@ -7,6 +7,7 @@ import {
   nthBusinessDayOfMonth,
   previousMonthRange,
   SALARY_ADVANCE_TAG,
+  todayInBrazil,
 } from "@/lib/payroll";
 import { computePaymentPreview } from "@/lib/payment-preview";
 import { Badge } from "@/components/ui/badge";
@@ -30,8 +31,11 @@ export default async function PagamentosPage() {
   await requirePermission("canManageFuncionarios");
 
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const brazilToday = todayInBrazil(now);
+  const monthStart = new Date(Date.UTC(brazilToday.getUTCFullYear(), brazilToday.getUTCMonth(), 1));
+  const monthEnd = new Date(
+    Date.UTC(brazilToday.getUTCFullYear(), brazilToday.getUTCMonth() + 1, 0, 23, 59, 59),
+  );
   // Calculado cedo (não depende de banco) pra já filtrar os vales pendentes
   // só do período que "A pagar" realmente fecha — vale datado no mês
   // seguinte (ex: adiantamento do dia 1 já gerado pra agosto) não pode
@@ -76,7 +80,9 @@ export default async function PagamentosPage() {
   // só o mês em andamento, mesmo que o mês anterior ainda não tenha sido
   // fechado (senão um vale de julho ainda pendente apareceria contando
   // dentro da prévia de "folha de agosto", o que não bate com o título).
-  const inProgressEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  const inProgressEnd = new Date(
+    Date.UTC(brazilToday.getUTCFullYear(), brazilToday.getUTCMonth(), brazilToday.getUTCDate(), 23, 59, 59),
+  );
   const inProgressPreviews = await Promise.all(
     employees.map(async (employee) => {
       let periodStart = monthStart;

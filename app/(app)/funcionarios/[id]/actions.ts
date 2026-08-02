@@ -257,8 +257,8 @@ export async function getPaymentPreview(
 ): Promise<PaymentPreview | { error: string }> {
   await requirePermission("canManageFuncionarios");
 
-  const periodStart = new Date(`${periodStartStr}T00:00:00`);
-  const periodEnd = new Date(`${periodEndStr}T00:00:00`);
+  const periodStart = new Date(`${periodStartStr}T00:00:00Z`);
+  const periodEnd = new Date(`${periodEndStr}T00:00:00Z`);
   if (periodEnd < periodStart) {
     return { error: "O período final deve ser depois do inicial." };
   }
@@ -302,8 +302,8 @@ export async function closePayment(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const periodStart = new Date(`${parsed.data.periodStart}T00:00:00`);
-  const periodEnd = new Date(`${parsed.data.periodEnd}T00:00:00`);
+  const periodStart = new Date(`${parsed.data.periodStart}T00:00:00Z`);
+  const periodEnd = new Date(`${parsed.data.periodEnd}T00:00:00Z`);
 
   const overlapping = await prisma.payment.findFirst({
     where: { employeeId, periodStart: { lte: periodEnd }, periodEnd: { gte: periodStart } },

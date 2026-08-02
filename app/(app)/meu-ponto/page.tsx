@@ -5,6 +5,7 @@ import {
   lateMinutes,
   nightHours,
   shiftHours,
+  todayInBrazil,
   type AttendanceStreakTier,
 } from "@/lib/payroll";
 import { computePaymentPreview } from "@/lib/payment-preview";
@@ -49,27 +50,29 @@ export default async function MeuPontoPage() {
     );
   }
 
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const now = new Date();
+  const brazilToday = todayInBrazil(now);
+  const thirtyDaysAgo = new Date(
+    Date.UTC(brazilToday.getUTCFullYear(), brazilToday.getUTCMonth(), brazilToday.getUTCDate() - 30),
+  );
 
   const lastPayment = await prisma.payment.findFirst({
     where: { employeeId: employee.id },
     orderBy: { periodEnd: "desc" },
   });
 
-  const now = new Date();
-  const periodEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  const periodEnd = new Date(
+    Date.UTC(brazilToday.getUTCFullYear(), brazilToday.getUTCMonth(), brazilToday.getUTCDate(), 23, 59, 59),
+  );
   let periodStart: Date;
   if (lastPayment) {
-    periodStart = new Date(lastPayment.periodEnd);
-    periodStart.setDate(periodStart.getDate() + 1);
-    periodStart.setHours(0, 0, 0, 0);
+    periodStart = new Date(lastPayment.periodEnd.getTime() + 24 * 60 * 60 * 1000);
   } else if (employee.hireDate) {
     periodStart = new Date(employee.hireDate);
   } else {
-    periodStart = new Date(now);
-    periodStart.setDate(periodStart.getDate() - 60);
-    periodStart.setHours(0, 0, 0, 0);
+    periodStart = new Date(
+      Date.UTC(brazilToday.getUTCFullYear(), brazilToday.getUTCMonth(), brazilToday.getUTCDate() - 60),
+    );
   }
 
   const [preview, settings] = await Promise.all([
@@ -104,9 +107,14 @@ export default async function MeuPontoPage() {
     .filter((a) => a.paymentId === null)
     .reduce((sum, a) => sum + Number(a.amount), 0);
 
-  const scheduleWindowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const scheduleWindowEnd = new Date(scheduleWindowStart);
-  scheduleWindowEnd.setDate(scheduleWindowEnd.getDate() + DAYS_AHEAD);
+  const scheduleWindowStart = brazilToday;
+  const scheduleWindowEnd = new Date(
+    Date.UTC(
+      brazilToday.getUTCFullYear(),
+      brazilToday.getUTCMonth(),
+      brazilToday.getUTCDate() + DAYS_AHEAD,
+    ),
+  );
 
   const [allActiveEmployees, windowDayOffs, sentSwaps, receivedSwaps] = await Promise.all([
     prisma.employee.findMany({

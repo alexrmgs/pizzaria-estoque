@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
-import { SALARY_ADVANCE_RATE, SALARY_ADVANCE_TAG } from "@/lib/payroll";
+import { SALARY_ADVANCE_RATE, SALARY_ADVANCE_TAG, todayInBrazil } from "@/lib/payroll";
 
 const advanceSchema = z.object({
   employeeId: z.string().trim().min(1, "Selecione um funcionário."),
@@ -34,7 +34,7 @@ export async function createAdvance(
   await prisma.advance.create({
     data: {
       employeeId: parsed.data.employeeId,
-      date: new Date(`${parsed.data.date}T00:00:00`),
+      date: new Date(`${parsed.data.date}T00:00:00Z`),
       amount: parsed.data.amount,
       description: parsed.data.description,
       userId: user.id,
@@ -57,10 +57,12 @@ export async function removeAdvance(id: string) {
 export async function generateSalaryAdvances(): Promise<{ created: number; skipped: number }> {
   const user = await requirePermission("canManageFuncionarios");
 
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-  const day20 = new Date(now.getFullYear(), now.getMonth(), 20);
+  const brazilToday = todayInBrazil();
+  const monthStart = new Date(Date.UTC(brazilToday.getUTCFullYear(), brazilToday.getUTCMonth(), 1));
+  const monthEnd = new Date(
+    Date.UTC(brazilToday.getUTCFullYear(), brazilToday.getUTCMonth() + 1, 0, 23, 59, 59),
+  );
+  const day20 = new Date(Date.UTC(brazilToday.getUTCFullYear(), brazilToday.getUTCMonth(), 20));
 
   const employees = await prisma.employee.findMany({
     where: { active: true, baseSalary: { gt: 0 } },
