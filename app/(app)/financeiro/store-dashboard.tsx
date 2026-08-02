@@ -75,6 +75,66 @@ function buildDailyData(dailyRecords: DailyRecord[], year: number, month: number
   });
 }
 
+function formatDayLabel(iso: string) {
+  const [, m, d] = iso.split("-");
+  return `${d}/${m}`;
+}
+
+function maxBy<T>(list: T[], fn: (item: T) => number): T | null {
+  return list.reduce<T | null>((best, item) => (best === null || fn(item) > fn(best) ? item : best), null);
+}
+
+function minBy<T>(list: T[], fn: (item: T) => number): T | null {
+  return list.reduce<T | null>((worst, item) => (worst === null || fn(item) < fn(worst) ? item : worst), null);
+}
+
+type DayHighlight = { date: string; amount: number } | null;
+type TicketHighlight = { date: string; ticket: number } | null;
+
+function computeHighlights(dailyRecords: DailyRecord[], year: number, month: number) {
+  const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+  const monthRecords = dailyRecords.filter((r) => r.date.startsWith(monthPrefix) && r.amount > 0);
+  const yearRecords = dailyRecords.filter((r) => r.amount > 0);
+
+  const bestDayMonthRec = maxBy(monthRecords, (r) => r.amount);
+  const bestDayYearRec = maxBy(yearRecords, (r) => r.amount);
+  const worstDayMonthRec = minBy(monthRecords, (r) => r.amount);
+
+  const monthWithOrders = monthRecords.filter((r) => r.orders > 0);
+  const yearWithOrders = yearRecords.filter((r) => r.orders > 0);
+  const bestTicketMonthRec = maxBy(monthWithOrders, (r) => r.amount / r.orders);
+  const bestTicketYearRec = maxBy(yearWithOrders, (r) => r.amount / r.orders);
+
+  const sumByWeekday = new Array(7).fill(0) as number[];
+  const countByWeekday = new Array(7).fill(0) as number[];
+  for (const r of yearRecords) {
+    const weekday = new Date(`${r.date}T00:00:00Z`).getUTCDay();
+    sumByWeekday[weekday] += r.amount;
+    countByWeekday[weekday] += 1;
+  }
+  let bestWeekday: { weekday: string; avg: number } | null = null;
+  for (let weekday = 0; weekday < 7; weekday++) {
+    if (countByWeekday[weekday] === 0) continue;
+    const avg = sumByWeekday[weekday] / countByWeekday[weekday];
+    if (!bestWeekday || avg > bestWeekday.avg) {
+      bestWeekday = { weekday: WEEKDAY_ABBR[weekday], avg };
+    }
+  }
+
+  const toDayHighlight = (r: DailyRecord | null): DayHighlight => (r ? { date: r.date, amount: r.amount } : null);
+  const toTicketHighlight = (r: DailyRecord | null): TicketHighlight =>
+    r ? { date: r.date, ticket: r.amount / r.orders } : null;
+
+  return {
+    bestDayMonth: toDayHighlight(bestDayMonthRec),
+    bestDayYear: toDayHighlight(bestDayYearRec),
+    worstDayMonth: toDayHighlight(worstDayMonthRec),
+    bestTicketMonth: toTicketHighlight(bestTicketMonthRec),
+    bestTicketYear: toTicketHighlight(bestTicketYearRec),
+    bestWeekday,
+  };
+}
+
 function DayAxisTick({
   x,
   y,
@@ -130,6 +190,10 @@ export function StoreDashboard({
     () => new Map(dailyData.map((d) => [d.day, d.weekday])),
     [dailyData],
   );
+  const highlights = useMemo(
+    () => computeHighlights(dailyRecords, year, selectedMonth),
+    [dailyRecords, year, selectedMonth],
+  );
   const selectedMonthAgg = store.months[selectedMonth];
   const selectedMonthTicket =
     selectedMonthAgg.orders > 0 ? selectedMonthAgg.amount / selectedMonthAgg.orders : null;
@@ -162,6 +226,88 @@ export function StoreDashboard({
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">🌟 Destaques — {store.storeName}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-neutral-500">🏆 Melhor dia — {MONTH_NAMES_SHORT[selectedMonth]}</p>
+              {highlights.bestDayMonth ? (
+                <>
+                  <p className="text-lg font-semibold">{currency(highlights.bestDayMonth.amount)}</p>
+                  <p className="text-xs text-neutral-500">{formatDayLabel(highlights.bestDayMonth.date)}</p>
+                </>
+              ) : (
+                <p className="text-sm text-neutral-400">Sem dados.</p>
+              )}
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-neutral-500">🏆 Melhor dia — {year}</p>
+              {highlights.bestDayYear ? (
+                <>
+                  <p className="text-lg font-semibold">{currency(highlights.bestDayYear.amount)}</p>
+                  <p className="text-xs text-neutral-500">{formatDayLabel(highlights.bestDayYear.date)}</p>
+                </>
+              ) : (
+                <p className="text-sm text-neutral-400">Sem dados.</p>
+              )}
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-neutral-500">📉 Pior dia — {MONTH_NAMES_SHORT[selectedMonth]}</p>
+              {highlights.worstDayMonth ? (
+                <>
+                  <p className="text-lg font-semibold">{currency(highlights.worstDayMonth.amount)}</p>
+                  <p className="text-xs text-neutral-500">{formatDayLabel(highlights.worstDayMonth.date)}</p>
+                </>
+              ) : (
+                <p className="text-sm text-neutral-400">Sem dados.</p>
+              )}
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-neutral-500">
+                🎫 Melhor ticket — {MONTH_NAMES_SHORT[selectedMonth]}
+              </p>
+              {highlights.bestTicketMonth ? (
+                <>
+                  <p className="text-lg font-semibold text-primary">
+                    {currency(highlights.bestTicketMonth.ticket)}
+                  </p>
+                  <p className="text-xs text-neutral-500">{formatDayLabel(highlights.bestTicketMonth.date)}</p>
+                </>
+              ) : (
+                <p className="text-sm text-neutral-400">Sem dados.</p>
+              )}
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-neutral-500">🎫 Melhor ticket — {year}</p>
+              {highlights.bestTicketYear ? (
+                <>
+                  <p className="text-lg font-semibold text-primary">
+                    {currency(highlights.bestTicketYear.ticket)}
+                  </p>
+                  <p className="text-xs text-neutral-500">{formatDayLabel(highlights.bestTicketYear.date)}</p>
+                </>
+              ) : (
+                <p className="text-sm text-neutral-400">Sem dados.</p>
+              )}
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-neutral-500">📊 Melhor dia da semana — {year}</p>
+              {highlights.bestWeekday ? (
+                <>
+                  <p className="text-lg font-semibold">{highlights.bestWeekday.weekday}</p>
+                  <p className="text-xs text-neutral-500">média {currency(highlights.bestWeekday.avg)}</p>
+                </>
+              ) : (
+                <p className="text-sm text-neutral-400">Sem dados.</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
