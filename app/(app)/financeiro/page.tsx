@@ -102,6 +102,13 @@ export default async function FinanceiroPage({
   );
   const storesByAmount = [...summary.stores].sort((a, b) => b.totalAmount - a.totalAmount);
 
+  const dailyRecordsByStore = new Map<string, { date: string; amount: number; orders: number }[]>();
+  for (const r of yearRevenues) {
+    const list = dailyRecordsByStore.get(r.storeId) ?? [];
+    list.push({ date: r.date.toISOString().slice(0, 10), amount: Number(r.amount), orders: r.orderCount });
+    dailyRecordsByStore.set(r.storeId, list);
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -491,7 +498,11 @@ export default async function FinanceiroPage({
                 {year + 1} →
               </Button>
             </div>
-            <StoreDashboard store={s} year={year} />
+            <StoreDashboard
+              store={s}
+              year={year}
+              dailyRecords={dailyRecordsByStore.get(s.storeId) ?? []}
+            />
           </TabsContent>
         ))}
 
