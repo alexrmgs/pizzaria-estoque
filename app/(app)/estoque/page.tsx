@@ -70,7 +70,11 @@ function IngredientsTable({
             const low = current < min;
             return (
               <TableRow key={ingredient.id}>
-                <TableCell className="font-medium">{ingredient.name}</TableCell>
+                <TableCell className="font-medium">
+                  <Link href={`/estoque/${ingredient.id}`} className="hover:underline">
+                    {ingredient.name}
+                  </Link>
+                </TableCell>
                 <TableCell className="text-neutral-500">{ingredient.category?.name ?? "—"}</TableCell>
                 <TableCell>{ingredient.unit}</TableCell>
                 <TableCell>{currency(price)}</TableCell>
@@ -214,7 +218,7 @@ export default async function EstoquePage({
         <Button type="submit" size="sm">
           Filtrar
         </Button>
-        <Button variant="outline" size="sm" nativeButton={false} render={<a href="/estoque" />}>
+        <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/estoque" />}>
           Limpar
         </Button>
       </form>
