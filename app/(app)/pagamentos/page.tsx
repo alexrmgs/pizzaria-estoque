@@ -72,24 +72,16 @@ export default async function PagamentosPage() {
   }
   const lastPaymentByEmployee = new Map(lastPayments.map((p) => [p.employeeId, p]));
 
-  // Prévia do período em andamento (desde o último pagamento fechado até
-  // hoje) pra cada funcionário — inclui horas noturnas, extras e vales já
-  // lançados, mesmo antes do mês terminar e poder ser fechado de verdade.
+  // Prévia do mês corrente (1º dia até hoje) pra cada funcionário — sempre
+  // só o mês em andamento, mesmo que o mês anterior ainda não tenha sido
+  // fechado (senão um vale de julho ainda pendente apareceria contando
+  // dentro da prévia de "folha de agosto", o que não bate com o título).
   const inProgressEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
   const inProgressPreviews = await Promise.all(
     employees.map(async (employee) => {
-      const lastPayment = lastPaymentByEmployee.get(employee.id);
-      let periodStart: Date;
-      if (lastPayment) {
-        periodStart = new Date(lastPayment.periodEnd);
-        periodStart.setDate(periodStart.getDate() + 1);
-        periodStart.setHours(0, 0, 0, 0);
-      } else if (employee.hireDate) {
+      let periodStart = monthStart;
+      if (employee.hireDate && employee.hireDate > periodStart) {
         periodStart = new Date(employee.hireDate);
-      } else {
-        periodStart = new Date(now);
-        periodStart.setDate(periodStart.getDate() - 60);
-        periodStart.setHours(0, 0, 0, 0);
       }
       const preview = await computePaymentPreview(employee.id, periodStart, inProgressEnd);
       return [employee.id, preview] as const;
