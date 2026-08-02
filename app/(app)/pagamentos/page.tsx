@@ -32,11 +32,18 @@ export default async function PagamentosPage() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  // Calculado cedo (não depende de banco) pra já filtrar os vales pendentes
+  // só do período que "A pagar" realmente fecha — vale datado no mês
+  // seguinte (ex: adiantamento do dia 1 já gerado pra agosto) não pode
+  // aparecer como pendência da folha de julho.
+  const prevMonth = previousMonthRange(now);
 
-  const [employees, pendingAdvances, monthAdvances, lastPayments, allPayments, settings] =
+  const [employees, prevMonthPendingAdvances, monthAdvances, lastPayments, allPayments, settings] =
     await Promise.all([
       prisma.employee.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
-      prisma.advance.findMany({ where: { paymentId: null } }),
+      prisma.advance.findMany({
+        where: { paymentId: null, date: { gte: prevMonth.start, lte: prevMonth.end } },
+      }),
       prisma.advance.findMany({
         where: { description: SALARY_ADVANCE_TAG, date: { gte: monthStart, lte: monthEnd } },
         orderBy: { date: "desc" },
@@ -56,7 +63,7 @@ export default async function PagamentosPage() {
 
   const pendingAdiantamentoByEmployee = new Map<string, number>();
   const pendingOutrosValesByEmployee = new Map<string, number>();
-  for (const advance of pendingAdvances) {
+  for (const advance of prevMonthPendingAdvances) {
     const map =
       advance.description === SALARY_ADVANCE_TAG
         ? pendingAdiantamentoByEmployee
@@ -90,7 +97,6 @@ export default async function PagamentosPage() {
   );
   const inProgressByEmployee = new Map(inProgressPreviews);
 
-  const prevMonth = previousMonthRange(now);
   const deadline = nthBusinessDayOfMonth(now.getFullYear(), now.getMonth(), 5);
   const deadlineEndOfDay = new Date(deadline);
   deadlineEndOfDay.setHours(23, 59, 59, 999);
@@ -279,9 +285,18 @@ export default async function PagamentosPage() {
                 )}
                 {employees.map((employee) => {
                   const baseSalary = Number(employee.baseSalary);
-                  const adiantamento = pendingAdiantamentoByEmployee.get(employee.id) ?? 0;
-                  const outrosVales = pendingOutrosValesByEmployee.get(employee.id) ?? 0;
                   const preview = inProgressByEmployee.get(employee.id);
+                  // Vales do período em andamento (desde o último pagamento
+                  // até hoje), já vêm certos do preview — não usa a mesma
+                  // lista da tabela "A pagar" (essa é só do mês anterior).
+                  const adiantamento =
+                    preview?.advanceItems
+                      .filter((a) => a.description === SALARY_ADVANCE_TAG)
+                      .reduce((sum, a) => sum + a.amount, 0) ?? 0;
+                  const outrosVales =
+                    preview?.advanceItems
+                      .filter((a) => a.description !== SALARY_ADVANCE_TAG)
+                      .reduce((sum, a) => sum + a.amount, 0) ?? 0;
                   const excessHours = preview ? preview.overtimeHours + preview.bankedHours : 0;
                   const regularHours = preview ? preview.totalHours - excessHours : 0;
                   return (
