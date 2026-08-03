@@ -24,7 +24,7 @@ type Movement = {
   user: { name: string };
 };
 
-type IngredientOption = { id: string; name: string; unit: string };
+type IngredientOption = { id: string; name: string; unit: string; currentStock: number };
 
 function MovementsTable({
   movements,
@@ -89,8 +89,11 @@ function MovementsTable({
 export default async function MovimentacoesPage() {
   await requirePermission("canManageEstoque");
 
-  const [ingredients, entradas, saidas] = await Promise.all([
-    prisma.ingredient.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, unit: true } }),
+  const [ingredientRows, entradas, saidas] = await Promise.all([
+    prisma.ingredient.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, unit: true, currentStock: true },
+    }),
     prisma.stockMovement.findMany({
       where: { type: "ENTRADA" },
       orderBy: { createdAt: "desc" },
@@ -104,6 +107,13 @@ export default async function MovimentacoesPage() {
       include: { ingredient: true, user: true },
     }),
   ]);
+
+  const ingredients: IngredientOption[] = ingredientRows.map((i) => ({
+    id: i.id,
+    name: i.name,
+    unit: i.unit,
+    currentStock: Number(i.currentStock),
+  }));
 
   return (
     <div className="flex flex-col gap-6">

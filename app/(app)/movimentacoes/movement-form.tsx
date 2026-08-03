@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +29,9 @@ import { createMovementsBatch } from "./actions";
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-type Ingredient = { id: string; name: string; unit: string };
+type Ingredient = { id: string; name: string; unit: string; currentStock: number };
+
+const formatQty = (value: number) => value.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
 
 type PendingItem = {
   key: string;
@@ -50,10 +53,23 @@ export function MovementForm({
   const [isPending, startTransition] = useTransition();
   const [formKey, setFormKey] = useState(0);
   const [items, setItems] = useState<PendingItem[]>([]);
+  const [previewIngredientId, setPreviewIngredientId] = useState("");
+  const [previewQuantity, setPreviewQuantity] = useState("");
 
   const isEntrada = type === "ENTRADA";
   const ingredientItems = ingredients.map((i) => ({ value: i.id, label: `${i.name} (${i.unit})` }));
   const ingredientById = new Map(ingredients.map((i) => [i.id, i]));
+
+  const previewIngredient = ingredientById.get(previewIngredientId);
+  const previewQuantityNumber = Number(previewQuantity);
+  const pendingDelta = items
+    .filter((item) => item.ingredientId === previewIngredientId)
+    .reduce((sum, item) => sum + item.quantity, 0);
+  const resultingStock =
+    previewIngredient && previewQuantityNumber > 0
+      ? previewIngredient.currentStock +
+        (isEntrada ? 1 : -1) * (pendingDelta + previewQuantityNumber)
+      : null;
 
   function handleAddItem(formData: FormData) {
     const ingredientId = String(formData.get("ingredientId") ?? "");
@@ -89,6 +105,8 @@ export function MovementForm({
       },
     ]);
     setFormKey((k) => k + 1);
+    setPreviewIngredientId("");
+    setPreviewQuantity("");
   }
 
   function removeItem(key: string) {
@@ -129,7 +147,14 @@ export function MovementForm({
           <form key={formKey} action={handleAddItem} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor={`ingredientId-${type}`}>Ingrediente</Label>
-              <Combobox items={ingredientItems} name="ingredientId" required>
+              <Combobox
+                items={ingredientItems}
+                name="ingredientId"
+                required
+                onValueChange={(item: { value: string; label: string } | null) =>
+                  setPreviewIngredientId(item?.value ?? "")
+                }
+              >
                 <ComboboxInput
                   id={`ingredientId-${type}`}
                   placeholder="Buscar ingrediente..."
@@ -157,7 +182,33 @@ export function MovementForm({
                 step="0.001"
                 min="0"
                 required
+                value={previewQuantity}
+                onChange={(e) => setPreviewQuantity(e.target.value)}
               />
+              {previewIngredient && (
+                <p className="text-xs text-neutral-500">
+                  Estoque atual: {formatQty(previewIngredient.currentStock)} {previewIngredient.unit}
+                  {resultingStock !== null && (
+                    <>
+                      {" "}
+                      · ficará:{" "}
+                      <span
+                        className={cn(
+                          "font-medium",
+                          resultingStock < 0
+                            ? "text-destructive"
+                            : isEntrada
+                              ? "text-primary"
+                              : "text-foreground",
+                        )}
+                      >
+                        {formatQty(resultingStock)} {previewIngredient.unit}
+                      </span>
+                      {resultingStock < 0 && " (estoque ficaria negativo)"}
+                    </>
+                  )}
+                </p>
+              )}
             </div>
 
             {isEntrada && (

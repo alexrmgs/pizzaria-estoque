@@ -21,9 +21,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { updateMovement } from "./actions";
 
-type Ingredient = { id: string; name: string; unit: string };
+type Ingredient = { id: string; name: string; unit: string; currentStock: number };
 
 type MovementValues = {
   id: string;
@@ -32,6 +33,8 @@ type MovementValues = {
   quantity: string;
   reason: string | null;
 };
+
+const formatQty = (value: number) => value.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
 
 export function EditMovementDialog({
   movement,
@@ -45,6 +48,19 @@ export function EditMovementDialog({
   const [isPending, startTransition] = useTransition();
   const [ingredientId, setIngredientId] = useState(movement.ingredientId);
   const [type, setType] = useState<"ENTRADA" | "SAIDA">(movement.type);
+  const [quantity, setQuantity] = useState(movement.quantity);
+
+  const ingredientById = new Map(ingredients.map((i) => [i.id, i]));
+  const previewIngredient = ingredientById.get(ingredientId);
+  const previewQuantityNumber = Number(quantity);
+  const oldDelta =
+    ingredientId === movement.ingredientId
+      ? (movement.type === "ENTRADA" ? 1 : -1) * Number(movement.quantity)
+      : 0;
+  const resultingStock =
+    previewIngredient && previewQuantityNumber > 0
+      ? previewIngredient.currentStock - oldDelta + (type === "ENTRADA" ? 1 : -1) * previewQuantityNumber
+      : null;
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -67,6 +83,7 @@ export function EditMovementDialog({
           setError(undefined);
           setIngredientId(movement.ingredientId);
           setType(movement.type);
+          setQuantity(movement.quantity);
         }
       }}
     >
@@ -126,9 +143,34 @@ export function EditMovementDialog({
               type="number"
               step="0.001"
               min="0"
-              defaultValue={movement.quantity}
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
               required
             />
+            {previewIngredient && (
+              <p className="text-xs text-neutral-500">
+                Estoque atual: {formatQty(previewIngredient.currentStock)} {previewIngredient.unit}
+                {resultingStock !== null && (
+                  <>
+                    {" "}
+                    · ficará:{" "}
+                    <span
+                      className={cn(
+                        "font-medium",
+                        resultingStock < 0
+                          ? "text-destructive"
+                          : type === "ENTRADA"
+                            ? "text-primary"
+                            : "text-foreground",
+                      )}
+                    >
+                      {formatQty(resultingStock)} {previewIngredient.unit}
+                    </span>
+                    {resultingStock < 0 && " (estoque ficaria negativo)"}
+                  </>
+                )}
+              </p>
+            )}
           </div>
 
           {type === "ENTRADA" && (
