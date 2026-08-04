@@ -6,7 +6,7 @@ import { LATE_TOLERANCE_MINUTES, todayInBrazil, weekdayInBrazil } from "@/lib/pa
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RevenueDialog } from "./revenue-dialog";
+import { DailyRevenueDialog } from "./daily-revenue-dialog";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -160,7 +160,7 @@ export default async function DashboardPage({
             Mês atual
           </Button>
           <div className="ml-auto">
-            <RevenueDialog stores={stores} />
+            <DailyRevenueDialog stores={stores} />
           </div>
         </form>
 

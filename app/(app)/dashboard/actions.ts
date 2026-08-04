@@ -119,6 +119,93 @@ export async function updateRevenue(
   revalidatePath("/financeiro");
 }
 
+const dailySplitSchema = z.object({
+  date: z.string().trim().min(1, "Informe a data."),
+  storeId: z.string().trim().min(1, "Selecione a loja."),
+  totalAmount: z.coerce.number().min(0, "O faturamento total não pode ser negativo."),
+  ifoodAmount: z.coerce.number().min(0, "O faturamento do iFood não pode ser negativo."),
+  ifoodOrders: z.coerce.number().int().min(0),
+  food99Amount: z.coerce.number().min(0, "O faturamento do 99Food não pode ser negativo."),
+  food99Orders: z.coerce.number().int().min(0),
+  lojaOrders: z.coerce.number().int().min(0),
+  note: z.string().trim().max(500).optional(),
+});
+
+export type DailySplitFormState = { error?: string } | undefined;
+
+/**
+ * Lançamento único do faturamento total do dia — o usuário informa quanto
+ * veio de iFood e 99Food (com os respectivos pedidos), e o valor da loja
+ * própria é calculado como o restante, evitando ter que separar e somar os
+ * três valores manualmente. Cria/atualiza os três registros de Revenue
+ * (um por canal) de uma vez; reenviar pro mesmo dia/loja substitui os
+ * valores anteriores.
+ */
+export async function createDailyRevenueSplit(
+  _prevState: DailySplitFormState,
+  formData: FormData,
+): Promise<DailySplitFormState> {
+  const user = await requirePermission("canViewRelatorios");
+
+  const parsed = dailySplitSchema.safeParse({
+    date: formData.get("date"),
+    storeId: formData.get("storeId"),
+    totalAmount: formData.get("totalAmount"),
+    ifoodAmount: formData.get("ifoodAmount") || 0,
+    ifoodOrders: formData.get("ifoodOrders") || 0,
+    food99Amount: formData.get("food99Amount") || 0,
+    food99Orders: formData.get("food99Orders") || 0,
+    lojaOrders: formData.get("lojaOrders") || 0,
+    note: formData.get("note") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  const { totalAmount, ifoodAmount, food99Amount } = parsed.data;
+  const lojaAmount = totalAmount - ifoodAmount - food99Amount;
+  if (lojaAmount < 0) {
+    return {
+      error: `O faturamento total (R$ ${totalAmount.toFixed(2)}) é menor que iFood + 99Food somados (R$ ${(ifoodAmount + food99Amount).toFixed(2)}). Confira os valores.`,
+    };
+  }
+
+  const date = new Date(`${parsed.data.date}T00:00:00Z`);
+  const channelData: { channel: "LOJA_PROPRIA" | "IFOOD" | "NOVENTA_NOVE"; amount: number; orderCount: number }[] = [
+    { channel: "LOJA_PROPRIA", amount: lojaAmount, orderCount: parsed.data.lojaOrders },
+    { channel: "IFOOD", amount: ifoodAmount, orderCount: parsed.data.ifoodOrders },
+    { channel: "NOVENTA_NOVE", amount: food99Amount, orderCount: parsed.data.food99Orders },
+  ];
+
+  await prisma.$transaction(
+    channelData.map((c) =>
+      prisma.revenue.upsert({
+        where: {
+          date_storeId_channel: { date, storeId: parsed.data.storeId, channel: c.channel },
+        },
+        create: {
+          date,
+          storeId: parsed.data.storeId,
+          channel: c.channel,
+          amount: c.amount,
+          orderCount: c.orderCount,
+          note: parsed.data.note,
+          userId: user.id,
+        },
+        update: {
+          amount: c.amount,
+          orderCount: c.orderCount,
+          note: parsed.data.note,
+          userId: user.id,
+        },
+      }),
+    ),
+  );
+
+  revalidatePath("/dashboard");
+  revalidatePath("/financeiro");
+}
+
 export async function deleteRevenue(id: string) {
   await requirePermission("canViewRelatorios");
   await prisma.revenue.delete({ where: { id } });
