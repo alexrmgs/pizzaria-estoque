@@ -21,6 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "@/components/ui/combobox";
 import { createRecipe, updateRecipe } from "./actions";
 import { setIngredientRecipeUnit } from "../estoque/actions";
 import { recipeItemCost } from "@/lib/recipe-cost";
@@ -324,6 +332,10 @@ export function RecipeDialog({
   }
 
   const totalCost = rows.reduce((sum, row) => sum + rowCost(row), 0);
+  const ingredientComboItems = ingredients.map((ingredient) => ({
+    value: ingredient.id,
+    label: ingredient.name,
+  }));
 
   return (
     <Dialog
@@ -468,28 +480,30 @@ export function RecipeDialog({
                   <div key={row.key} className="flex flex-col gap-1 rounded-lg border p-2">
                     <div className="flex items-end gap-2">
                       <div className="flex-1">
-                        <Select
-                          name="ingredientId"
-                          autoComplete="off"
-                          value={row.ingredientId || undefined}
-                          onValueChange={(value) => setRowIngredient(row.key, value)}
-                          required
-                          items={ingredients.map((ingredient) => ({
-                            value: ingredient.id,
-                            label: ingredient.name,
-                          }))}
+                        <input type="hidden" name="ingredientId" value={row.ingredientId} />
+                        <Combobox
+                          items={ingredientComboItems}
+                          defaultValue={
+                            row.ingredientId
+                              ? ingredientComboItems.find((i) => i.value === row.ingredientId)
+                              : undefined
+                          }
+                          onValueChange={(item: { value: string; label: string } | null) =>
+                            setRowIngredient(row.key, item?.value ?? null)
+                          }
                         >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Ingrediente" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ingredients.map((ingredient) => (
-                              <SelectItem key={ingredient.id} value={ingredient.id}>
-                                {ingredient.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          <ComboboxInput placeholder="Buscar ingrediente..." autoComplete="off" />
+                          <ComboboxContent>
+                            <ComboboxEmpty>Nenhum ingrediente encontrado.</ComboboxEmpty>
+                            <ComboboxList>
+                              {(item: { value: string; label: string }) => (
+                                <ComboboxItem key={item.value} value={item}>
+                                  {item.label}
+                                </ComboboxItem>
+                              )}
+                            </ComboboxList>
+                          </ComboboxContent>
+                        </Combobox>
                       </div>
                       <div className="flex items-center gap-1">
                         <Input
