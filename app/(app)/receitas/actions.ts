@@ -158,6 +158,27 @@ export async function deleteRecipe(id: string) {
   revalidatePath("/receitas");
 }
 
+export async function moveRecipe(id: string, direction: "up" | "down") {
+  await requirePermission("canManageReceitas");
+
+  const recipe = await prisma.recipe.findUniqueOrThrow({ where: { id } });
+  const siblings = await prisma.recipe.findMany({
+    where: { type: recipe.type },
+    orderBy: [{ order: "asc" }, { name: "asc" }],
+  });
+  const index = siblings.findIndex((r) => r.id === id);
+  const targetIndex = direction === "up" ? index - 1 : index + 1;
+  if (index === -1 || targetIndex < 0 || targetIndex >= siblings.length) return;
+
+  const target = siblings[targetIndex];
+  await prisma.$transaction([
+    prisma.recipe.update({ where: { id: recipe.id }, data: { order: target.order } }),
+    prisma.recipe.update({ where: { id: target.id }, data: { order: recipe.order } }),
+  ]);
+
+  revalidatePath("/receitas");
+}
+
 export async function duplicateRecipe(id: string) {
   await requirePermission("canManageReceitas");
 

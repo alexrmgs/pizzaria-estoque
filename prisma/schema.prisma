@@ -162,6 +162,7 @@ model Recipe {
   imageUrl     String?
   yieldKg      Decimal?   @db.Decimal(10, 3)
   yieldUnits   Int?
+  order        Int        @default(0)
   createdAt    DateTime   @default(now())
 
   ingredients RecipeIngredient[]

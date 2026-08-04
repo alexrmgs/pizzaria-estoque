@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RecipeDialog } from "./recipe-dialog";
 import { DeleteRecipeButton } from "./delete-recipe-button";
 import { DuplicateRecipeButton } from "./duplicate-recipe-button";
+import { MoveRecipeButtons } from "./move-recipe-buttons";
 import { recipeItemCost, RECIPE_TYPE_LABELS, formatRecipeQuantity } from "@/lib/recipe-cost";
 import type { Prisma, RecipeType } from "@/lib/generated/prisma/client";
 
@@ -47,7 +48,7 @@ function RecipeGrid({
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {recipes.map((recipe) => {
+      {recipes.map((recipe, index) => {
         const totalCost = recipe.ingredients.reduce(
           (sum, item) =>
             sum +
@@ -158,6 +159,11 @@ function RecipeGrid({
                 </Button>
                 {canManage && (
                   <>
+                    <MoveRecipeButtons
+                      id={recipe.id}
+                      disableUp={index === 0}
+                      disableDown={index === recipes.length - 1}
+                    />
                     <RecipeDialog
                       ingredients={ingredients}
                       canManageEstoque={canManageEstoque}
@@ -197,7 +203,7 @@ export default async function ReceitasPage() {
 
   const [recipes, ingredients] = await Promise.all([
     prisma.recipe.findMany({
-      orderBy: { name: "asc" },
+      orderBy: [{ order: "asc" }, { name: "asc" }],
       include: {
         ingredients: { include: { ingredient: true }, orderBy: { order: "asc" } },
       },
