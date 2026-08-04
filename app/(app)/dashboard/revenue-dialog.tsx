@@ -59,6 +59,16 @@ export function RevenueDialog({
   const [channel, setChannel] = useState<RevenueChannel>(revenue?.channel ?? "LOJA_PROPRIA");
   const [amount, setAmount] = useState(revenue ? String(revenue.amount) : "");
   const [orderCount, setOrderCount] = useState(revenue ? String(revenue.orderCount) : "");
+  const [note, setNote] = useState(revenue?.note ?? "");
+
+  function handleChannelChange(next: RevenueChannel) {
+    setChannel(next);
+    // Cada canal é um lançamento independente — trocar o canal não deve
+    // carregar o valor/pedidos/observação digitados pro canal anterior.
+    setAmount("");
+    setOrderCount("");
+    setNote("");
+  }
 
   const amountNum = Number(amount || 0);
   const ordersNum = Number(orderCount || 0);
@@ -88,6 +98,7 @@ export function RevenueDialog({
           setChannel(revenue?.channel ?? "LOJA_PROPRIA");
           setAmount(revenue ? String(revenue.amount) : "");
           setOrderCount(revenue ? String(revenue.orderCount) : "");
+          setNote(revenue?.note ?? "");
         }
       }}
     >
@@ -132,7 +143,7 @@ export function RevenueDialog({
             <input type="hidden" name="channel" value={channel} />
             <Select
               value={channel}
-              onValueChange={(v) => v && setChannel(v as RevenueChannel)}
+              onValueChange={(v) => v && handleChannelChange(v as RevenueChannel)}
               items={REVENUE_CHANNELS.map((c) => ({ value: c, label: REVENUE_CHANNEL_LABELS[c] }))}
             >
               <SelectTrigger id="channel" className="w-full">
@@ -181,7 +192,13 @@ export function RevenueDialog({
           )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="note">Observação (opcional)</Label>
-            <Textarea id="note" name="note" rows={2} defaultValue={revenue?.note ?? ""} />
+            <Textarea
+              id="note"
+              name="note"
+              rows={2}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
           </div>
           {!isEdit && (
             <p className="text-xs text-muted-foreground">
