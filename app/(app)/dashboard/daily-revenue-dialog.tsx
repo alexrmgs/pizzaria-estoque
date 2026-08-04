@@ -20,6 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { createDailyRevenueSplit, getDailyRevenueSplit } from "./actions";
 
@@ -171,118 +179,134 @@ export function DailyRevenueDialog({ stores }: { stores: { id: string; name: str
             </p>
           )}
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="totalAmount">Faturamento TOTAL do dia (R$)</Label>
-            <Input
-              id="totalAmount"
-              name="totalAmount"
-              type="number"
-              step="0.01"
-              min="0"
-              value={totalAmount}
-              onChange={(e) => setTotalAmount(e.target.value)}
-              required
-            />
+          <div className="overflow-x-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Canal</TableHead>
+                  <TableHead>Faturamento (R$)</TableHead>
+                  <TableHead>Pedidos</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">Faturamento TOTAL</TableCell>
+                  <TableCell>
+                    <Label htmlFor="totalAmount" className="sr-only">
+                      Faturamento total do dia
+                    </Label>
+                    <Input
+                      id="totalAmount"
+                      name="totalAmount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={totalAmount}
+                      onChange={(e) => setTotalAmount(e.target.value)}
+                      className="w-28"
+                      required
+                    />
+                  </TableCell>
+                  <TableCell className="text-neutral-400">—</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">🛵 iFood</TableCell>
+                  <TableCell>
+                    <Label htmlFor="ifoodAmount" className="sr-only">
+                      Faturamento iFood
+                    </Label>
+                    <Input
+                      id="ifoodAmount"
+                      name="ifoodAmount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={ifoodAmount}
+                      onChange={(e) => setIfoodAmount(e.target.value)}
+                      className="w-28"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Label htmlFor="ifoodOrders" className="sr-only">
+                      Pedidos iFood
+                    </Label>
+                    <Input
+                      id="ifoodOrders"
+                      name="ifoodOrders"
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={ifoodOrders}
+                      onChange={(e) => setIfoodOrders(e.target.value)}
+                      className="w-20"
+                    />
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">🛵 99Food</TableCell>
+                  <TableCell>
+                    <Label htmlFor="food99Amount" className="sr-only">
+                      Faturamento 99Food
+                    </Label>
+                    <Input
+                      id="food99Amount"
+                      name="food99Amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={food99Amount}
+                      onChange={(e) => setFood99Amount(e.target.value)}
+                      className="w-28"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Label htmlFor="food99Orders" className="sr-only">
+                      Pedidos 99Food
+                    </Label>
+                    <Input
+                      id="food99Orders"
+                      name="food99Orders"
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={food99Orders}
+                      onChange={(e) => setFood99Orders(e.target.value)}
+                      className="w-20"
+                    />
+                  </TableCell>
+                </TableRow>
+                <TableRow className="bg-muted/30">
+                  <TableCell className="font-medium">🏠 Loja própria</TableCell>
+                  <TableCell className={cn("font-semibold", lojaAmount < 0 && "text-destructive")}>
+                    {currency(lojaAmount)}
+                  </TableCell>
+                  <TableCell>
+                    <Label htmlFor="lojaOrders" className="sr-only">
+                      Pedidos loja própria
+                    </Label>
+                    <Input
+                      id="lojaOrders"
+                      name="lojaOrders"
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={lojaOrders}
+                      onChange={(e) => setLojaOrders(e.target.value)}
+                      className="w-20"
+                    />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           </div>
-
-          <div className="rounded-lg border p-3">
-            <p className="mb-2 text-sm font-medium">🛵 iFood</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="ifoodAmount" className="text-xs text-neutral-500">
-                  Faturamento (R$)
-                </Label>
-                <Input
-                  id="ifoodAmount"
-                  name="ifoodAmount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={ifoodAmount}
-                  onChange={(e) => setIfoodAmount(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="ifoodOrders" className="text-xs text-neutral-500">
-                  Pedidos
-                </Label>
-                <Input
-                  id="ifoodOrders"
-                  name="ifoodOrders"
-                  type="number"
-                  step="1"
-                  min="0"
-                  value={ifoodOrders}
-                  onChange={(e) => setIfoodOrders(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-lg border p-3">
-            <p className="mb-2 text-sm font-medium">🛵 99Food</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="food99Amount" className="text-xs text-neutral-500">
-                  Faturamento (R$)
-                </Label>
-                <Input
-                  id="food99Amount"
-                  name="food99Amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={food99Amount}
-                  onChange={(e) => setFood99Amount(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="food99Orders" className="text-xs text-neutral-500">
-                  Pedidos
-                </Label>
-                <Input
-                  id="food99Orders"
-                  name="food99Orders"
-                  type="number"
-                  step="1"
-                  min="0"
-                  value={food99Orders}
-                  onChange={(e) => setFood99Orders(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-lg border bg-muted/30 p-3">
-            <p className="mb-2 text-sm font-medium">🏠 Loja própria (calculado)</p>
-            <div className="grid grid-cols-2 items-end gap-3">
-              <div>
-                <p className="text-xs text-neutral-500">Faturamento (total − iFood − 99Food)</p>
-                <p className={cn("text-lg font-semibold", lojaAmount < 0 && "text-destructive")}>
-                  {currency(lojaAmount)}
-                </p>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="lojaOrders" className="text-xs text-neutral-500">
-                  Pedidos (opcional)
-                </Label>
-                <Input
-                  id="lojaOrders"
-                  name="lojaOrders"
-                  type="number"
-                  step="1"
-                  min="0"
-                  value={lojaOrders}
-                  onChange={(e) => setLojaOrders(e.target.value)}
-                />
-              </div>
-            </div>
-            {lojaAmount < 0 && (
-              <p className="mt-2 text-xs text-destructive">
-                iFood + 99Food é maior que o faturamento total — confira os valores.
-              </p>
-            )}
-          </div>
+          <p className="text-xs text-neutral-500">
+            Loja própria é calculada sozinha: total − iFood − 99Food.
+          </p>
+          {lojaAmount < 0 && (
+            <p className="text-xs text-destructive">
+              iFood + 99Food é maior que o faturamento total — confira os valores.
+            </p>
+          )}
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="note">Observação (opcional)</Label>
