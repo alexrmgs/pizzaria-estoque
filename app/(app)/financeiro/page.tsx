@@ -15,7 +15,12 @@ import { RevenueDialog } from "../dashboard/revenue-dialog";
 import { DeleteRevenueButton } from "./delete-revenue-button";
 import { FinanceiroCharts } from "./financeiro-charts";
 import { StoreDashboard } from "./store-dashboard";
-import { buildYearlySummary, MONTH_NAMES_SHORT } from "@/lib/financeiro";
+import {
+  buildYearlySummary,
+  MONTH_NAMES_SHORT,
+  REVENUE_CHANNELS,
+  REVENUE_CHANNEL_LABELS,
+} from "@/lib/financeiro";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -76,6 +81,9 @@ export default async function FinanceiroPage({
   for (const store of stores) {
     byStore.set(store.id, { storeId: store.id, name: store.name, amount: 0, orders: 0 });
   }
+  type ChannelAgg = { channel: string; amount: number; orders: number };
+  const byChannel = new Map<string, ChannelAgg>();
+  for (const c of REVENUE_CHANNELS) byChannel.set(c, { channel: c, amount: 0, orders: 0 });
   let totalAmount = 0;
   let totalOrders = 0;
   for (const r of periodRevenues) {
@@ -83,10 +91,15 @@ export default async function FinanceiroPage({
     agg.amount += Number(r.amount);
     agg.orders += r.orderCount;
     byStore.set(r.storeId, agg);
+    const channelAgg = byChannel.get(r.channel) ?? { channel: r.channel, amount: 0, orders: 0 };
+    channelAgg.amount += Number(r.amount);
+    channelAgg.orders += r.orderCount;
+    byChannel.set(r.channel, channelAgg);
     totalAmount += Number(r.amount);
     totalOrders += r.orderCount;
   }
   const storeAggs = [...byStore.values()].sort((a, b) => b.amount - a.amount);
+  const channelAggs = [...byChannel.values()].sort((a, b) => b.amount - a.amount);
   const overallTicket = totalOrders > 0 ? totalAmount / totalOrders : null;
 
   // --- Dashboard (ano) ---
@@ -102,10 +115,18 @@ export default async function FinanceiroPage({
   );
   const storesByAmount = [...summary.stores].sort((a, b) => b.totalAmount - a.totalAmount);
 
-  const dailyRecordsByStore = new Map<string, { date: string; amount: number; orders: number }[]>();
+  const dailyRecordsByStore = new Map<
+    string,
+    { date: string; amount: number; orders: number; channel: string }[]
+  >();
   for (const r of yearRevenues) {
     const list = dailyRecordsByStore.get(r.storeId) ?? [];
-    list.push({ date: r.date.toISOString().slice(0, 10), amount: Number(r.amount), orders: r.orderCount });
+    list.push({
+      date: r.date.toISOString().slice(0, 10),
+      amount: Number(r.amount),
+      orders: r.orderCount,
+      channel: r.channel,
+    });
     dailyRecordsByStore.set(r.storeId, list);
   }
 
@@ -588,6 +609,54 @@ export default async function FinanceiroPage({
 
           <Card>
             <CardHeader>
+              <CardTitle className="text-lg">Por canal no período</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Canal</TableHead>
+                      <TableHead>Faturamento</TableHead>
+                      <TableHead>Pedidos</TableHead>
+                      <TableHead>Ticket médio</TableHead>
+                      <TableHead>% do total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {channelAggs.every((c) => c.amount === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-neutral-500">
+                          Nenhum lançamento nesse período.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {channelAggs.map((c) => {
+                      const ticket = c.orders > 0 ? c.amount / c.orders : null;
+                      return (
+                        <TableRow key={c.channel}>
+                          <TableCell className="font-medium">
+                            {REVENUE_CHANNEL_LABELS[c.channel]}
+                          </TableCell>
+                          <TableCell>{currency(c.amount)}</TableCell>
+                          <TableCell className="text-neutral-500">{c.orders}</TableCell>
+                          <TableCell className="text-neutral-500">
+                            {ticket !== null ? currency(ticket) : "—"}
+                          </TableCell>
+                          <TableCell className="text-neutral-500">
+                            {totalAmount > 0 ? percent(c.amount / totalAmount) : "—"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle className="text-lg">Lançamentos do período</CardTitle>
             </CardHeader>
             <CardContent>
@@ -597,6 +666,7 @@ export default async function FinanceiroPage({
                     <TableRow>
                       <TableHead>Data</TableHead>
                       <TableHead>Loja</TableHead>
+                      <TableHead>Canal</TableHead>
                       <TableHead>Faturamento</TableHead>
                       <TableHead>Pedidos</TableHead>
                       <TableHead>Ticket médio</TableHead>
@@ -607,7 +677,7 @@ export default async function FinanceiroPage({
                   <TableBody>
                     {periodRevenues.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-neutral-500">
+                        <TableCell colSpan={8} className="text-center text-neutral-500">
                           Nenhum faturamento lançado nesse período.
                         </TableCell>
                       </TableRow>
@@ -621,6 +691,9 @@ export default async function FinanceiroPage({
                             {r.date.toISOString().slice(0, 10).split("-").reverse().join("/")}
                           </TableCell>
                           <TableCell className="font-medium">{r.store.name}</TableCell>
+                          <TableCell className="text-neutral-500">
+                            {REVENUE_CHANNEL_LABELS[r.channel]}
+                          </TableCell>
                           <TableCell>{currency(amount)}</TableCell>
                           <TableCell className="text-neutral-500">{r.orderCount || "—"}</TableCell>
                           <TableCell className="text-neutral-500">
@@ -635,6 +708,7 @@ export default async function FinanceiroPage({
                                   id: r.id,
                                   date: r.date.toISOString().slice(0, 10),
                                   storeId: r.storeId,
+                                  channel: r.channel,
                                   amount: Number(r.amount),
                                   orderCount: r.orderCount,
                                   note: r.note,

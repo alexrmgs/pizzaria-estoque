@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createRevenue, updateRevenue } from "./actions";
+import { REVENUE_CHANNELS, REVENUE_CHANNEL_LABELS } from "@/lib/financeiro";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -29,10 +30,13 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+type RevenueChannel = (typeof REVENUE_CHANNELS)[number];
+
 type ExistingRevenue = {
   id: string;
   date: string; // YYYY-MM-DD
   storeId: string;
+  channel: RevenueChannel;
   amount: number;
   orderCount: number;
   note: string | null;
@@ -52,6 +56,7 @@ export function RevenueDialog({
   const [error, setError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const [storeId, setStoreId] = useState(revenue?.storeId ?? stores[0]?.id ?? "");
+  const [channel, setChannel] = useState<RevenueChannel>(revenue?.channel ?? "LOJA_PROPRIA");
   const [amount, setAmount] = useState(revenue ? String(revenue.amount) : "");
   const [orderCount, setOrderCount] = useState(revenue ? String(revenue.orderCount) : "");
 
@@ -80,6 +85,7 @@ export function RevenueDialog({
         if (next) {
           setError(undefined);
           setStoreId(revenue?.storeId ?? stores[0]?.id ?? "");
+          setChannel(revenue?.channel ?? "LOJA_PROPRIA");
           setAmount(revenue ? String(revenue.amount) : "");
           setOrderCount(revenue ? String(revenue.orderCount) : "");
         }
@@ -121,6 +127,26 @@ export function RevenueDialog({
               </Select>
             </div>
           </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="channel">Canal de venda</Label>
+            <input type="hidden" name="channel" value={channel} />
+            <Select
+              value={channel}
+              onValueChange={(v) => v && setChannel(v as RevenueChannel)}
+              items={REVENUE_CHANNELS.map((c) => ({ value: c, label: REVENUE_CHANNEL_LABELS[c] }))}
+            >
+              <SelectTrigger id="channel" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {REVENUE_CHANNELS.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {REVENUE_CHANNEL_LABELS[c]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">
               <Label htmlFor="amount">Faturamento do dia (R$)</Label>
@@ -159,8 +185,8 @@ export function RevenueDialog({
           </div>
           {!isEdit && (
             <p className="text-xs text-muted-foreground">
-              Já existe lançamento pra essa data e loja? Não dá pra criar outro — edite o lançamento
-              existente na tabela de lançamentos.
+              Já existe lançamento pra essa data, loja e canal? Não dá pra criar outro — edite o
+              lançamento existente na tabela de lançamentos.
             </p>
           )}
           {error && <p className="text-sm text-red-600">{error}</p>}

@@ -10,6 +10,12 @@ datasource db {
   provider = "postgresql"
 }
 
+enum RevenueChannel {
+  LOJA_PROPRIA
+  IFOOD
+  NOVENTA_NOVE
+}
+
 enum RecipeType {
   PRODUCAO
   PIZZA
@@ -137,19 +143,20 @@ model StockMovement {
 }
 
 model Revenue {
-  id         String   @id @default(cuid())
-  date       DateTime @db.Date
+  id         String         @id @default(cuid())
+  date       DateTime       @db.Date
   storeId    String
-  store      Store    @relation(fields: [storeId], references: [id])
-  amount     Decimal  @db.Decimal(10, 2)
-  orderCount Int      @default(0)
+  store      Store          @relation(fields: [storeId], references: [id])
+  channel    RevenueChannel @default(LOJA_PROPRIA)
+  amount     Decimal        @db.Decimal(10, 2)
+  orderCount Int            @default(0)
   note       String?
   userId     String
-  user       User     @relation(fields: [userId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  user       User           @relation(fields: [userId], references: [id])
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
-  @@unique([date, storeId])
+  @@unique([date, storeId, channel])
   @@index([storeId])
 }
 

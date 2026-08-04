@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MONTH_NAMES_SHORT, type StoreYearAgg } from "@/lib/financeiro";
+import { MONTH_NAMES_SHORT, REVENUE_CHANNELS, REVENUE_CHANNEL_LABELS, type StoreYearAgg } from "@/lib/financeiro";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -54,10 +54,45 @@ const dailyConfig: ChartConfig = {
 
 const WEEKDAY_ABBR = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-type DailyRecord = { date: string; amount: number; orders: number };
+type DailyRecord = { date: string; amount: number; orders: number; channel: string };
+
+function computeChannelBreakdown(dailyRecords: DailyRecord[]) {
+  const totals = new Map<string, { amount: number; orders: number }>();
+  for (const c of REVENUE_CHANNELS) totals.set(c, { amount: 0, orders: 0 });
+  let totalAmount = 0;
+  for (const r of dailyRecords) {
+    const agg = totals.get(r.channel) ?? { amount: 0, orders: 0 };
+    agg.amount += r.amount;
+    agg.orders += r.orders;
+    totals.set(r.channel, agg);
+    totalAmount += r.amount;
+  }
+  return [...totals.entries()]
+    .map(([channel, agg]) => ({
+      channel,
+      amount: agg.amount,
+      orders: agg.orders,
+      share: totalAmount > 0 ? agg.amount / totalAmount : null,
+    }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
+/** Consolida os lançamentos (agora um por canal) em um total por dia — os
+ * gráficos e destaques abaixo trabalham com o faturamento do dia inteiro,
+ * não por canal. */
+function aggregateByDate(dailyRecords: DailyRecord[]): { date: string; amount: number; orders: number }[] {
+  const byDate = new Map<string, { date: string; amount: number; orders: number }>();
+  for (const r of dailyRecords) {
+    const agg = byDate.get(r.date) ?? { date: r.date, amount: 0, orders: 0 };
+    agg.amount += r.amount;
+    agg.orders += r.orders;
+    byDate.set(r.date, agg);
+  }
+  return [...byDate.values()];
+}
 
 function buildDailyData(dailyRecords: DailyRecord[], year: number, month: number) {
-  const byDate = new Map(dailyRecords.map((r) => [r.date, r]));
+  const byDate = new Map(aggregateByDate(dailyRecords).map((r) => [r.date, r]));
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   return Array.from({ length: daysInMonth }, (_, i) => {
     const day = i + 1;
@@ -88,13 +123,15 @@ function minBy<T>(list: T[], fn: (item: T) => number): T | null {
   return list.reduce<T | null>((worst, item) => (worst === null || fn(item) < fn(worst) ? item : worst), null);
 }
 
+type AggregatedDay = { date: string; amount: number; orders: number };
 type DayHighlight = { date: string; amount: number } | null;
 type TicketHighlight = { date: string; ticket: number } | null;
 
 function computeHighlights(dailyRecords: DailyRecord[], year: number, month: number) {
+  const aggregated = aggregateByDate(dailyRecords);
   const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
-  const monthRecords = dailyRecords.filter((r) => r.date.startsWith(monthPrefix) && r.amount > 0);
-  const yearRecords = dailyRecords.filter((r) => r.amount > 0);
+  const monthRecords = aggregated.filter((r) => r.date.startsWith(monthPrefix) && r.amount > 0);
+  const yearRecords = aggregated.filter((r) => r.amount > 0);
 
   const bestDayMonthRec = maxBy(monthRecords, (r) => r.amount);
   const bestDayYearRec = maxBy(yearRecords, (r) => r.amount);
@@ -121,8 +158,9 @@ function computeHighlights(dailyRecords: DailyRecord[], year: number, month: num
     }
   }
 
-  const toDayHighlight = (r: DailyRecord | null): DayHighlight => (r ? { date: r.date, amount: r.amount } : null);
-  const toTicketHighlight = (r: DailyRecord | null): TicketHighlight =>
+  const toDayHighlight = (r: AggregatedDay | null): DayHighlight =>
+    r ? { date: r.date, amount: r.amount } : null;
+  const toTicketHighlight = (r: AggregatedDay | null): TicketHighlight =>
     r ? { date: r.date, ticket: r.amount / r.orders } : null;
 
   return {
@@ -194,6 +232,7 @@ export function StoreDashboard({
     () => computeHighlights(dailyRecords, year, selectedMonth),
     [dailyRecords, year, selectedMonth],
   );
+  const channelBreakdown = useMemo(() => computeChannelBreakdown(dailyRecords), [dailyRecords]);
   const selectedMonthAgg = store.months[selectedMonth];
   const selectedMonthTicket =
     selectedMonthAgg.orders > 0 ? selectedMonthAgg.amount / selectedMonthAgg.orders : null;
@@ -226,6 +265,54 @@ export function StoreDashboard({
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">🛵 Faturamento por canal — {year}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Canal</TableHead>
+                  <TableHead>Faturamento</TableHead>
+                  <TableHead>Pedidos</TableHead>
+                  <TableHead>Ticket médio</TableHead>
+                  <TableHead>% do total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {channelBreakdown.every((c) => c.amount === 0) && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-neutral-500">
+                      Sem dados em {year}.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {channelBreakdown.map((c) => {
+                  const ticket = c.orders > 0 ? c.amount / c.orders : null;
+                  return (
+                    <TableRow key={c.channel}>
+                      <TableCell className="font-medium">{REVENUE_CHANNEL_LABELS[c.channel]}</TableCell>
+                      <TableCell>{c.amount > 0 ? currency(c.amount) : "—"}</TableCell>
+                      <TableCell className="text-neutral-500">
+                        {c.orders > 0 ? c.orders.toLocaleString("pt-BR") : "—"}
+                      </TableCell>
+                      <TableCell className="text-neutral-500">
+                        {ticket !== null ? currency(ticket) : "—"}
+                      </TableCell>
+                      <TableCell className="text-neutral-500">
+                        {c.share !== null ? `${(c.share * 100).toFixed(1)}%` : "—"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
