@@ -15,7 +15,9 @@ import { RevenueDialog } from "../dashboard/revenue-dialog";
 import { DeleteRevenueButton } from "./delete-revenue-button";
 import { FinanceiroCharts } from "./financeiro-charts";
 import { StoreDashboard } from "./store-dashboard";
+import { PricingTable } from "./pricing-table";
 import { buildYearlySummary, MONTH_NAMES_SHORT } from "@/lib/financeiro";
+import { recipeItemCost } from "@/lib/recipe-cost";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -39,11 +41,15 @@ export default async function FinanceiroPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  await requirePermission("canViewRelatorios");
+  const user = await requirePermission("canViewRelatorios");
+  const canManageReceitas = user.role.canManageReceitas;
 
   const params = await searchParams;
   const tabParam = typeof params.tab === "string" ? params.tab : undefined;
-  const activeTab = tabParam === "lancamentos" || tabParam?.startsWith("store-") ? tabParam : "dashboard";
+  const activeTab =
+    tabParam === "lancamentos" || tabParam === "precificacao" || tabParam?.startsWith("store-")
+      ? tabParam
+      : "dashboard";
 
   const currentYear = new Date().getFullYear();
   const year = typeof params.year === "string" ? parseInt(params.year, 10) || currentYear : currentYear;
@@ -55,7 +61,7 @@ export default async function FinanceiroPage({
   const fromISO = toISODate(from);
   const toISO = toISODate(to);
 
-  const [stores, periodRevenues, yearRevenues] = await Promise.all([
+  const [stores, periodRevenues, yearRevenues, pricingRecipes] = await Promise.all([
     prisma.store.findMany({ orderBy: { name: "asc" } }),
     prisma.revenue.findMany({
       where: { date: { gte: from, lte: to } },
@@ -68,7 +74,36 @@ export default async function FinanceiroPage({
       },
       include: { store: { select: { name: true } } },
     }),
+    prisma.recipe.findMany({
+      where: { type: { in: ["PIZZA", "BEIRUTE", "ESFIHA"] } },
+      orderBy: [{ type: "asc" }, { order: "asc" }, { name: "asc" }],
+      include: { ingredients: { include: { ingredient: true } } },
+    }),
   ]);
+
+  const pricingRows = pricingRecipes.map((recipe) => {
+    const totalCost = recipe.ingredients.reduce(
+      (sum, item) =>
+        sum +
+        recipeItemCost(
+          Number(item.quantity),
+          Number(item.wastePercent),
+          Number(item.ingredient.unitPrice),
+          Number(item.ingredient.unitsPerPackage),
+        ),
+      0,
+    );
+    const yieldUnits = recipe.yieldUnits ?? null;
+    const costPerUnit = yieldUnits && yieldUnits > 0 ? totalCost / yieldUnits : null;
+    return {
+      id: recipe.id,
+      name: recipe.name,
+      type: recipe.type as "PIZZA" | "BEIRUTE" | "ESFIHA",
+      costPerUnit,
+      targetCmvPercent: recipe.targetCmvPercent?.toString() ?? null,
+      sellingPrice: recipe.sellingPrice?.toString() ?? null,
+    };
+  });
 
   // --- Lançamentos (período) ---
   type StoreAgg = { storeId: string; name: string; amount: number; orders: number };
@@ -131,6 +166,7 @@ export default async function FinanceiroPage({
               </TabsTrigger>
             ))}
             <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
+            <TabsTrigger value="precificacao">Precificação</TabsTrigger>
           </TabsList>
         </div>
 
@@ -656,6 +692,10 @@ export default async function FinanceiroPage({
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="precificacao" className="flex flex-col gap-6 pt-4">
+          <PricingTable rows={pricingRows} canManage={canManageReceitas} />
         </TabsContent>
       </Tabs>
     </div>

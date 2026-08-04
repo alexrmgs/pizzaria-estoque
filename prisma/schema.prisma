@@ -163,6 +163,8 @@ model Recipe {
   yieldKg      Decimal?   @db.Decimal(10, 3)
   yieldUnits   Int?
   order        Int        @default(0)
+  targetCmvPercent Decimal? @db.Decimal(5, 2)
+  sellingPrice     Decimal? @db.Decimal(10, 2)
   createdAt    DateTime   @default(now())
 
   ingredients RecipeIngredient[]

@@ -152,6 +152,54 @@ export async function updateRecipe(
   revalidatePath("/receitas");
 }
 
+const pricingSchema = z.object({
+  recipeId: z.array(z.string().trim().min(1)),
+  targetCmvPercent: z.array(
+    z.number().positive("O CMV alvo deve ser maior que zero.").max(100, "O CMV alvo não pode passar de 100%.").nullable(),
+  ),
+  sellingPrice: z.array(z.number().positive("O preço de venda deve ser maior que zero.").nullable()),
+});
+
+function parseOptionalNumberArray(values: FormDataEntryValue[]): (number | null)[] {
+  return values.map((v) => {
+    const s = String(v).trim();
+    return s === "" ? null : Number(s);
+  });
+}
+
+export type PricingFormState = { error?: string } | undefined;
+
+export async function updatePricing(
+  _prevState: PricingFormState,
+  formData: FormData,
+): Promise<PricingFormState> {
+  await requirePermission("canManageReceitas");
+
+  const recipeId = formData.getAll("recipeId").map(String);
+  const parsed = pricingSchema.safeParse({
+    recipeId,
+    targetCmvPercent: parseOptionalNumberArray(formData.getAll("targetCmvPercent")),
+    sellingPrice: parseOptionalNumberArray(formData.getAll("sellingPrice")),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  await prisma.$transaction(
+    parsed.data.recipeId.map((id, index) =>
+      prisma.recipe.update({
+        where: { id },
+        data: {
+          targetCmvPercent: parsed.data.targetCmvPercent[index],
+          sellingPrice: parsed.data.sellingPrice[index],
+        },
+      }),
+    ),
+  );
+
+  revalidatePath("/financeiro");
+}
+
 export async function deleteRecipe(id: string) {
   await requirePermission("canManageReceitas");
   await prisma.recipe.delete({ where: { id } });
