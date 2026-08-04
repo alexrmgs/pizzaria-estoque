@@ -17,6 +17,11 @@ const recipeSchema = z.object({
     .optional()
     .transform((v) => (v ? v : null)),
   yieldKg: z.coerce.number().positive("O rendimento deve ser maior que zero.").nullable(),
+  yieldUnits: z.coerce
+    .number()
+    .int("O rendimento em unidades deve ser um número inteiro.")
+    .positive("O rendimento em unidades deve ser maior que zero.")
+    .nullable(),
   ingredientId: z
     .array(z.string().trim().min(1, "Selecione um ingrediente."))
     .min(1, "Adicione ao menos um ingrediente."),
@@ -29,6 +34,8 @@ export type RecipeFormState = { error?: string } | undefined;
 function parseRecipeForm(formData: FormData) {
   const yieldKgRaw = formData.get("yieldKg");
   const yieldKg = typeof yieldKgRaw === "string" && yieldKgRaw.trim() !== "" ? yieldKgRaw : null;
+  const yieldUnitsRaw = formData.get("yieldUnits");
+  const yieldUnits = typeof yieldUnitsRaw === "string" && yieldUnitsRaw.trim() !== "" ? yieldUnitsRaw : null;
   const ingredientId = formData.getAll("ingredientId");
   const wastePercentRaw = formData.getAll("wastePercent");
 
@@ -39,6 +46,7 @@ function parseRecipeForm(formData: FormData) {
     instructions: formData.get("instructions") || undefined,
     imageUrl: formData.get("imageUrl") || undefined,
     yieldKg,
+    yieldUnits,
     ingredientId,
     quantity: formData.getAll("quantity"),
     wastePercent: ingredientId.map((_, index) => wastePercentRaw[index] || "0"),
@@ -56,8 +64,18 @@ export async function createRecipe(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const { name, type, description, instructions, imageUrl, yieldKg, ingredientId, quantity, wastePercent } =
-    parsed.data;
+  const {
+    name,
+    type,
+    description,
+    instructions,
+    imageUrl,
+    yieldKg,
+    yieldUnits,
+    ingredientId,
+    quantity,
+    wastePercent,
+  } = parsed.data;
 
   await prisma.recipe.create({
     data: {
@@ -67,11 +85,13 @@ export async function createRecipe(
       instructions,
       imageUrl,
       yieldKg,
+      yieldUnits,
       ingredients: {
         create: ingredientId.map((id, index) => ({
           ingredientId: id,
           quantity: quantity[index],
           wastePercent: wastePercent[index],
+          order: index,
         })),
       },
     },
@@ -92,8 +112,18 @@ export async function updateRecipe(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const { name, type, description, instructions, imageUrl, yieldKg, ingredientId, quantity, wastePercent } =
-    parsed.data;
+  const {
+    name,
+    type,
+    description,
+    instructions,
+    imageUrl,
+    yieldKg,
+    yieldUnits,
+    ingredientId,
+    quantity,
+    wastePercent,
+  } = parsed.data;
 
   await prisma.$transaction([
     prisma.recipeIngredient.deleteMany({ where: { recipeId: id } }),
@@ -106,11 +136,13 @@ export async function updateRecipe(
         instructions,
         imageUrl,
         yieldKg,
+        yieldUnits,
         ingredients: {
           create: ingredientId.map((ingId, index) => ({
             ingredientId: ingId,
             quantity: quantity[index],
             wastePercent: wastePercent[index],
+            order: index,
           })),
         },
       },
@@ -123,5 +155,36 @@ export async function updateRecipe(
 export async function deleteRecipe(id: string) {
   await requirePermission("canManageReceitas");
   await prisma.recipe.delete({ where: { id } });
+  revalidatePath("/receitas");
+}
+
+export async function duplicateRecipe(id: string) {
+  await requirePermission("canManageReceitas");
+
+  const original = await prisma.recipe.findUniqueOrThrow({
+    where: { id },
+    include: { ingredients: { orderBy: { order: "asc" } } },
+  });
+
+  await prisma.recipe.create({
+    data: {
+      name: `${original.name} (cópia)`,
+      type: original.type,
+      description: original.description,
+      instructions: original.instructions,
+      imageUrl: original.imageUrl,
+      yieldKg: original.yieldKg,
+      yieldUnits: original.yieldUnits,
+      ingredients: {
+        create: original.ingredients.map((ing) => ({
+          ingredientId: ing.ingredientId,
+          quantity: ing.quantity,
+          wastePercent: ing.wastePercent,
+          order: ing.order,
+        })),
+      },
+    },
+  });
+
   revalidatePath("/receitas");
 }

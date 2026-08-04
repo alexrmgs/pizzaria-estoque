@@ -32,7 +32,7 @@ import {
 import { createRecipe, updateRecipe } from "./actions";
 import { setIngredientRecipeUnit } from "../estoque/actions";
 import { recipeItemCost } from "@/lib/recipe-cost";
-import { X } from "lucide-react";
+import { X, ChevronUp, ChevronDown } from "lucide-react";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -94,8 +94,11 @@ type Recipe = {
   instructions: string | null;
   imageUrl: string | null;
   yieldKg: string | null;
+  yieldUnits: number | null;
   ingredients: { ingredientId: string; quantity: string; wastePercent: string }[];
 };
+
+const UNIT_YIELD_TYPES: RecipeType[] = ["PIZZA", "BEIRUTE", "ESFIHA"];
 
 const MAX_IMAGE_DIMENSION = 1000;
 const IMAGE_QUALITY = 0.82;
@@ -298,6 +301,17 @@ export function RecipeDialog({
     setRows((prev) => (prev.length > 1 ? prev.filter((row) => row.key !== key) : prev));
   }
 
+  function moveRow(key: string, direction: -1 | 1) {
+    setRows((prev) => {
+      const index = prev.findIndex((row) => row.key === key);
+      const targetIndex = index + direction;
+      if (index === -1 || targetIndex < 0 || targetIndex >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      return next;
+    });
+  }
+
   function setRowIngredient(key: string, ingredientId: string | null) {
     const selected = ingredients.find((i) => i.id === ingredientId);
     const suggestedWaste = selected ? defaultWastePercent(selected) : null;
@@ -452,33 +466,76 @@ export function RecipeDialog({
             </p>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="yieldKg">Rendimento real (kg)</Label>
-            <Input
-              id="yieldKg"
-              name="yieldKg"
-              type="number"
-              step="0.001"
-              min="0"
-              placeholder="Preencha após pesar o resultado da produção"
-              defaultValue={recipe?.yieldKg ?? ""}
-            />
-            <p className="text-xs text-neutral-500">
-              Peso final após o preparo (considera perdas de produção). Usado para calcular o
-              custo por kg — deixe em branco se ainda não souber.
-            </p>
-          </div>
+          {UNIT_YIELD_TYPES.includes(type) ? (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="yieldUnits">Rendimento (quantas unidades)</Label>
+              <Input
+                id="yieldUnits"
+                name="yieldUnits"
+                type="number"
+                step="1"
+                min="1"
+                placeholder="Ex: quantas pizzas essa receita rende"
+                defaultValue={recipe?.yieldUnits ?? ""}
+              />
+              <p className="text-xs text-neutral-500">
+                Quantas unidades (pizzas, beirutes ou esfihas) essa receita rende. Usado para
+                calcular o custo por unidade — deixe em branco se ainda não souber.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="yieldKg">Rendimento real (kg)</Label>
+              <Input
+                id="yieldKg"
+                name="yieldKg"
+                type="number"
+                step="0.001"
+                min="0"
+                placeholder="Preencha após pesar o resultado da produção"
+                defaultValue={recipe?.yieldKg ?? ""}
+              />
+              <p className="text-xs text-neutral-500">
+                Peso final após o preparo (considera perdas de produção). Usado para calcular o
+                custo por kg — deixe em branco se ainda não souber.
+              </p>
+            </div>
+          )}
 
           <div className="flex flex-col gap-2">
             <Label>Ingredientes</Label>
             <div className="flex flex-col gap-3">
-              {rows.map((row) => {
+              {rows.map((row, index) => {
                 const selected = ingredients.find((i) => i.id === row.ingredientId);
                 const override = selected ? conversionOverrides[selected.id] : undefined;
                 const effectiveRecipeUnit = override?.recipeUnit ?? selected?.recipeUnit ?? null;
                 return (
                   <div key={row.key} className="flex flex-col gap-1 rounded-lg border p-2">
                     <div className="flex items-end gap-2">
+                      <div className="flex flex-col">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-6"
+                          disabled={index === 0}
+                          onClick={() => moveRow(row.key, -1)}
+                          aria-label="Mover ingrediente pra cima"
+                        >
+                          <ChevronUp className="size-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-6"
+                          disabled={index === rows.length - 1}
+                          onClick={() => moveRow(row.key, 1)}
+                          aria-label="Mover ingrediente pra baixo"
+                        >
+                          <ChevronDown className="size-3.5" />
+                        </Button>
+                      </div>
                       <div className="flex-1">
                         <input type="hidden" name="ingredientId" value={row.ingredientId} />
                         <Combobox

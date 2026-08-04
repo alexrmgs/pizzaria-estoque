@@ -6,11 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RecipeDialog } from "./recipe-dialog";
 import { DeleteRecipeButton } from "./delete-recipe-button";
+import { DuplicateRecipeButton } from "./duplicate-recipe-button";
 import { recipeItemCost, RECIPE_TYPE_LABELS, formatRecipeQuantity } from "@/lib/recipe-cost";
-import type { Prisma } from "@/lib/generated/prisma/client";
+import type { Prisma, RecipeType } from "@/lib/generated/prisma/client";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const UNIT_YIELD_TYPES: RecipeType[] = ["PIZZA", "BEIRUTE", "ESFIHA"];
 
 type RecipeWithIngredients = Prisma.RecipeGetPayload<{
   include: { ingredients: { include: { ingredient: true } } };
@@ -56,8 +59,11 @@ function RecipeGrid({
             ),
           0,
         );
+        const isUnitYield = UNIT_YIELD_TYPES.includes(recipe.type);
         const yieldKg = recipe.yieldKg !== null ? Number(recipe.yieldKg) : null;
         const costPerKg = yieldKg && yieldKg > 0 ? totalCost / yieldKg : null;
+        const yieldUnits = recipe.yieldUnits ?? null;
+        const costPerUnit = yieldUnits && yieldUnits > 0 ? totalCost / yieldUnits : null;
 
         return (
           <Card key={recipe.id}>
@@ -106,18 +112,37 @@ function RecipeGrid({
                   <span className="text-neutral-500">Custo total (com perdas)</span>
                   <span className="font-medium">{currency(totalCost)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-500">Rendimento real</span>
-                  <span className="font-medium">
-                    {yieldKg !== null ? `${yieldKg.toFixed(3)} kg` : "—"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-500">Custo por kg</span>
-                  <span className="font-medium">
-                    {costPerKg !== null ? `${currency(costPerKg)}/kg` : "—"}
-                  </span>
-                </div>
+                {isUnitYield ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-neutral-500">Rendimento</span>
+                      <span className="font-medium">
+                        {yieldUnits !== null ? `${yieldUnits} un.` : "—"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-neutral-500">Custo por unidade</span>
+                      <span className="font-medium">
+                        {costPerUnit !== null ? currency(costPerUnit) : "—"}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-neutral-500">Rendimento real</span>
+                      <span className="font-medium">
+                        {yieldKg !== null ? `${yieldKg.toFixed(3)} kg` : "—"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-neutral-500">Custo por kg</span>
+                      <span className="font-medium">
+                        {costPerKg !== null ? `${currency(costPerKg)}/kg` : "—"}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="mt-4 flex flex-wrap justify-end gap-2">
@@ -144,6 +169,7 @@ function RecipeGrid({
                         instructions: recipe.instructions,
                         imageUrl: recipe.imageUrl,
                         yieldKg: recipe.yieldKg?.toString() ?? null,
+                        yieldUnits: recipe.yieldUnits ?? null,
                         ingredients: recipe.ingredients.map((item) => ({
                           ingredientId: item.ingredientId,
                           quantity: item.quantity.toString(),
@@ -151,6 +177,7 @@ function RecipeGrid({
                         })),
                       }}
                     />
+                    <DuplicateRecipeButton id={recipe.id} />
                     <DeleteRecipeButton id={recipe.id} name={recipe.name} />
                   </>
                 )}
@@ -171,7 +198,9 @@ export default async function ReceitasPage() {
   const [recipes, ingredients] = await Promise.all([
     prisma.recipe.findMany({
       orderBy: { name: "asc" },
-      include: { ingredients: { include: { ingredient: true } } },
+      include: {
+        ingredients: { include: { ingredient: true }, orderBy: { order: "asc" } },
+      },
     }),
     prisma.ingredient.findMany({
       orderBy: { name: "asc" },
