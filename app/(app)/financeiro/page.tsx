@@ -11,7 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { RevenueDialog } from "../dashboard/revenue-dialog";
 import { DailyRevenueDialog } from "../dashboard/daily-revenue-dialog";
 import { DeleteRevenueButton } from "./delete-revenue-button";
 import { FinanceiroCharts } from "./financeiro-charts";
@@ -703,17 +702,10 @@ export default async function FinanceiroPage({
                           <TableCell className="text-neutral-500">{r.note ?? "—"}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-1">
-                              <RevenueDialog
+                              <DailyRevenueDialog
                                 stores={stores.map((s) => ({ id: s.id, name: s.name }))}
-                                revenue={{
-                                  id: r.id,
-                                  date: r.date.toISOString().slice(0, 10),
-                                  storeId: r.storeId,
-                                  channel: r.channel,
-                                  amount: Number(r.amount),
-                                  orderCount: r.orderCount,
-                                  note: r.note,
-                                }}
+                                initialDate={r.date.toISOString().slice(0, 10)}
+                                initialStoreId={r.storeId}
                                 trigger={
                                   <Button variant="ghost" size="sm">
                                     Editar

@@ -38,14 +38,24 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function DailyRevenueDialog({ stores }: { stores: { id: string; name: string }[] }) {
+export function DailyRevenueDialog({
+  stores,
+  trigger,
+  initialDate,
+  initialStoreId,
+}: {
+  stores: { id: string; name: string }[];
+  trigger?: React.ReactElement;
+  initialDate?: string;
+  initialStoreId?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
   const [loadedExisting, setLoadedExisting] = useState(false);
-  const [storeId, setStoreId] = useState(stores[0]?.id ?? "");
-  const [date, setDate] = useState(todayISO());
+  const [storeId, setStoreId] = useState(initialStoreId ?? stores[0]?.id ?? "");
+  const [date, setDate] = useState(initialDate ?? todayISO());
   const [totalAmount, setTotalAmount] = useState("");
   const [ifoodAmount, setIfoodAmount] = useState("");
   const [ifoodOrders, setIfoodOrders] = useState("");
@@ -62,8 +72,8 @@ export function DailyRevenueDialog({ stores }: { stores: { id: string; name: str
   function reset() {
     setError(undefined);
     setLoadedExisting(false);
-    setStoreId(stores[0]?.id ?? "");
-    setDate(todayISO());
+    setStoreId(initialStoreId ?? stores[0]?.id ?? "");
+    setDate(initialDate ?? todayISO());
     setTotalAmount("");
     setIfoodAmount("");
     setIfoodOrders("");
@@ -129,10 +139,10 @@ export function DailyRevenueDialog({ stores }: { stores: { id: string; name: str
         if (next) reset();
       }}
     >
-      <DialogTrigger render={<Button size="sm">+ Lançar faturamento do dia</Button>} />
+      <DialogTrigger render={trigger ?? <Button size="sm">+ Lançar faturamento do dia</Button>} />
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Lançar faturamento do dia</DialogTitle>
+          <DialogTitle>{initialDate ? "Editar faturamento do dia" : "Lançar faturamento do dia"}</DialogTitle>
         </DialogHeader>
         <form action={handleSubmit} className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3">
