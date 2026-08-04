@@ -62,6 +62,7 @@ export function RevenueDialog({
   const [note, setNote] = useState(revenue?.note ?? "");
 
   function handleChannelChange(next: RevenueChannel) {
+    if (next === channel) return;
     setChannel(next);
     // Cada canal é um lançamento independente — trocar o canal não deve
     // carregar o valor/pedidos/observação digitados pro canal anterior.
@@ -111,7 +112,7 @@ export function RevenueDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar lançamento" : "Lançar faturamento"}</DialogTitle>
         </DialogHeader>
-        <form action={handleSubmit} className="flex flex-col gap-4">
+        <form action={handleSubmit} autoComplete="off" className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">
               <Label htmlFor="date">Data</Label>

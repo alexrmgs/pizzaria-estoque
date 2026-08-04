@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { createDailyRevenueSplit } from "./actions";
+import { createDailyRevenueSplit, getDailyRevenueSplit } from "./actions";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -34,13 +34,17 @@ export function DailyRevenueDialog({ stores }: { stores: { id: string; name: str
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
+  const [isLoadingExisting, setIsLoadingExisting] = useState(false);
+  const [loadedExisting, setLoadedExisting] = useState(false);
   const [storeId, setStoreId] = useState(stores[0]?.id ?? "");
+  const [date, setDate] = useState(todayISO());
   const [totalAmount, setTotalAmount] = useState("");
   const [ifoodAmount, setIfoodAmount] = useState("");
   const [ifoodOrders, setIfoodOrders] = useState("");
   const [food99Amount, setFood99Amount] = useState("");
   const [food99Orders, setFood99Orders] = useState("");
   const [lojaOrders, setLojaOrders] = useState("");
+  const [note, setNote] = useState("");
 
   const totalNum = Number(totalAmount || 0);
   const ifoodNum = Number(ifoodAmount || 0);
@@ -49,14 +53,53 @@ export function DailyRevenueDialog({ stores }: { stores: { id: string; name: str
 
   function reset() {
     setError(undefined);
+    setLoadedExisting(false);
     setStoreId(stores[0]?.id ?? "");
+    setDate(todayISO());
     setTotalAmount("");
     setIfoodAmount("");
     setIfoodOrders("");
     setFood99Amount("");
     setFood99Orders("");
     setLojaOrders("");
+    setNote("");
   }
+
+  // Busca o que já foi lançado nesse dia/loja pra não sobrescrever com zero
+  // ao reabrir o diálogo pra corrigir só um dos canais.
+  useEffect(() => {
+    if (!open || !storeId || !date) return;
+    let cancelled = false;
+    async function loadExisting() {
+      setIsLoadingExisting(true);
+      const data = await getDailyRevenueSplit(storeId, date);
+      if (cancelled) return;
+      setIsLoadingExisting(false);
+      if (data) {
+        setTotalAmount(String(data.totalAmount));
+        setIfoodAmount(String(data.ifoodAmount));
+        setIfoodOrders(String(data.ifoodOrders));
+        setFood99Amount(String(data.food99Amount));
+        setFood99Orders(String(data.food99Orders));
+        setLojaOrders(String(data.lojaOrders));
+        setNote(data.note);
+        setLoadedExisting(true);
+      } else {
+        setTotalAmount("");
+        setIfoodAmount("");
+        setIfoodOrders("");
+        setFood99Amount("");
+        setFood99Orders("");
+        setLojaOrders("");
+        setNote("");
+        setLoadedExisting(false);
+      }
+    }
+    loadExisting();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, storeId, date]);
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -87,7 +130,14 @@ export function DailyRevenueDialog({ stores }: { stores: { id: string; name: str
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">
               <Label htmlFor="date">Data</Label>
-              <Input id="date" name="date" type="date" defaultValue={todayISO()} required />
+              <Input
+                id="date"
+                name="date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+              />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="storeId">Loja</Label>
@@ -110,6 +160,16 @@ export function DailyRevenueDialog({ stores }: { stores: { id: string; name: str
               </Select>
             </div>
           </div>
+
+          {isLoadingExisting && (
+            <p className="text-xs text-muted-foreground">Verificando lançamentos existentes...</p>
+          )}
+          {!isLoadingExisting && loadedExisting && (
+            <p className="rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
+              Já existia lançamento pra essa data/loja — carreguei os valores salvos, ajuste o que
+              precisar.
+            </p>
+          )}
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="totalAmount">Faturamento TOTAL do dia (R$)</Label>
@@ -226,17 +286,12 @@ export function DailyRevenueDialog({ stores }: { stores: { id: string; name: str
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="note">Observação (opcional)</Label>
-            <Textarea id="note" name="note" rows={2} />
+            <Textarea id="note" name="note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
           </div>
-
-          <p className="text-xs text-muted-foreground">
-            Já existe lançamento pra essa data e loja? Os valores de cada canal são substituídos
-            pelos novos ao salvar de novo.
-          </p>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
           <DialogFooter>
-            <Button type="submit" disabled={isPending || !storeId || lojaAmount < 0}>
+            <Button type="submit" disabled={isPending || isLoadingExisting || !storeId || lojaAmount < 0}>
               {isPending ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
