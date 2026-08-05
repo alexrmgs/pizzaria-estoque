@@ -722,6 +722,54 @@ export default async function FinanceiroPage({
 
           <Card>
             <CardHeader>
+              <CardTitle className="text-lg">📱 % de participação por canal, mês a mês</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Mês</TableHead>
+                      {REVENUE_CHANNELS.map((channel) => (
+                        <TableHead key={channel}>
+                          <ChannelBadge channel={channel} />
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {MONTH_NAMES_SHORT.map((label, month) => {
+                      const monthTotal = summary.monthlyTotals[month].amount;
+                      return (
+                        <TableRow key={month}>
+                          <TableCell className="font-medium">{label}</TableCell>
+                          {REVENUE_CHANNELS.map((channel) => {
+                            const channelAmount = summary.channelMonthly[channel]?.[month]?.amount ?? 0;
+                            return (
+                              <TableCell key={channel} className="text-neutral-500">
+                                {monthTotal > 0 ? percent(channelAmount / monthTotal) : "—"}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      );
+                    })}
+                    <TableRow className="bg-muted/50">
+                      <TableCell className="font-semibold">Ano</TableCell>
+                      {REVENUE_CHANNELS.map((channel) => (
+                        <TableCell key={channel} className="font-semibold text-primary">
+                          {percent(channelShare(summary.channelTotals.find((c) => c.channel === channel)?.amount ?? 0))}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle className="text-lg">📱 Pedidos mensais por canal</CardTitle>
             </CardHeader>
             <CardContent>
