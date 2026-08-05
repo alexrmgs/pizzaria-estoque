@@ -157,6 +157,7 @@ export async function updateMovement(
   revalidatePath("/estoque");
   revalidatePath("/dashboard");
   revalidatePath("/relatorios");
+  revalidatePath("/receitas");
 }
 
 export type DeleteMovementState = { error?: string } | undefined;
@@ -283,6 +284,7 @@ export async function createMovementsBatch(
   revalidatePath("/relatorios");
   revalidatePath("/lista-compras");
   revalidatePath("/producao");
+  revalidatePath("/receitas");
 
   return { count: parsed.data.items.length };
 }
