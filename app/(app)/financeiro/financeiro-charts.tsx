@@ -23,7 +23,7 @@ import {
   ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { MONTH_NAMES_SHORT } from "@/lib/financeiro";
+import { MONTH_NAMES_SHORT, REVENUE_CHANNEL_LABELS } from "@/lib/financeiro";
 
 const STORE_COLORS = [
   "var(--chart-1)",
@@ -36,12 +36,21 @@ const STORE_COLORS = [
   "#ec4899",
 ];
 
+// Mesmas cores dos selos de canal (iFood/99Food) usados no resto do
+// financeiro, pra ficar reconhecível de relance também no gráfico.
+const CHANNEL_COLORS: Record<string, string> = {
+  IFOOD: "#EA1D2C",
+  NOVENTA_NOVE: "#FFCC00",
+  LOJA_PROPRIA: "#9CA3AF",
+};
+
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
 export function FinanceiroCharts({
   monthlyTotals,
   stores,
+  channelTotals,
 }: {
   monthlyTotals: { month: number; amount: number }[];
   stores: {
@@ -50,6 +59,7 @@ export function FinanceiroCharts({
     totalAmount: number;
     months: { month: number; amount: number }[];
   }[];
+  channelTotals?: { channel: string; amount: number; orders: number }[];
 }) {
   const trendData = monthlyTotals.map((m) => ({
     month: MONTH_NAMES_SHORT[m.month],
@@ -78,6 +88,20 @@ export function FinanceiroCharts({
     }
     return row;
   });
+
+  const channelData = (channelTotals ?? [])
+    .filter((c) => c.amount > 0)
+    .map((c) => ({
+      channel: REVENUE_CHANNEL_LABELS[c.channel] ?? c.channel,
+      faturamento: c.amount,
+      fill: CHANNEL_COLORS[c.channel] ?? "#9CA3AF",
+    }));
+  const channelConfig: ChartConfig = Object.fromEntries(
+    (channelTotals ?? []).map((c) => [
+      REVENUE_CHANNEL_LABELS[c.channel] ?? c.channel,
+      { label: REVENUE_CHANNEL_LABELS[c.channel] ?? c.channel, color: CHANNEL_COLORS[c.channel] ?? "#9CA3AF" },
+    ]),
+  );
 
   if (stores.length === 0) return null;
 
@@ -206,6 +230,41 @@ export function FinanceiroCharts({
           </ChartContainer>
         </CardContent>
       </Card>
+
+      {channelData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">📱 Participação por canal</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={channelConfig} className="mx-auto aspect-square h-72">
+              <PieChart>
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      hideLabel
+                      formatter={(value, name) => (
+                        <div className="flex w-full items-center justify-between gap-3">
+                          <span className="text-muted-foreground">{String(name)}</span>
+                          <span className="font-mono font-medium tabular-nums">
+                            {currency(Number(value))}
+                          </span>
+                        </div>
+                      )}
+                    />
+                  }
+                />
+                <Pie data={channelData} dataKey="faturamento" nameKey="channel" innerRadius={60} strokeWidth={4}>
+                  {channelData.map((entry) => (
+                    <Cell key={entry.channel} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <ChartLegend content={<ChartLegendContent nameKey="channel" />} />
+              </PieChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

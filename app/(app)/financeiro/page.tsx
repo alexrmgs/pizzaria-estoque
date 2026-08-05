@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
 import { DailyRevenueDialog } from "../dashboard/daily-revenue-dialog";
 import { DeleteRevenueButton } from "./delete-revenue-button";
 import { FinanceiroCharts } from "./financeiro-charts";
@@ -22,6 +24,28 @@ const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
 const MEDALS = ["🥇", "🥈", "🥉"];
+
+/** Selo de variação vs. o ano anterior — dá noção rápida de tendência nos
+ * cards do dashboard sem precisar abrir os gráficos mensais. */
+function TrendBadge({ value, suffix = " vs ano anterior" }: { value: number | null; suffix?: string }) {
+  if (value === null) return null;
+  const isUp = value >= 0;
+  return (
+    <span className={cn("text-xs font-medium", isUp ? "text-emerald-600" : "text-destructive")}>
+      {isUp ? "▲" : "▼"} {percent(Math.abs(value))}
+      {suffix}
+    </span>
+  );
+}
+
+function SectionHeading({ title, description }: { title: string; description?: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <h2 className="text-base font-semibold">{title}</h2>
+      {description && <p className="text-sm text-neutral-500">{description}</p>}
+    </div>
+  );
+}
 
 const selectClassName =
   "h-9 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -57,7 +81,7 @@ export default async function FinanceiroPage({
   const toISO = toISODate(to);
   const storeIdParam = typeof params.storeId === "string" && params.storeId ? params.storeId : undefined;
 
-  const [stores, periodRevenues, yearRevenues] = await Promise.all([
+  const [stores, periodRevenues, yearRevenues, prevYearAgg] = await Promise.all([
     prisma.store.findMany({ orderBy: { name: "asc" } }),
     prisma.revenue.findMany({
       where: { date: { gte: from, lte: to }, ...(storeIdParam ? { storeId: storeIdParam } : {}) },
@@ -69,6 +93,17 @@ export default async function FinanceiroPage({
         date: { gte: new Date(`${year}-01-01T00:00:00Z`), lte: new Date(`${year}-12-31T23:59:59Z`) },
       },
       include: { store: { select: { name: true } } },
+    }),
+    // Totais do ano anterior — só pra comparar crescimento no dashboard, não
+    // precisa dos registros completos.
+    prisma.revenue.aggregate({
+      where: {
+        date: {
+          gte: new Date(`${year - 1}-01-01T00:00:00Z`),
+          lte: new Date(`${year - 1}-12-31T23:59:59Z`),
+        },
+      },
+      _sum: { amount: true, orderCount: true },
     }),
   ]);
 
@@ -145,12 +180,27 @@ export default async function FinanceiroPage({
       date: r.date.toISOString().slice(0, 10),
       storeId: r.storeId,
       storeName: r.store.name,
+      channel: r.channel,
       amount: Number(r.amount),
       orderCount: r.orderCount,
     })),
     stores.map((s) => ({ id: s.id, name: s.name })),
   );
   const storesByAmount = [...summary.stores].sort((a, b) => b.totalAmount - a.totalAmount);
+
+  // Crescimento vs. o ano anterior — dá uma noção rápida de tendência sem
+  // precisar abrir os gráficos mensais.
+  const prevYearAmount = Number(prevYearAgg._sum.amount ?? 0);
+  const prevYearOrders = prevYearAgg._sum.orderCount ?? 0;
+  const prevYearTicket = prevYearOrders > 0 ? prevYearAmount / prevYearOrders : null;
+  const growth = (current: number, previous: number) =>
+    previous > 0 ? (current - previous) / previous : null;
+  const amountGrowth = growth(summary.totalAmount, prevYearAmount);
+  const ordersGrowth = growth(summary.totalOrders, prevYearOrders);
+  const ticketGrowth = prevYearTicket !== null ? growth(summary.overallTicket, prevYearTicket) : null;
+
+  const channelShare = (channelAmount: number) =>
+    summary.totalAmount > 0 ? channelAmount / summary.totalAmount : 0;
 
   const dailyRecordsByStore = new Map<
     string,
@@ -213,6 +263,10 @@ export default async function FinanceiroPage({
             </Button>
           </div>
 
+          <SectionHeading
+            title="Visão geral"
+            description={`Total de ${year}, com variação em relação a ${year - 1}.`}
+          />
           <div className="grid gap-4 sm:grid-cols-3">
             <Card>
               <CardHeader>
@@ -220,6 +274,7 @@ export default async function FinanceiroPage({
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-semibold">{currency(summary.totalAmount)}</p>
+                <TrendBadge value={amountGrowth} />
               </CardContent>
             </Card>
             <Card>
@@ -228,6 +283,7 @@ export default async function FinanceiroPage({
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-semibold">{summary.totalOrders.toLocaleString("pt-BR")}</p>
+                <TrendBadge value={ordersGrowth} />
               </CardContent>
             </Card>
             <Card>
@@ -236,10 +292,79 @@ export default async function FinanceiroPage({
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-semibold">{currency(summary.overallTicket)}</p>
+                <TrendBadge value={ticketGrowth} />
               </CardContent>
             </Card>
           </div>
 
+          <Separator />
+
+          <SectionHeading
+            title="Por canal"
+            description="Quanto do faturamento vem da loja própria vs. iFood e 99Food."
+          />
+          <Card>
+            <CardContent>
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Canal</TableHead>
+                      <TableHead>Faturamento</TableHead>
+                      <TableHead>% do total</TableHead>
+                      <TableHead>Pedidos</TableHead>
+                      <TableHead>Ticket médio</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {summary.channelTotals.every((c) => c.amount === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-neutral-500">
+                          Sem dados em {year}.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {summary.channelTotals.map((c) => {
+                      const ticket = c.orders > 0 ? c.amount / c.orders : null;
+                      return (
+                        <TableRow key={c.channel}>
+                          <TableCell className="font-medium">
+                            <ChannelBadge channel={c.channel} />
+                          </TableCell>
+                          <TableCell>{currency(c.amount)}</TableCell>
+                          <TableCell className="text-neutral-500">{percent(channelShare(c.amount))}</TableCell>
+                          <TableCell className="text-neutral-500">{c.orders.toLocaleString("pt-BR")}</TableCell>
+                          <TableCell className="text-neutral-500">
+                            {ticket !== null ? currency(ticket) : "—"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              {(() => {
+                const marketplaceShare =
+                  channelShare(
+                    summary.channelTotals.find((c) => c.channel === "IFOOD")?.amount ?? 0,
+                  ) +
+                  channelShare(
+                    summary.channelTotals.find((c) => c.channel === "NOVENTA_NOVE")?.amount ?? 0,
+                  );
+                return marketplaceShare > 0 ? (
+                  <p className="mt-3 text-sm text-neutral-500">
+                    📱 iFood + 99Food representam <span className="font-medium text-foreground">{percent(marketplaceShare)}</span>{" "}
+                    do faturamento de {year} — vale de olho na taxa de cada plataforma na hora de
+                    precificar.
+                  </p>
+                ) : null;
+              })()}
+            </CardContent>
+          </Card>
+
+          <Separator />
+
+          <SectionHeading title="Destaques do ano" description="Melhores lojas e ranking composto." />
           <div className="grid gap-4 sm:grid-cols-2">
             <Card>
               <CardHeader>
@@ -272,16 +397,6 @@ export default async function FinanceiroPage({
               </CardContent>
             </Card>
           </div>
-
-          <FinanceiroCharts
-            monthlyTotals={summary.monthlyTotals}
-            stores={storesByAmount.map((s) => ({
-              storeId: s.storeId,
-              storeName: s.storeName,
-              totalAmount: s.totalAmount,
-              months: s.months.map((m) => ({ month: m.month, amount: m.amount })),
-            }))}
-          />
 
           <Card>
             <CardHeader>
@@ -335,6 +450,27 @@ export default async function FinanceiroPage({
               )}
             </CardContent>
           </Card>
+
+          <Separator />
+
+          <SectionHeading title="Gráficos" description="Tendência mensal e participação de cada loja e canal." />
+          <FinanceiroCharts
+            monthlyTotals={summary.monthlyTotals}
+            stores={storesByAmount.map((s) => ({
+              storeId: s.storeId,
+              storeName: s.storeName,
+              totalAmount: s.totalAmount,
+              months: s.months.map((m) => ({ month: m.month, amount: m.amount })),
+            }))}
+            channelTotals={summary.channelTotals}
+          />
+
+          <Separator />
+
+          <SectionHeading
+            title="Detalhamento mensal"
+            description="Mês a mês, por loja — use pra investigar um período específico."
+          />
 
           <Card>
             <CardHeader>

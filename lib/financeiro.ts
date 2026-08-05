@@ -25,11 +25,14 @@ export type RevenueRecord = {
   date: string; // YYYY-MM-DD
   storeId: string;
   storeName: string;
+  channel: string;
   amount: number;
   orderCount: number;
 };
 
 export type MonthAgg = { month: number; amount: number; orders: number };
+
+export type ChannelAgg = { channel: string; amount: number; orders: number };
 
 export type StoreYearAgg = {
   storeId: string;
@@ -73,6 +76,8 @@ export type YearlySummary = {
   ranking: StoreScore[];
   bestRevenueStore: StoreScore | null;
   bestTicketStore: StoreScore | null;
+  channelTotals: ChannelAgg[];
+  channelMonthly: Record<string, MonthAgg[]>;
 };
 
 const SCORE_WEIGHT_FAT = 0.4;
@@ -111,6 +116,13 @@ export function buildYearlySummary(
     orders: 0,
   }));
 
+  const channelTotalsMap = new Map<string, ChannelAgg>();
+  const channelMonthly: Record<string, MonthAgg[]> = {};
+  for (const c of REVENUE_CHANNELS) {
+    channelTotalsMap.set(c, { channel: c, amount: 0, orders: 0 });
+    channelMonthly[c] = Array.from({ length: 12 }, (_, month) => ({ month, amount: 0, orders: 0 }));
+  }
+
   for (const r of records) {
     const month = Number(r.date.slice(5, 7)) - 1;
     const agg = storeAggs.get(r.storeId);
@@ -121,7 +133,21 @@ export function buildYearlySummary(
     agg.totalOrders += r.orderCount;
     monthlyTotals[month].amount += r.amount;
     monthlyTotals[month].orders += r.orderCount;
+
+    const channelAgg =
+      channelTotalsMap.get(r.channel) ?? { channel: r.channel, amount: 0, orders: 0 };
+    channelAgg.amount += r.amount;
+    channelAgg.orders += r.orderCount;
+    channelTotalsMap.set(r.channel, channelAgg);
+    const channelMonth = (channelMonthly[r.channel] ??= Array.from({ length: 12 }, (_, m) => ({
+      month: m,
+      amount: 0,
+      orders: 0,
+    })));
+    channelMonth[month].amount += r.amount;
+    channelMonth[month].orders += r.orderCount;
   }
+  const channelTotals = [...channelTotalsMap.values()].sort((a, b) => b.amount - a.amount);
 
   for (const agg of storeAggs.values()) {
     agg.avgTicket = agg.totalOrders > 0 ? agg.totalAmount / agg.totalOrders : 0;
@@ -209,5 +235,7 @@ export function buildYearlySummary(
     ranking,
     bestRevenueStore,
     bestTicketStore,
+    channelTotals,
+    channelMonthly,
   };
 }
