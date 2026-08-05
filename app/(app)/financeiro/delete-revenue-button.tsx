@@ -3,9 +3,9 @@
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { deleteRevenue } from "../dashboard/actions";
+import { deleteDailyRevenue } from "../dashboard/actions";
 
-export function DeleteRevenueButton({ id }: { id: string }) {
+export function DeleteRevenueButton({ storeId, date }: { storeId: string; date: string }) {
   const [isPending, startTransition] = useTransition();
 
   return (
@@ -14,9 +14,9 @@ export function DeleteRevenueButton({ id }: { id: string }) {
       size="sm"
       disabled={isPending}
       onClick={() => {
-        if (!confirm("Excluir esse lançamento de faturamento?")) return;
+        if (!confirm("Excluir esse lançamento de faturamento (todos os canais do dia)?")) return;
         startTransition(async () => {
-          await deleteRevenue(id);
+          await deleteDailyRevenue(storeId, date);
           toast.success("Lançamento excluído.");
         });
       }}

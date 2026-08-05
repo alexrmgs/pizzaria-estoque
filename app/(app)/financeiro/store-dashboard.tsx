@@ -35,7 +35,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MONTH_NAMES_SHORT, REVENUE_CHANNELS, REVENUE_CHANNEL_LABELS, type StoreYearAgg } from "@/lib/financeiro";
+import { MONTH_NAMES_SHORT, REVENUE_CHANNELS, type StoreYearAgg } from "@/lib/financeiro";
+import { ChannelBadge } from "@/components/channel-badge";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -294,7 +295,9 @@ export function StoreDashboard({
                   const ticket = c.orders > 0 ? c.amount / c.orders : null;
                   return (
                     <TableRow key={c.channel}>
-                      <TableCell className="font-medium">{REVENUE_CHANNEL_LABELS[c.channel]}</TableCell>
+                      <TableCell className="font-medium">
+                        <ChannelBadge channel={c.channel} />
+                      </TableCell>
                       <TableCell>{c.amount > 0 ? currency(c.amount) : "—"}</TableCell>
                       <TableCell className="text-neutral-500">
                         {c.orders > 0 ? c.orders.toLocaleString("pt-BR") : "—"}

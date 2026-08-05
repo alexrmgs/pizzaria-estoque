@@ -141,9 +141,10 @@ export async function getDailyRevenueSplit(
   };
 }
 
-export async function deleteRevenue(id: string) {
+export async function deleteDailyRevenue(storeId: string, dateStr: string) {
   await requirePermission("canViewRelatorios");
-  await prisma.revenue.delete({ where: { id } });
+  const date = new Date(`${dateStr}T00:00:00Z`);
+  await prisma.revenue.deleteMany({ where: { storeId, date } });
   revalidatePath("/dashboard");
   revalidatePath("/financeiro");
 }

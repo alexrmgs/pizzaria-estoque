@@ -15,12 +15,8 @@ import { DailyRevenueDialog } from "../dashboard/daily-revenue-dialog";
 import { DeleteRevenueButton } from "./delete-revenue-button";
 import { FinanceiroCharts } from "./financeiro-charts";
 import { StoreDashboard } from "./store-dashboard";
-import {
-  buildYearlySummary,
-  MONTH_NAMES_SHORT,
-  REVENUE_CHANNELS,
-  REVENUE_CHANNEL_LABELS,
-} from "@/lib/financeiro";
+import { ChannelBadge } from "@/components/channel-badge";
+import { buildYearlySummary, MONTH_NAMES_SHORT, REVENUE_CHANNELS } from "@/lib/financeiro";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -59,11 +55,12 @@ export default async function FinanceiroPage({
   const to = toParam ? new Date(`${toParam}T23:59:59`) : new Date();
   const fromISO = toISODate(from);
   const toISO = toISODate(to);
+  const storeIdParam = typeof params.storeId === "string" && params.storeId ? params.storeId : undefined;
 
   const [stores, periodRevenues, yearRevenues] = await Promise.all([
     prisma.store.findMany({ orderBy: { name: "asc" } }),
     prisma.revenue.findMany({
-      where: { date: { gte: from, lte: to } },
+      where: { date: { gte: from, lte: to }, ...(storeIdParam ? { storeId: storeIdParam } : {}) },
       orderBy: { date: "desc" },
       include: { store: { select: { name: true } } },
     }),
@@ -101,6 +98,46 @@ export default async function FinanceiroPage({
   const storeAggs = [...byStore.values()].sort((a, b) => b.amount - a.amount);
   const channelAggs = [...byChannel.values()].sort((a, b) => b.amount - a.amount);
   const overallTicket = totalOrders > 0 ? totalAmount / totalOrders : null;
+
+  // Um lançamento (total + iFood + 99Food + loja própria) vira 3 registros de
+  // Revenue, um por canal — agrupa de volta por dia/loja pra listar como uma
+  // linha só, com o valor de cada canal em sua própria coluna.
+  type PeriodEntry = {
+    date: string;
+    storeId: string;
+    storeName: string;
+    totalAmount: number;
+    totalOrders: number;
+    ifoodAmount: number;
+    food99Amount: number;
+    lojaAmount: number;
+    note: string | null;
+  };
+  const periodEntries = new Map<string, PeriodEntry>();
+  for (const r of periodRevenues) {
+    const dateISO = r.date.toISOString().slice(0, 10);
+    const key = `${dateISO}_${r.storeId}`;
+    const entry = periodEntries.get(key) ?? {
+      date: dateISO,
+      storeId: r.storeId,
+      storeName: r.store.name,
+      totalAmount: 0,
+      totalOrders: 0,
+      ifoodAmount: 0,
+      food99Amount: 0,
+      lojaAmount: 0,
+      note: null,
+    };
+    const amount = Number(r.amount);
+    entry.totalAmount += amount;
+    entry.totalOrders += r.orderCount;
+    if (r.channel === "IFOOD") entry.ifoodAmount += amount;
+    else if (r.channel === "NOVENTA_NOVE") entry.food99Amount += amount;
+    else entry.lojaAmount += amount;
+    if (r.note) entry.note = r.note;
+    periodEntries.set(key, entry);
+  }
+  const periodEntryList = [...periodEntries.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 
   // --- Dashboard (ano) ---
   const summary = buildYearlySummary(
@@ -542,6 +579,19 @@ export default async function FinanceiroPage({
               </label>
               <input id="to" name="to" type="date" defaultValue={toISO} className={selectClassName} />
             </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-neutral-500" htmlFor="storeId">
+                Loja
+              </label>
+              <select id="storeId" name="storeId" defaultValue={storeIdParam ?? ""} className={selectClassName}>
+                <option value="">Todas as lojas</option>
+                {stores.map((store) => (
+                  <option key={store.id} value={store.id}>
+                    {store.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <Button type="submit" size="sm">
               Filtrar
             </Button>
@@ -636,7 +686,7 @@ export default async function FinanceiroPage({
                       return (
                         <TableRow key={c.channel}>
                           <TableCell className="font-medium">
-                            {REVENUE_CHANNEL_LABELS[c.channel]}
+                            <ChannelBadge channel={c.channel} />
                           </TableCell>
                           <TableCell>{currency(c.amount)}</TableCell>
                           <TableCell className="text-neutral-500">{c.orders}</TableCell>
@@ -660,14 +710,20 @@ export default async function FinanceiroPage({
               <CardTitle className="text-lg">Lançamentos do período</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="rounded-lg border">
+              <div className="overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Data</TableHead>
                       <TableHead>Loja</TableHead>
-                      <TableHead>Canal</TableHead>
-                      <TableHead>Faturamento</TableHead>
+                      <TableHead>
+                        <ChannelBadge channel="IFOOD" />
+                      </TableHead>
+                      <TableHead>
+                        <ChannelBadge channel="NOVENTA_NOVE" />
+                      </TableHead>
+                      <TableHead>Loja própria</TableHead>
+                      <TableHead>Total</TableHead>
                       <TableHead>Pedidos</TableHead>
                       <TableHead>Ticket médio</TableHead>
                       <TableHead>Observação</TableHead>
@@ -675,44 +731,41 @@ export default async function FinanceiroPage({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {periodRevenues.length === 0 && (
+                    {periodEntryList.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-neutral-500">
+                        <TableCell colSpan={10} className="text-center text-neutral-500">
                           Nenhum faturamento lançado nesse período.
                         </TableCell>
                       </TableRow>
                     )}
-                    {periodRevenues.map((r) => {
-                      const amount = Number(r.amount);
-                      const ticket = r.orderCount > 0 ? amount / r.orderCount : null;
+                    {periodEntryList.map((entry) => {
+                      const ticket = entry.totalOrders > 0 ? entry.totalAmount / entry.totalOrders : null;
                       return (
-                        <TableRow key={r.id}>
-                          <TableCell>
-                            {r.date.toISOString().slice(0, 10).split("-").reverse().join("/")}
-                          </TableCell>
-                          <TableCell className="font-medium">{r.store.name}</TableCell>
-                          <TableCell className="text-neutral-500">
-                            {REVENUE_CHANNEL_LABELS[r.channel]}
-                          </TableCell>
-                          <TableCell>{currency(amount)}</TableCell>
-                          <TableCell className="text-neutral-500">{r.orderCount || "—"}</TableCell>
+                        <TableRow key={`${entry.date}_${entry.storeId}`}>
+                          <TableCell>{entry.date.split("-").reverse().join("/")}</TableCell>
+                          <TableCell className="font-medium">{entry.storeName}</TableCell>
+                          <TableCell className="text-neutral-500">{currency(entry.ifoodAmount)}</TableCell>
+                          <TableCell className="text-neutral-500">{currency(entry.food99Amount)}</TableCell>
+                          <TableCell className="text-neutral-500">{currency(entry.lojaAmount)}</TableCell>
+                          <TableCell className="font-medium">{currency(entry.totalAmount)}</TableCell>
+                          <TableCell className="text-neutral-500">{entry.totalOrders || "—"}</TableCell>
                           <TableCell className="text-neutral-500">
                             {ticket !== null ? currency(ticket) : "—"}
                           </TableCell>
-                          <TableCell className="text-neutral-500">{r.note ?? "—"}</TableCell>
+                          <TableCell className="text-neutral-500">{entry.note ?? "—"}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-1">
                               <DailyRevenueDialog
                                 stores={stores.map((s) => ({ id: s.id, name: s.name }))}
-                                initialDate={r.date.toISOString().slice(0, 10)}
-                                initialStoreId={r.storeId}
+                                initialDate={entry.date}
+                                initialStoreId={entry.storeId}
                                 trigger={
                                   <Button variant="ghost" size="sm">
                                     Editar
                                   </Button>
                                 }
                               />
-                              <DeleteRevenueButton id={r.id} />
+                              <DeleteRevenueButton storeId={entry.storeId} date={entry.date} />
                             </div>
                           </TableCell>
                         </TableRow>

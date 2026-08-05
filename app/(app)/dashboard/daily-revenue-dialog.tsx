@@ -29,6 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { ChannelBadge } from "@/components/channel-badge";
 import { createDailyRevenueSplit, getDailyRevenueSplit } from "./actions";
 
 const currency = (value: number) =>
@@ -239,7 +240,9 @@ export function DailyRevenueDialog({
                   </TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell className="font-medium">🛵 iFood</TableCell>
+                  <TableCell className="font-medium">
+                    <ChannelBadge channel="IFOOD" />
+                  </TableCell>
                   <TableCell>
                     <Label htmlFor="ifoodAmount" className="sr-only">
                       Faturamento iFood
@@ -272,7 +275,9 @@ export function DailyRevenueDialog({
                   </TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell className="font-medium">🛵 99Food</TableCell>
+                  <TableCell className="font-medium">
+                    <ChannelBadge channel="NOVENTA_NOVE" />
+                  </TableCell>
                   <TableCell>
                     <Label htmlFor="food99Amount" className="sr-only">
                       Faturamento 99Food
