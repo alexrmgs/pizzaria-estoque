@@ -75,6 +75,12 @@ export function DailyRevenueDialog({
   const food99OrdersNum = Number(food99Orders || 0);
   const lojaOrdersNum = totalOrdersNum - ifoodOrdersNum - food99OrdersNum;
 
+  const ticket = (amount: number, orders: number) => (orders > 0 ? amount / orders : null);
+  const totalTicket = ticket(totalNum, totalOrdersNum);
+  const ifoodTicket = ticket(ifoodNum, ifoodOrdersNum);
+  const food99Ticket = ticket(food99Num, food99OrdersNum);
+  const lojaTicket = ticket(lojaAmount, lojaOrdersNum);
+
   function reset() {
     setError(undefined);
     setLoadedExisting(false);
@@ -146,7 +152,7 @@ export function DailyRevenueDialog({
       }}
     >
       <DialogTrigger render={trigger ?? <Button size="sm">+ Lançar faturamento do dia</Button>} />
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{initialDate ? "Editar faturamento do dia" : "Lançar faturamento do dia"}</DialogTitle>
         </DialogHeader>
@@ -202,6 +208,7 @@ export function DailyRevenueDialog({
                   <TableHead>Canal</TableHead>
                   <TableHead>Faturamento (R$)</TableHead>
                   <TableHead>Pedidos</TableHead>
+                  <TableHead>Ticket médio</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -238,6 +245,9 @@ export function DailyRevenueDialog({
                       className="w-20"
                     />
                   </TableCell>
+                  <TableCell className="text-neutral-500">
+                    {totalTicket !== null ? currency(totalTicket) : "—"}
+                  </TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-medium">
@@ -272,6 +282,9 @@ export function DailyRevenueDialog({
                       onChange={(e) => setIfoodOrders(e.target.value)}
                       className="w-20"
                     />
+                  </TableCell>
+                  <TableCell className="text-neutral-500">
+                    {ifoodTicket !== null ? currency(ifoodTicket) : "—"}
                   </TableCell>
                 </TableRow>
                 <TableRow>
@@ -308,6 +321,9 @@ export function DailyRevenueDialog({
                       className="w-20"
                     />
                   </TableCell>
+                  <TableCell className="text-neutral-500">
+                    {food99Ticket !== null ? currency(food99Ticket) : "—"}
+                  </TableCell>
                 </TableRow>
                 <TableRow className="bg-muted/30">
                   <TableCell className="font-medium">🏠 Loja própria</TableCell>
@@ -316,6 +332,9 @@ export function DailyRevenueDialog({
                   </TableCell>
                   <TableCell className={cn("font-semibold", lojaOrdersNum < 0 && "text-destructive")}>
                     {lojaOrdersNum}
+                  </TableCell>
+                  <TableCell className="font-semibold text-neutral-500">
+                    {lojaTicket !== null ? currency(lojaTicket) : "—"}
                   </TableCell>
                 </TableRow>
               </TableBody>
