@@ -13,7 +13,7 @@ const dailySplitSchema = z.object({
   ifoodOrders: z.coerce.number().int().min(0),
   food99Amount: z.coerce.number().min(0, "O faturamento do 99Food não pode ser negativo."),
   food99Orders: z.coerce.number().int().min(0),
-  lojaOrders: z.coerce.number().int().min(0),
+  totalOrders: z.coerce.number().int().min(0),
   note: z.string().trim().max(500).optional(),
 });
 
@@ -41,14 +41,14 @@ export async function createDailyRevenueSplit(
     ifoodOrders: formData.get("ifoodOrders") || 0,
     food99Amount: formData.get("food99Amount") || 0,
     food99Orders: formData.get("food99Orders") || 0,
-    lojaOrders: formData.get("lojaOrders") || 0,
+    totalOrders: formData.get("totalOrders") || 0,
     note: formData.get("note") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const { totalAmount, ifoodAmount, food99Amount } = parsed.data;
+  const { totalAmount, ifoodAmount, food99Amount, totalOrders, ifoodOrders, food99Orders } = parsed.data;
   const lojaAmount = totalAmount - ifoodAmount - food99Amount;
   if (lojaAmount < 0) {
     return {
@@ -56,11 +56,18 @@ export async function createDailyRevenueSplit(
     };
   }
 
+  const lojaOrders = totalOrders - ifoodOrders - food99Orders;
+  if (lojaOrders < 0) {
+    return {
+      error: `O total de pedidos (${totalOrders}) é menor que iFood + 99Food somados (${ifoodOrders + food99Orders}). Confira os valores.`,
+    };
+  }
+
   const date = new Date(`${parsed.data.date}T00:00:00Z`);
   const channelData: { channel: "LOJA_PROPRIA" | "IFOOD" | "NOVENTA_NOVE"; amount: number; orderCount: number }[] = [
-    { channel: "LOJA_PROPRIA", amount: lojaAmount, orderCount: parsed.data.lojaOrders },
-    { channel: "IFOOD", amount: ifoodAmount, orderCount: parsed.data.ifoodOrders },
-    { channel: "NOVENTA_NOVE", amount: food99Amount, orderCount: parsed.data.food99Orders },
+    { channel: "LOJA_PROPRIA", amount: lojaAmount, orderCount: lojaOrders },
+    { channel: "IFOOD", amount: ifoodAmount, orderCount: ifoodOrders },
+    { channel: "NOVENTA_NOVE", amount: food99Amount, orderCount: food99Orders },
   ];
 
   await prisma.$transaction(
@@ -98,7 +105,7 @@ export type DailyRevenueSplitData = {
   ifoodOrders: number;
   food99Amount: number;
   food99Orders: number;
-  lojaOrders: number;
+  totalOrders: number;
   note: string;
 };
 
@@ -121,6 +128,7 @@ export async function getDailyRevenueSplit(
   const ifood = byChannel.get("IFOOD");
   const food99 = byChannel.get("NOVENTA_NOVE");
   const totalAmount = rows.reduce((sum, r) => sum + Number(r.amount), 0);
+  const totalOrders = rows.reduce((sum, r) => sum + r.orderCount, 0);
 
   return {
     totalAmount,
@@ -128,7 +136,7 @@ export async function getDailyRevenueSplit(
     ifoodOrders: ifood?.orderCount ?? 0,
     food99Amount: food99 ? Number(food99.amount) : 0,
     food99Orders: food99?.orderCount ?? 0,
-    lojaOrders: loja?.orderCount ?? 0,
+    totalOrders,
     note: loja?.note ?? ifood?.note ?? food99?.note ?? "",
   };
 }

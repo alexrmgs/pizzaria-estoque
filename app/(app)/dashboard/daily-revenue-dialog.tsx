@@ -61,13 +61,18 @@ export function DailyRevenueDialog({
   const [ifoodOrders, setIfoodOrders] = useState("");
   const [food99Amount, setFood99Amount] = useState("");
   const [food99Orders, setFood99Orders] = useState("");
-  const [lojaOrders, setLojaOrders] = useState("");
+  const [totalOrders, setTotalOrders] = useState("");
   const [note, setNote] = useState("");
 
   const totalNum = Number(totalAmount || 0);
   const ifoodNum = Number(ifoodAmount || 0);
   const food99Num = Number(food99Amount || 0);
   const lojaAmount = totalNum - ifoodNum - food99Num;
+
+  const totalOrdersNum = Number(totalOrders || 0);
+  const ifoodOrdersNum = Number(ifoodOrders || 0);
+  const food99OrdersNum = Number(food99Orders || 0);
+  const lojaOrdersNum = totalOrdersNum - ifoodOrdersNum - food99OrdersNum;
 
   function reset() {
     setError(undefined);
@@ -79,7 +84,7 @@ export function DailyRevenueDialog({
     setIfoodOrders("");
     setFood99Amount("");
     setFood99Orders("");
-    setLojaOrders("");
+    setTotalOrders("");
     setNote("");
   }
 
@@ -99,7 +104,7 @@ export function DailyRevenueDialog({
         setIfoodOrders(String(data.ifoodOrders));
         setFood99Amount(String(data.food99Amount));
         setFood99Orders(String(data.food99Orders));
-        setLojaOrders(String(data.lojaOrders));
+        setTotalOrders(String(data.totalOrders));
         setNote(data.note);
         setLoadedExisting(true);
       } else {
@@ -108,7 +113,7 @@ export function DailyRevenueDialog({
         setIfoodOrders("");
         setFood99Amount("");
         setFood99Orders("");
-        setLojaOrders("");
+        setTotalOrders("");
         setNote("");
         setLoadedExisting(false);
       }
@@ -217,7 +222,21 @@ export function DailyRevenueDialog({
                       required
                     />
                   </TableCell>
-                  <TableCell className="text-neutral-400">—</TableCell>
+                  <TableCell>
+                    <Label htmlFor="totalOrders" className="sr-only">
+                      Pedidos totais do dia
+                    </Label>
+                    <Input
+                      id="totalOrders"
+                      name="totalOrders"
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={totalOrders}
+                      onChange={(e) => setTotalOrders(e.target.value)}
+                      className="w-20"
+                    />
+                  </TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-medium">🛵 iFood</TableCell>
@@ -290,31 +309,24 @@ export function DailyRevenueDialog({
                   <TableCell className={cn("font-semibold", lojaAmount < 0 && "text-destructive")}>
                     {currency(lojaAmount)}
                   </TableCell>
-                  <TableCell>
-                    <Label htmlFor="lojaOrders" className="sr-only">
-                      Pedidos loja própria
-                    </Label>
-                    <Input
-                      id="lojaOrders"
-                      name="lojaOrders"
-                      type="number"
-                      step="1"
-                      min="0"
-                      value={lojaOrders}
-                      onChange={(e) => setLojaOrders(e.target.value)}
-                      className="w-20"
-                    />
+                  <TableCell className={cn("font-semibold", lojaOrdersNum < 0 && "text-destructive")}>
+                    {lojaOrdersNum}
                   </TableCell>
                 </TableRow>
               </TableBody>
             </Table>
           </div>
           <p className="text-xs text-neutral-500">
-            Loja própria é calculada sozinha: total − iFood − 99Food.
+            Loja própria é calculada sozinha: total − iFood − 99Food (faturamento e pedidos).
           </p>
           {lojaAmount < 0 && (
             <p className="text-xs text-destructive">
               iFood + 99Food é maior que o faturamento total — confira os valores.
+            </p>
+          )}
+          {lojaOrdersNum < 0 && (
+            <p className="text-xs text-destructive">
+              Pedidos de iFood + 99Food é maior que o total de pedidos — confira os valores.
             </p>
           )}
 
@@ -325,7 +337,10 @@ export function DailyRevenueDialog({
 
           {error && <p className="text-sm text-red-600">{error}</p>}
           <DialogFooter>
-            <Button type="submit" disabled={isPending || isLoadingExisting || !storeId || lojaAmount < 0}>
+            <Button
+              type="submit"
+              disabled={isPending || isLoadingExisting || !storeId || lojaAmount < 0 || lojaOrdersNum < 0}
+            >
               {isPending ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
