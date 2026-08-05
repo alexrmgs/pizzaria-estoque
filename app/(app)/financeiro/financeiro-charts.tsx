@@ -24,6 +24,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { MONTH_NAMES_SHORT, REVENUE_CHANNEL_LABELS } from "@/lib/financeiro";
+import { CHANNEL_COLORS } from "@/components/channel-badge";
 
 const STORE_COLORS = [
   "var(--chart-1)",
@@ -36,14 +37,6 @@ const STORE_COLORS = [
   "#ec4899",
 ];
 
-// Mesmas cores dos selos de canal (iFood/99Food) usados no resto do
-// financeiro, pra ficar reconhecível de relance também no gráfico.
-const CHANNEL_COLORS: Record<string, string> = {
-  IFOOD: "#EA1D2C",
-  NOVENTA_NOVE: "#FFCC00",
-  LOJA_PROPRIA: "#9CA3AF",
-};
-
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
@@ -51,6 +44,7 @@ export function FinanceiroCharts({
   monthlyTotals,
   stores,
   channelTotals,
+  channelMonthly,
 }: {
   monthlyTotals: { month: number; amount: number }[];
   stores: {
@@ -60,6 +54,7 @@ export function FinanceiroCharts({
     months: { month: number; amount: number }[];
   }[];
   channelTotals?: { channel: string; amount: number; orders: number }[];
+  channelMonthly?: Record<string, { month: number; amount: number; orders: number }[]>;
 }) {
   const trendData = monthlyTotals.map((m) => ({
     month: MONTH_NAMES_SHORT[m.month],
@@ -102,6 +97,15 @@ export function FinanceiroCharts({
       { label: REVENUE_CHANNEL_LABELS[c.channel] ?? c.channel, color: CHANNEL_COLORS[c.channel] ?? "#9CA3AF" },
     ]),
   );
+
+  const channelKeys = Object.keys(channelMonthly ?? {});
+  const monthlyByChannelData = MONTH_NAMES_SHORT.map((label, month) => {
+    const row: Record<string, string | number> = { month: label };
+    for (const key of channelKeys) {
+      row[REVENUE_CHANNEL_LABELS[key] ?? key] = channelMonthly?.[key]?.[month]?.amount ?? 0;
+    }
+    return row;
+  });
 
   if (stores.length === 0) return null;
 
@@ -167,6 +171,40 @@ export function FinanceiroCharts({
           </ChartContainer>
         </CardContent>
       </Card>
+
+      {channelKeys.length > 0 && (
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg">📱 Faturamento mensal por canal</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={channelConfig} className="aspect-auto h-72 w-full">
+              <LineChart data={monthlyByChannelData} margin={{ left: 8, right: 8, top: 8 }}>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  width={80}
+                  tickFormatter={(v: number) => currency(v)}
+                />
+                <ChartTooltip content={<ChartTooltipContent formatter={(value) => currency(Number(value))} />} />
+                <ChartLegend content={<ChartLegendContent />} />
+                {channelKeys.map((key) => (
+                  <Line
+                    key={key}
+                    dataKey={REVENUE_CHANNEL_LABELS[key] ?? key}
+                    type="monotone"
+                    stroke={CHANNEL_COLORS[key] ?? "#9CA3AF"}
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                ))}
+              </LineChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

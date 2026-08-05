@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
+  LineChart,
   XAxis,
   YAxis,
 } from "recharts";
@@ -35,8 +36,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MONTH_NAMES_SHORT, REVENUE_CHANNELS, type StoreYearAgg } from "@/lib/financeiro";
-import { ChannelBadge } from "@/components/channel-badge";
+import { MONTH_NAMES_SHORT, REVENUE_CHANNELS, REVENUE_CHANNEL_LABELS, type StoreYearAgg } from "@/lib/financeiro";
+import { ChannelBadge, CHANNEL_COLORS } from "@/components/channel-badge";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -76,6 +77,21 @@ function computeChannelBreakdown(dailyRecords: DailyRecord[]) {
       share: totalAmount > 0 ? agg.amount / totalAmount : null,
     }))
     .sort((a, b) => b.amount - a.amount);
+}
+
+/** Faturamento mensal de cada canal — pra dar noção de tendência (ex: iFood
+ * crescendo mês a mês), não só o total acumulado do ano. */
+function computeChannelMonthly(dailyRecords: DailyRecord[]) {
+  const byChannel: Record<string, { month: number; amount: number }[]> = {};
+  for (const c of REVENUE_CHANNELS) {
+    byChannel[c] = Array.from({ length: 12 }, (_, month) => ({ month, amount: 0 }));
+  }
+  for (const r of dailyRecords) {
+    const month = Number(r.date.slice(5, 7)) - 1;
+    const series = (byChannel[r.channel] ??= Array.from({ length: 12 }, (_, m) => ({ month: m, amount: 0 })));
+    series[month].amount += r.amount;
+  }
+  return byChannel;
 }
 
 /** Consolida os lançamentos (agora um por canal) em um total por dia — os
@@ -234,6 +250,15 @@ export function StoreDashboard({
     [dailyRecords, year, selectedMonth],
   );
   const channelBreakdown = useMemo(() => computeChannelBreakdown(dailyRecords), [dailyRecords]);
+  const channelMonthly = useMemo(() => computeChannelMonthly(dailyRecords), [dailyRecords]);
+  const monthlyByChannelData = MONTH_NAMES_SHORT.map((label, month) => {
+    const row: Record<string, string | number> = { month: label };
+    for (const c of REVENUE_CHANNELS) row[REVENUE_CHANNEL_LABELS[c]] = channelMonthly[c][month].amount;
+    return row;
+  });
+  const channelChartConfig: ChartConfig = Object.fromEntries(
+    REVENUE_CHANNELS.map((c) => [REVENUE_CHANNEL_LABELS[c], { label: REVENUE_CHANNEL_LABELS[c], color: CHANNEL_COLORS[c] }]),
+  );
   const selectedMonthAgg = store.months[selectedMonth];
   const selectedMonthTicket =
     selectedMonthAgg.orders > 0 ? selectedMonthAgg.amount / selectedMonthAgg.orders : null;
@@ -266,6 +291,33 @@ export function StoreDashboard({
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">📱 Faturamento mensal por canal — {year}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={channelChartConfig} className="aspect-auto h-64 w-full">
+            <LineChart data={monthlyByChannelData} margin={{ left: 8, right: 8, top: 8 }}>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="month" tickLine={false} axisLine={false} />
+              <YAxis tickLine={false} axisLine={false} width={80} tickFormatter={(v: number) => chartCurrency(v)} />
+              <ChartTooltip content={<ChartTooltipContent formatter={(value) => currency(Number(value))} />} />
+              <ChartLegend content={<ChartLegendContent />} />
+              {REVENUE_CHANNELS.map((c) => (
+                <Line
+                  key={c}
+                  dataKey={REVENUE_CHANNEL_LABELS[c]}
+                  type="monotone"
+                  stroke={CHANNEL_COLORS[c]}
+                  strokeWidth={2}
+                  dot={false}
+                />
+              ))}
+            </LineChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

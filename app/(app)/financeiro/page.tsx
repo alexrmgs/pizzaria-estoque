@@ -463,13 +463,14 @@ export default async function FinanceiroPage({
               months: s.months.map((m) => ({ month: m.month, amount: m.amount })),
             }))}
             channelTotals={summary.channelTotals}
+            channelMonthly={summary.channelMonthly}
           />
 
           <Separator />
 
           <SectionHeading
             title="Detalhamento mensal"
-            description="Mês a mês, por loja — use pra investigar um período específico."
+            description="Mês a mês, por loja e por canal — use pra investigar um período específico."
           />
 
           <Card>
@@ -660,6 +661,108 @@ export default async function FinanceiroPage({
                       ))}
                       <TableCell className="font-semibold text-primary">
                         {currency(summary.overallTicket)}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">📱 Faturamento mensal por canal</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Mês</TableHead>
+                      {REVENUE_CHANNELS.map((channel) => (
+                        <TableHead key={channel}>
+                          <ChannelBadge channel={channel} />
+                        </TableHead>
+                      ))}
+                      <TableHead>Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {MONTH_NAMES_SHORT.map((label, month) => (
+                      <TableRow key={month}>
+                        <TableCell className="font-medium">{label}</TableCell>
+                        {REVENUE_CHANNELS.map((channel) => (
+                          <TableCell key={channel} className="text-neutral-500">
+                            {currency(summary.channelMonthly[channel]?.[month]?.amount ?? 0)}
+                          </TableCell>
+                        ))}
+                        <TableCell className="font-medium">
+                          {currency(summary.monthlyTotals[month].amount)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-muted/50">
+                      <TableCell className="font-semibold">Total</TableCell>
+                      {REVENUE_CHANNELS.map((channel) => (
+                        <TableCell key={channel} className="font-semibold">
+                          {currency(
+                            summary.channelTotals.find((c) => c.channel === channel)?.amount ?? 0,
+                          )}
+                        </TableCell>
+                      ))}
+                      <TableCell className="font-semibold text-primary">
+                        {currency(summary.totalAmount)}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">📱 Pedidos mensais por canal</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Mês</TableHead>
+                      {REVENUE_CHANNELS.map((channel) => (
+                        <TableHead key={channel}>
+                          <ChannelBadge channel={channel} />
+                        </TableHead>
+                      ))}
+                      <TableHead>Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {MONTH_NAMES_SHORT.map((label, month) => (
+                      <TableRow key={month}>
+                        <TableCell className="font-medium">{label}</TableCell>
+                        {REVENUE_CHANNELS.map((channel) => (
+                          <TableCell key={channel} className="text-neutral-500">
+                            {(summary.channelMonthly[channel]?.[month]?.orders ?? 0).toLocaleString("pt-BR")}
+                          </TableCell>
+                        ))}
+                        <TableCell className="font-medium">
+                          {summary.monthlyTotals[month].orders.toLocaleString("pt-BR")}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-muted/50">
+                      <TableCell className="font-semibold">Total</TableCell>
+                      {REVENUE_CHANNELS.map((channel) => (
+                        <TableCell key={channel} className="font-semibold">
+                          {(
+                            summary.channelTotals.find((c) => c.channel === channel)?.orders ?? 0
+                          ).toLocaleString("pt-BR")}
+                        </TableCell>
+                      ))}
+                      <TableCell className="font-semibold text-primary">
+                        {summary.totalOrders.toLocaleString("pt-BR")}
                       </TableCell>
                     </TableRow>
                   </TableBody>

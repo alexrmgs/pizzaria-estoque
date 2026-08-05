@@ -1,9 +1,17 @@
 import { cn } from "@/lib/utils";
 import { REVENUE_CHANNEL_LABELS } from "@/lib/financeiro";
 
+/** Cor de referência de cada canal — usada no selo e reaproveitada nos
+ * gráficos (pizza/linha) do financeiro pra manter a mesma identidade visual. */
+export const CHANNEL_COLORS: Record<string, string> = {
+  IFOOD: "#EA1D2C",
+  NOVENTA_NOVE: "#FFCC00",
+  LOJA_PROPRIA: "#9CA3AF",
+};
+
 const CHANNEL_STYLE: Record<string, { bg: string; fg: string }> = {
-  IFOOD: { bg: "#EA1D2C", fg: "#FFFFFF" },
-  NOVENTA_NOVE: { bg: "#FFCC00", fg: "#1A1A1A" },
+  IFOOD: { bg: CHANNEL_COLORS.IFOOD, fg: "#FFFFFF" },
+  NOVENTA_NOVE: { bg: CHANNEL_COLORS.NOVENTA_NOVE, fg: "#1A1A1A" },
   LOJA_PROPRIA: { bg: "#E5E5E5", fg: "#1A1A1A" },
 };
 
