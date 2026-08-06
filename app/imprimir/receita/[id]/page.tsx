@@ -25,6 +25,11 @@ export default async function ImprimirReceitaPage({
   // recheio...) que rendem em quilos — pizza/beirute/esfiha rendem em
   // unidades, não em peso.
   const showPerKg = recipe.type === "PRODUCAO" && yieldKg !== null && yieldKg > 0;
+  // O rendimento cadastrado costuma vir de uma pesagem real (ex: 1,1756 kg),
+  // não de uma escala redonda escolhida de propósito — pra escalar a receita
+  // arredonda pro quilo fechado mais próximo (mínimo 1kg) em vez de usar essa
+  // fração exata, senão a proporção "por 1kg" fica com números quebrados.
+  const scaleKg = showPerKg ? Math.max(1, Math.round(yieldKg!)) : null;
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6 p-8 print:p-0">
@@ -60,8 +65,9 @@ export default async function ImprimirReceitaPage({
         <h2 className="mb-2 text-lg font-semibold">Ingredientes</h2>
         {showPerKg && (
           <p className="-mt-1 mb-2 text-xs text-neutral-500">
-            Rendimento da receita: {yieldKg!.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} kg. A
-            coluna &quot;por 1kg&quot; ajuda a escalar pra qualquer tamanho de produção.
+            Rendimento cadastrado: {yieldKg!.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} kg —
+            a coluna &quot;por {scaleKg}kg&quot; arredonda pro quilo fechado mais próximo, pra facilitar
+            escalar a produção.
           </p>
         )}
         {showPerKg && (
@@ -69,7 +75,7 @@ export default async function ImprimirReceitaPage({
             <span>Ingrediente</span>
             <span className="flex gap-4">
               <span className="w-20 text-right">Total</span>
-              <span className="w-20 text-right">Por 1kg</span>
+              <span className="w-20 text-right">Por {scaleKg}kg</span>
             </span>
           </div>
         )}
@@ -89,7 +95,7 @@ export default async function ImprimirReceitaPage({
                   <span className="flex gap-4">
                     <span className="w-20 text-right">{formatRecipeQuantity(quantity, unit)}</span>
                     <span className="w-20 text-right text-neutral-500">
-                      {formatRecipeQuantity(quantity / yieldKg!, unit)}
+                      {formatRecipeQuantity(quantity / scaleKg!, unit)}
                     </span>
                   </span>
                 ) : (
