@@ -60,6 +60,7 @@ model User {
   passwordHash String
   roleId       String
   role         Role     @relation(fields: [roleId], references: [id])
+  whatsappPhone String? @unique
   createdAt    DateTime @default(now())
 
   movements StockMovement[]
@@ -68,8 +69,29 @@ model User {
   payments  Payment[]
   employee  Employee?
   approvedSwaps ShiftSwapRequest[]
+  whatsappPendingMovements WhatsappPendingMovement[]
 
   @@index([roleId])
+}
+
+/**
+ * Rascunho de uma movimentação de estoque que a IA interpretou de uma
+ * mensagem do WhatsApp, mas que ainda não foi confirmada pelo funcionário —
+ * evita gravar no estoque uma interpretação errada sem ninguém perceber.
+ */
+model WhatsappPendingMovement {
+  id           String       @id @default(cuid())
+  phone        String
+  ingredientId String
+  ingredient   Ingredient   @relation(fields: [ingredientId], references: [id])
+  quantity     Decimal      @db.Decimal(10, 3)
+  type         MovementType
+  rawMessage   String
+  userId       String
+  user         User         @relation(fields: [userId], references: [id])
+  createdAt    DateTime     @default(now())
+
+  @@index([phone])
 }
 
 enum OvertimeMode {
@@ -121,6 +143,7 @@ model Ingredient {
 
   movements        StockMovement[]
   recipeIngredients RecipeIngredient[]
+  whatsappPendingMovements WhatsappPendingMovement[]
 
   @@index([categoryId])
 }

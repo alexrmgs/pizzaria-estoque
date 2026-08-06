@@ -26,6 +26,7 @@ type User = {
   name: string;
   email: string;
   roleId: string;
+  whatsappPhone: string | null;
 };
 
 type Role = { id: string; name: string };
@@ -88,6 +89,19 @@ export function UserDialog({ user, roles }: { user?: User; roles: Role[] }) {
               placeholder={user ? "Deixe em branco para manter a atual" : undefined}
               required={!user}
             />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="whatsappPhone">WhatsApp (opcional)</Label>
+            <Input
+              id="whatsappPhone"
+              name="whatsappPhone"
+              type="tel"
+              placeholder="5511999998888"
+              defaultValue={user?.whatsappPhone ?? undefined}
+            />
+            <p className="text-xs text-neutral-500">
+              Com DDI e DDD, só números. Preencha pra liberar o registro de estoque por WhatsApp.
+            </p>
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="roleId">Cargo</Label>

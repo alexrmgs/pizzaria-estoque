@@ -36,6 +36,7 @@ export default async function UsuariosPage() {
               <TableHead>Nome</TableHead>
               <TableHead>E-mail</TableHead>
               <TableHead>Cargo</TableHead>
+              <TableHead>WhatsApp</TableHead>
               <TableHead>Desde</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -54,13 +55,22 @@ export default async function UsuariosPage() {
                   />
                 </TableCell>
                 <TableCell className="text-neutral-500">
+                  {user.whatsappPhone ?? "—"}
+                </TableCell>
+                <TableCell className="text-neutral-500">
                   {user.createdAt.toLocaleDateString("pt-BR")}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <UserDialog
                       roles={roles}
-                      user={{ id: user.id, name: user.name, email: user.email, roleId: user.roleId }}
+                      user={{
+                        id: user.id,
+                        name: user.name,
+                        email: user.email,
+                        roleId: user.roleId,
+                        whatsappPhone: user.whatsappPhone,
+                      }}
                     />
                     <DeleteUserButton
                       id={user.id}
