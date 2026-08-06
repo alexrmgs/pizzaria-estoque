@@ -94,6 +94,27 @@ function computeChannelMonthly(dailyRecords: DailyRecord[]) {
   return byChannel;
 }
 
+/** Faturamento de cada canal, dia a dia, dentro de um mês específico — pra
+ * ver a evolução mais fina do que o agregado mensal. */
+function computeDailyByChannel(dailyRecords: DailyRecord[], year: number, month: number) {
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const byDate = new Map<string, Record<string, number>>();
+  for (const r of dailyRecords) {
+    const [rYear, rMonth] = r.date.split("-");
+    if (Number(rYear) !== year || Number(rMonth) - 1 !== month) continue;
+    const entry = byDate.get(r.date) ?? {};
+    entry[r.channel] = (entry[r.channel] ?? 0) + r.amount;
+    byDate.set(r.date, entry);
+  }
+  return Array.from({ length: daysInMonth }, (_, i) => {
+    const day = i + 1;
+    const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const channels = byDate.get(iso) ?? {};
+    const total = REVENUE_CHANNELS.reduce((sum, c) => sum + (channels[c] ?? 0), 0);
+    return { day, channels, total };
+  });
+}
+
 /** Consolida os lançamentos (agora um por canal) em um total por dia — os
  * gráficos e destaques abaixo trabalham com o faturamento do dia inteiro,
  * não por canal. */
@@ -251,6 +272,10 @@ export function StoreDashboard({
   );
   const channelBreakdown = useMemo(() => computeChannelBreakdown(dailyRecords), [dailyRecords]);
   const channelMonthly = useMemo(() => computeChannelMonthly(dailyRecords), [dailyRecords]);
+  const dailyByChannel = useMemo(
+    () => computeDailyByChannel(dailyRecords, year, selectedMonth),
+    [dailyRecords, year, selectedMonth],
+  );
   const monthlyByChannelData = MONTH_NAMES_SHORT.map((label, month) => {
     const row: Record<string, string | number> = { month: label };
     for (const c of REVENUE_CHANNELS) row[REVENUE_CHANNEL_LABELS[c]] = channelMonthly[c][month].amount;
@@ -316,6 +341,57 @@ export function StoreDashboard({
               ))}
             </LineChart>
           </ChartContainer>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">📱 % de participação por canal, mês a mês — {store.storeName}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mês</TableHead>
+                  {REVENUE_CHANNELS.map((c) => (
+                    <TableHead key={c}>
+                      <ChannelBadge channel={c} />
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {MONTH_NAMES_SHORT.map((label, month) => {
+                  const monthTotal = store.months[month].amount;
+                  return (
+                    <TableRow key={month}>
+                      <TableCell className="font-medium">{label}</TableCell>
+                      {REVENUE_CHANNELS.map((c) => {
+                        const amount = channelMonthly[c][month].amount;
+                        return (
+                          <TableCell key={c} className="text-neutral-500">
+                            {monthTotal > 0 ? `${((amount / monthTotal) * 100).toFixed(1)}%` : "—"}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })}
+                <TableRow className="bg-muted/50">
+                  <TableCell className="font-semibold">Ano</TableCell>
+                  {REVENUE_CHANNELS.map((c) => {
+                    const channelTotal = channelBreakdown.find((b) => b.channel === c)?.share ?? null;
+                    return (
+                      <TableCell key={c} className="font-semibold text-primary">
+                        {channelTotal !== null ? `${(channelTotal * 100).toFixed(1)}%` : "—"}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -553,6 +629,68 @@ export function StoreDashboard({
               />
             </ComposedChart>
           </ChartContainer>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">
+            📱 Faturamento diário por canal — {MONTH_NAMES_SHORT[selectedMonth]}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Dia</TableHead>
+                  {REVENUE_CHANNELS.map((c) => (
+                    <TableHead key={c}>
+                      <ChannelBadge channel={c} />
+                    </TableHead>
+                  ))}
+                  <TableHead>Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dailyByChannel.every((d) => d.total === 0) && (
+                  <TableRow>
+                    <TableCell colSpan={REVENUE_CHANNELS.length + 2} className="text-center text-neutral-500">
+                      Nenhum lançamento nesse mês.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {dailyByChannel.map((d) => (
+                  <TableRow key={d.day}>
+                    <TableCell className="font-medium">{d.day}</TableCell>
+                    {REVENUE_CHANNELS.map((c) => {
+                      const amount = d.channels[c] ?? 0;
+                      const share = d.total > 0 ? amount / d.total : null;
+                      return (
+                        <TableCell key={c} className="text-neutral-500">
+                          {amount > 0 ? (
+                            <>
+                              {currency(amount)}
+                              {share !== null && (
+                                <span className="ml-1 text-xs text-neutral-400">
+                                  ({(share * 100).toFixed(0)}%)
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell className="font-medium">
+                      {d.total > 0 ? currency(d.total) : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
