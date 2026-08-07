@@ -70,6 +70,8 @@ model User {
   employee  Employee?
   approvedSwaps ShiftSwapRequest[]
   whatsappPendingMovements WhatsappPendingMovement[]
+  fixedCosts        FixedCost[]
+  variableCostRates VariableCostRate[]
 
   @@index([roleId])
 }
@@ -183,6 +185,38 @@ model Revenue {
   @@index([storeId])
 }
 
+model FixedCost {
+  id             String   @id @default(cuid())
+  storeId        String
+  store          Store    @relation(fields: [storeId], references: [id])
+  category       String
+  referenceMonth DateTime @db.Date
+  amount         Decimal  @db.Decimal(10, 2)
+  note           String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([storeId, category, referenceMonth])
+  @@index([storeId])
+}
+
+model VariableCostRate {
+  id         String   @id @default(cuid())
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id])
+  category   String
+  percentage Decimal  @db.Decimal(6, 3)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([storeId, category])
+  @@index([storeId])
+}
+
 model Recipe {
   id           String     @id @default(cuid())
   name         String
@@ -224,8 +258,10 @@ model Store {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  employees Employee[]
-  revenues  Revenue[]
+  employees         Employee[]
+  revenues          Revenue[]
+  fixedCosts        FixedCost[]
+  variableCostRates VariableCostRate[]
 }
 
 model Holiday {
