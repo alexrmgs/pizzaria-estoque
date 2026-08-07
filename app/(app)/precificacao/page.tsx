@@ -351,17 +351,12 @@ export default async function PrecificacaoPage({
                     <TableCell>
                       {row.adjustmentPercent === null ? (
                         "—"
-                      ) : Math.abs(row.adjustmentPercent) < 1 ? (
-                        <span className="text-emerald-600">✓ no preço certo</span>
-                      ) : row.adjustmentPercent > 0 ? (
+                      ) : row.adjustmentPercent > 1 ? (
                         <span className="text-destructive">
                           ▲ subir {row.adjustmentPercent.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
                         </span>
                       ) : (
-                        <span className="text-emerald-600">
-                          ▼ baixar{" "}
-                          {Math.abs(row.adjustmentPercent).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
-                        </span>
+                        <span className="text-emerald-600">✓ dentro da margem</span>
                       )}
                     </TableCell>
                   </TableRow>
