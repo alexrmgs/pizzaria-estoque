@@ -169,7 +169,7 @@ export default async function EstoquePage({
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Estoque</h1>
+          <h1 className="text-2xl font-semibold uppercase">Estoque</h1>
           <p className="text-sm text-neutral-500">Ingredientes cadastrados e níveis atuais.</p>
         </div>
         {user.role.canManageEstoque && (

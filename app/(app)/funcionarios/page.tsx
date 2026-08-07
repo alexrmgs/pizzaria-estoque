@@ -36,7 +36,7 @@ export default async function FuncionariosPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Funcionários</h1>
+          <h1 className="text-2xl font-semibold uppercase">Funcionários</h1>
           <p className="text-sm text-neutral-500">
             Ponto, vales, bônus/descontos e pagamentos da equipe.
           </p>

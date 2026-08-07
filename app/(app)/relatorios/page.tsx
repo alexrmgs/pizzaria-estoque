@@ -61,7 +61,7 @@ export default async function RelatoriosPage({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Relatórios</h1>
+        <h1 className="text-2xl font-semibold uppercase">Relatórios</h1>
         <p className="text-sm text-neutral-500">Histórico de movimentações de estoque.</p>
       </div>
 

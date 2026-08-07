@@ -177,7 +177,7 @@ export default async function PagamentosPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Pagamentos</h1>
+        <h1 className="text-2xl font-semibold uppercase">Pagamentos</h1>
         <p className="text-sm text-neutral-500">
           Feche o pagamento de qualquer funcionário direto por aqui, sem precisar entrar no
           cadastro de cada um.

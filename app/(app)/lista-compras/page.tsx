@@ -50,7 +50,7 @@ export default async function ListaComprasPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between print:hidden">
         <div>
-          <h1 className="text-2xl font-semibold">Lista de Compras</h1>
+          <h1 className="text-2xl font-semibold uppercase">Lista de Compras</h1>
           <p className="text-sm text-neutral-500">
             Gerada automaticamente a partir dos ingredientes abaixo do estoque mínimo.
           </p>
@@ -70,7 +70,7 @@ export default async function ListaComprasPage() {
       </div>
 
       <div className="hidden print:block">
-        <h1 className="text-xl font-bold">Lista de Compras — FB Pizzaria &amp; Esfiharia</h1>
+        <h1 className="text-xl font-bold uppercase">Lista de Compras — FB Pizzaria &amp; Esfiharia</h1>
         <p className="text-sm text-neutral-500">{new Date().toLocaleDateString("pt-BR")}</p>
       </div>
 

@@ -118,7 +118,7 @@ export default async function MovimentacoesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Movimentações</h1>
+        <h1 className="text-2xl font-semibold uppercase">Movimentações</h1>
         <p className="text-sm text-neutral-500">Lance entradas e saídas manuais de insumos.</p>
       </div>
 

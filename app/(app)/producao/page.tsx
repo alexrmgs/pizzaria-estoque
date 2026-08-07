@@ -43,7 +43,7 @@ export default async function ProducaoPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Plano de Produção</h1>
+        <h1 className="text-2xl font-semibold uppercase">Plano de Produção</h1>
         <p className="text-sm text-neutral-500">
           Itens preparados na cozinha. Registrar aqui só aumenta o estoque do item produzido — o
           desconto dos ingredientes crus continua manual, em Movimentações.

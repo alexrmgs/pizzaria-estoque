@@ -42,7 +42,7 @@ function TrendBadge({ value, suffix = " vs ano anterior" }: { value: number | nu
 function SectionHeading({ title, description }: { title: string; description?: string }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <h2 className="text-base font-semibold">{title}</h2>
+      <h2 className="text-base font-semibold uppercase">{title}</h2>
       {description && <p className="text-sm text-neutral-500">{description}</p>}
     </div>
   );
@@ -271,7 +271,7 @@ export default async function FinanceiroPage({
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Financeiro</h1>
+          <h1 className="text-2xl font-semibold uppercase">Financeiro</h1>
           <p className="text-sm text-neutral-500">
             Faturamento, pedidos e ticket médio de cada loja.
           </p>

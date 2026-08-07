@@ -23,7 +23,7 @@ export default async function LojasPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Lojas</h1>
+          <h1 className="text-2xl font-semibold uppercase">Lojas</h1>
           <p className="text-sm text-neutral-500">
             Cadastre as unidades da FB Pizzaria para confirmar a localização no ponto.
           </p>

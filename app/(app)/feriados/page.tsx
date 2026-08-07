@@ -23,7 +23,7 @@ export default async function FeriadosPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Feriados</h1>
+        <h1 className="text-2xl font-semibold uppercase">Feriados</h1>
         <p className="text-sm text-neutral-500">
           Cadastre os feriados nacionais, estaduais e municipais que valem pra sua equipe — usados
           pra calcular corretamente o desconto de falta (a falta também derruba o pagamento do

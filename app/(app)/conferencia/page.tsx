@@ -27,7 +27,7 @@ export default async function ConferenciaPage({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Conferência de Estoque</h1>
+        <h1 className="text-2xl font-semibold uppercase">Conferência de Estoque</h1>
         <p className="text-sm text-neutral-500">
           Digite a quantidade que você contou fisicamente. Só os itens com diferença geram
           ajuste — o sistema atualiza o estoque e registra o motivo automaticamente.

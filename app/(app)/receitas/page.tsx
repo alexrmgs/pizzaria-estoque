@@ -244,7 +244,7 @@ export default async function ReceitasPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Receitas (Fichas Técnicas)</h1>
+          <h1 className="text-2xl font-semibold uppercase">Receitas (Fichas Técnicas)</h1>
           <p className="text-sm text-neutral-500">
             Referência dos ingredientes de cada preparo. Não afeta o estoque.
           </p>

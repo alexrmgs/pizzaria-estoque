@@ -62,7 +62,7 @@ export default async function ValesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Vales</h1>
+          <h1 className="text-2xl font-semibold uppercase">Vales</h1>
           <p className="text-sm text-neutral-500">
             Lançamento rápido de vales para qualquer funcionário.
           </p>

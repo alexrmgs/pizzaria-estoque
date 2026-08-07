@@ -78,7 +78,7 @@ export default async function EscalasPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Escalas</h1>
+        <h1 className="text-2xl font-semibold uppercase">Escalas</h1>
         <p className="text-sm text-neutral-500">
           Calendário de folgas da equipe e aprovação de trocas entre funcionários.
         </p>

@@ -41,7 +41,7 @@ export default async function MeuPontoPage() {
   if (!employee) {
     return (
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">Meu Ponto</h1>
+        <h1 className="text-2xl font-semibold uppercase">Meu Ponto</h1>
         <p className="text-sm text-neutral-500">
           Sua conta ainda não está vinculada a um cadastro de funcionário. Peça para um
           administrador vincular em Configurações → Funcionários.

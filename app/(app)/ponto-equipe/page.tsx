@@ -122,7 +122,7 @@ export default async function PontoEquipePage({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Ponto da Equipe</h1>
+        <h1 className="text-2xl font-semibold uppercase">Ponto da Equipe</h1>
         <p className="text-sm text-neutral-500">
           Entrada e saída de todos os funcionários num único dia.
         </p>
