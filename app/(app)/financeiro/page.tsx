@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { DailyRevenueDialog } from "../dashboard/daily-revenue-dialog";
 import { DeleteRevenueButton } from "./delete-revenue-button";
 import { FinanceiroCharts } from "./financeiro-charts";
+import { HistoricoCharts } from "./historico-charts";
 import { StoreDashboard } from "./store-dashboard";
 import { ChannelBadge } from "@/components/channel-badge";
 import { buildYearlySummary, MONTH_NAMES_SHORT, REVENUE_CHANNELS } from "@/lib/financeiro";
@@ -68,7 +69,10 @@ export default async function FinanceiroPage({
 
   const params = await searchParams;
   const tabParam = typeof params.tab === "string" ? params.tab : undefined;
-  const activeTab = tabParam === "lancamentos" || tabParam?.startsWith("store-") ? tabParam : "dashboard";
+  const activeTab =
+    tabParam === "lancamentos" || tabParam === "historico" || tabParam?.startsWith("store-")
+      ? tabParam
+      : "dashboard";
 
   const currentYear = new Date().getFullYear();
   const year = typeof params.year === "string" ? parseInt(params.year, 10) || currentYear : currentYear;
@@ -81,7 +85,7 @@ export default async function FinanceiroPage({
   const toISO = toISODate(to);
   const storeIdParam = typeof params.storeId === "string" && params.storeId ? params.storeId : undefined;
 
-  const [stores, periodRevenues, yearRevenues, prevYearAgg] = await Promise.all([
+  const [stores, periodRevenues, yearRevenues, prevYearAgg, allRevenues] = await Promise.all([
     prisma.store.findMany({ orderBy: { name: "asc" } }),
     prisma.revenue.findMany({
       where: { date: { gte: from, lte: to }, ...(storeIdParam ? { storeId: storeIdParam } : {}) },
@@ -104,6 +108,11 @@ export default async function FinanceiroPage({
         },
       },
       _sum: { amount: true, orderCount: true },
+    }),
+    // Todo o histórico (todos os anos) — pra evolução anual e ranking geral
+    // da rede, sem ficar preso ao ano selecionado no dashboard.
+    prisma.revenue.findMany({
+      select: { date: true, storeId: true, amount: true, orderCount: true },
     }),
   ]);
 
@@ -217,6 +226,47 @@ export default async function FinanceiroPage({
     dailyRecordsByStore.set(r.storeId, list);
   }
 
+  // --- Histórico (todos os anos) ---
+  type YearAgg = { amount: number; orders: number };
+  const byYear = new Map<number, YearAgg>();
+  const byYearStore = new Map<string, YearAgg>(); // key: `${year}_${storeId}`
+  for (const r of allRevenues) {
+    const y = r.date.getUTCFullYear();
+    const amount = Number(r.amount);
+    const yAgg = byYear.get(y) ?? { amount: 0, orders: 0 };
+    yAgg.amount += amount;
+    yAgg.orders += r.orderCount;
+    byYear.set(y, yAgg);
+    const key = `${y}_${r.storeId}`;
+    const ysAgg = byYearStore.get(key) ?? { amount: 0, orders: 0 };
+    ysAgg.amount += amount;
+    ysAgg.orders += r.orderCount;
+    byYearStore.set(key, ysAgg);
+  }
+  const historyYears = [...byYear.keys()].sort((a, b) => a - b);
+  const yearlyTotals = historyYears.map((y) => ({ year: y, ...byYear.get(y)! }));
+  const historyTotalAmount = yearlyTotals.reduce((sum, y) => sum + y.amount, 0);
+  const historyTotalOrders = yearlyTotals.reduce((sum, y) => sum + y.orders, 0);
+  const bestYear = yearlyTotals.reduce<{ year: number; amount: number } | null>(
+    (best, y) => (!best || y.amount > best.amount ? { year: y.year, amount: y.amount } : best),
+    null,
+  );
+
+  const storeYearly = stores.map((s) => ({
+    storeId: s.id,
+    storeName: s.name,
+    years: historyYears.map((y) => ({ year: y, ...(byYearStore.get(`${y}_${s.id}`) ?? { amount: 0, orders: 0 }) })),
+  }));
+  const allTimeRanking = storeYearly
+    .map((s) => {
+      const amount = s.years.reduce((sum, y) => sum + y.amount, 0);
+      const orders = s.years.reduce((sum, y) => sum + y.orders, 0);
+      return { storeId: s.storeId, storeName: s.storeName, amount, orders, ticket: orders > 0 ? amount / orders : null };
+    })
+    .filter((s) => s.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+  const championStore = allTimeRanking[0] ?? null;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -233,6 +283,7 @@ export default async function FinanceiroPage({
         <div className="overflow-x-auto">
           <TabsList>
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="historico">Histórico</TabsTrigger>
             {storesByAmount.map((s) => (
               <TabsTrigger key={s.storeId} value={`store-${s.storeId}`}>
                 {s.storeName}
@@ -812,6 +863,144 @@ export default async function FinanceiroPage({
                       <TableCell className="font-semibold text-primary">
                         {summary.totalOrders.toLocaleString("pt-BR")}
                       </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="historico" className="flex flex-col gap-6 pt-4">
+          <SectionHeading
+            title="Histórico da rede"
+            description={`Todos os anos com dados (${historyYears[0] ?? "—"}–${historyYears[historyYears.length - 1] ?? "—"}), todas as lojas juntas.`}
+          />
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-neutral-500">💰 Faturamento total histórico</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold">{currency(historyTotalAmount)}</p>
+                <p className="text-xs text-neutral-500">{historyTotalOrders.toLocaleString("pt-BR")} pedidos</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-neutral-500">🏆 Melhor ano</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {bestYear ? (
+                  <>
+                    <p className="text-2xl font-semibold">{bestYear.year}</p>
+                    <p className="text-xs text-primary">{currency(bestYear.amount)}</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-neutral-500">Sem dados.</p>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-neutral-500">🥇 Loja campeã da rede</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {championStore ? (
+                  <>
+                    <p className="text-xl font-semibold">{championStore.storeName}</p>
+                    <p className="text-xs text-primary">{currency(championStore.amount)} no total</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-neutral-500">Sem dados.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <HistoricoCharts yearlyTotals={yearlyTotals} storeYearly={storeYearly} />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">🏅 Ranking histórico — todas as lojas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>Loja</TableHead>
+                      <TableHead>Faturamento total</TableHead>
+                      <TableHead>Pedidos</TableHead>
+                      <TableHead>Ticket médio</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allTimeRanking.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-neutral-500">
+                          Sem dados ainda.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {allTimeRanking.map((s, i) => (
+                      <TableRow key={s.storeId}>
+                        <TableCell>{MEDALS[i] ?? `${i + 1}º`}</TableCell>
+                        <TableCell className="font-medium">{s.storeName}</TableCell>
+                        <TableCell>{currency(s.amount)}</TableCell>
+                        <TableCell className="text-neutral-500">{s.orders.toLocaleString("pt-BR")}</TableCell>
+                        <TableCell className="text-neutral-500">
+                          {s.ticket !== null ? currency(s.ticket) : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Faturamento por ano e por loja</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Ano</TableHead>
+                      {storeYearly.map((s) => (
+                        <TableHead key={s.storeId}>{s.storeName}</TableHead>
+                      ))}
+                      <TableHead>Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {historyYears.map((y) => (
+                      <TableRow key={y}>
+                        <TableCell className="font-medium">{y}</TableCell>
+                        {storeYearly.map((s) => {
+                          const amount = s.years.find((yy) => yy.year === y)?.amount ?? 0;
+                          return (
+                            <TableCell key={s.storeId} className="text-neutral-500">
+                              {amount > 0 ? currency(amount) : "—"}
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell className="font-medium">{currency(byYear.get(y)?.amount ?? 0)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-muted/50">
+                      <TableCell className="font-semibold">Total</TableCell>
+                      {storeYearly.map((s) => (
+                        <TableCell key={s.storeId} className="font-semibold">
+                          {currency(s.years.reduce((sum, y) => sum + y.amount, 0))}
+                        </TableCell>
+                      ))}
+                      <TableCell className="font-semibold text-primary">{currency(historyTotalAmount)}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
