@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -14,6 +15,11 @@ import { FixedCostForm } from "./fixed-cost-form";
 import { VariableCostForm } from "./variable-cost-form";
 import { DeleteFixedCostButton } from "./delete-fixed-cost-button";
 import { DeleteVariableCostButton } from "./delete-variable-cost-button";
+import { recipeItemCost, RECIPE_TYPE_LABELS } from "@/lib/recipe-cost";
+import { computeSuggestedPrice } from "@/lib/pricing";
+import type { RecipeType } from "@/lib/generated/prisma/client";
+
+const UNIT_YIELD_TYPES: RecipeType[] = ["PIZZA", "BEIRUTE", "ESFIHA"];
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -36,9 +42,10 @@ export default async function PrecificacaoPage({
   const stores = await prisma.store.findMany({ orderBy: { name: "asc" } });
   const storeIdParam = typeof params.storeId === "string" && params.storeId ? params.storeId : undefined;
   const selectedStoreId = storeIdParam ?? stores[0]?.id ?? "";
-  const activeTab = params.tab === "custos-variaveis" ? "custos-variaveis" : "custos-fixos";
+  const activeTab =
+    params.tab === "custos-variaveis" || params.tab === "preco-final" ? params.tab : "custos-fixos";
 
-  const [fixedCosts, variableCosts] = await Promise.all([
+  const [fixedCosts, variableCosts, recipes] = await Promise.all([
     selectedStoreId
       ? prisma.fixedCost.findMany({
           where: { storeId: selectedStoreId },
@@ -51,9 +58,66 @@ export default async function PrecificacaoPage({
           orderBy: { category: "asc" },
         })
       : Promise.resolve([]),
+    prisma.recipe.findMany({
+      where: { type: { in: UNIT_YIELD_TYPES } },
+      include: { ingredients: { include: { ingredient: true } } },
+      orderBy: [{ type: "asc" }, { order: "asc" }],
+    }),
   ]);
 
   const totalVariablePercent = variableCosts.reduce((sum, c) => sum + Number(c.percentage), 0);
+
+  // Custo fixo do mês mais recente cadastrado, virado % sobre o faturamento
+  // real da loja nesse mesmo mês — assim dá pra embutir o custo fixo (que é
+  // em R$) no preço de cada receita junto com os custos variáveis (que já
+  // são %).
+  const latestFixedMonth = fixedCosts[0]?.referenceMonth ?? null;
+  const latestMonthFixedTotal = latestFixedMonth
+    ? fixedCosts
+        .filter((c) => c.referenceMonth.getTime() === latestFixedMonth.getTime())
+        .reduce((sum, c) => sum + Number(c.amount), 0)
+    : 0;
+  const monthRevenueAgg = latestFixedMonth
+    ? await prisma.revenue.aggregate({
+        where: {
+          storeId: selectedStoreId,
+          date: {
+            gte: latestFixedMonth,
+            lt: new Date(
+              Date.UTC(latestFixedMonth.getUTCFullYear(), latestFixedMonth.getUTCMonth() + 1, 1),
+            ),
+          },
+        },
+        _sum: { amount: true },
+      })
+    : null;
+  const monthRevenueTotal = Number(monthRevenueAgg?._sum.amount ?? 0);
+  const fixedCostPercent =
+    latestFixedMonth && monthRevenueTotal > 0 ? (latestMonthFixedTotal / monthRevenueTotal) * 100 : null;
+  const totalMarkupPercent = fixedCostPercent !== null ? fixedCostPercent + totalVariablePercent : null;
+
+  const priceRows = recipes.map((recipe) => {
+    const totalCost = recipe.ingredients.reduce(
+      (sum, item) =>
+        sum +
+        recipeItemCost(
+          Number(item.quantity),
+          Number(item.wastePercent),
+          Number(item.ingredient.unitPrice),
+          Number(item.ingredient.unitsPerPackage),
+        ),
+      0,
+    );
+    const costPerUnit = recipe.yieldUnits && recipe.yieldUnits > 0 ? totalCost / recipe.yieldUnits : null;
+    const suggestedPrice = costPerUnit !== null ? computeSuggestedPrice(costPerUnit, totalMarkupPercent) : null;
+    return {
+      id: recipe.id,
+      name: recipe.name,
+      type: recipe.type,
+      costPerUnit,
+      suggestedPrice,
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -87,6 +151,7 @@ export default async function PrecificacaoPage({
         <TabsList>
           <TabsTrigger value="custos-fixos">Custos Fixos</TabsTrigger>
           <TabsTrigger value="custos-variaveis">Custos Variáveis</TabsTrigger>
+          <TabsTrigger value="preco-final">Preço Final</TabsTrigger>
         </TabsList>
 
         <TabsContent value="custos-fixos" className="flex flex-col gap-6 pt-4">
@@ -165,6 +230,102 @@ export default async function PrecificacaoPage({
                     <TableCell />
                   </TableRow>
                 )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="preco-final" className="flex flex-col gap-6 pt-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-neutral-500">📅 Mês de referência</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-lg font-semibold capitalize">
+                  {latestFixedMonth ? formatMonth(latestFixedMonth) : "—"}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-neutral-500">🏠 Custo fixo do mês</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-lg font-semibold">
+                  {fixedCostPercent !== null
+                    ? `${fixedCostPercent.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`
+                    : "—"}
+                </p>
+                <p className="text-xs text-neutral-500">
+                  {latestMonthFixedTotal > 0 ? currency(latestMonthFixedTotal) : "—"} sobre{" "}
+                  {monthRevenueTotal > 0 ? currency(monthRevenueTotal) : "sem faturamento"}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-neutral-500">🧾 Custos variáveis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-lg font-semibold">{totalVariablePercent.toLocaleString("pt-BR")}%</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-neutral-500">📊 Markup total</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-lg font-semibold text-primary">
+                  {totalMarkupPercent !== null
+                    ? `${totalMarkupPercent.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`
+                    : "—"}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {(fixedCostPercent === null || totalMarkupPercent === null) && (
+            <p className="text-sm text-neutral-500">
+              Cadastre os custos fixos do mês e garanta que a loja tenha faturamento lançado nesse mês
+              pra calcular o preço sugerido.
+            </p>
+          )}
+          {totalMarkupPercent !== null && totalMarkupPercent >= 100 && (
+            <p className="text-sm text-destructive">
+              A soma dos custos passou de 100% — não dá pra calcular um preço sugerido assim. Revise os
+              percentuais cadastrados.
+            </p>
+          )}
+
+          <div className="rounded-lg border bg-white">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Receita</TableHead>
+                  <TableHead>Custo unitário</TableHead>
+                  <TableHead>Preço sugerido</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {priceRows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-neutral-500">
+                      Nenhuma pizza, esfiha ou beirute cadastrada.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {priceRows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell className="text-neutral-500">{RECIPE_TYPE_LABELS[row.type]}</TableCell>
+                    <TableCell className="font-medium">{row.name}</TableCell>
+                    <TableCell>{row.costPerUnit !== null ? currency(row.costPerUnit) : "—"}</TableCell>
+                    <TableCell className="font-semibold text-primary">
+                      {row.suggestedPrice !== null ? currency(row.suggestedPrice) : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </div>
