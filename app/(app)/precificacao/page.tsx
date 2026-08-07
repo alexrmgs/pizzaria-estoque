@@ -15,6 +15,9 @@ import { FixedCostForm } from "./fixed-cost-form";
 import { VariableCostForm } from "./variable-cost-form";
 import { DeleteFixedCostButton } from "./delete-fixed-cost-button";
 import { DeleteVariableCostButton } from "./delete-variable-cost-button";
+import { FixedCostEditableCells } from "./fixed-cost-editable-cells";
+import { VariableCostPercentageInput } from "./variable-cost-percentage-input";
+import { RecipePriceInput } from "./recipe-price-input";
 import { recipeItemCost, RECIPE_TYPE_LABELS } from "@/lib/recipe-cost";
 import { computeSuggestedPrice } from "@/lib/pricing";
 import type { RecipeType } from "@/lib/generated/prisma/client";
@@ -113,12 +116,19 @@ export default async function PrecificacaoPage({
     );
     const costPerUnit = recipe.yieldUnits && recipe.yieldUnits > 0 ? totalCost / recipe.yieldUnits : null;
     const suggestedPrice = costPerUnit !== null ? computeSuggestedPrice(costPerUnit, totalMarkupPercent) : null;
+    const currentPrice = recipe.currentPrice !== null ? Number(recipe.currentPrice) : null;
+    const adjustmentPercent =
+      suggestedPrice !== null && currentPrice !== null && currentPrice > 0
+        ? ((suggestedPrice - currentPrice) / currentPrice) * 100
+        : null;
     return {
       id: recipe.id,
       name: recipe.name,
       type: recipe.type,
       costPerUnit,
       suggestedPrice,
+      currentPrice,
+      adjustmentPercent,
     };
   });
 
@@ -183,8 +193,11 @@ export default async function PrecificacaoPage({
                   <TableRow key={cost.id}>
                     <TableCell className="font-medium capitalize">{formatMonth(cost.referenceMonth)}</TableCell>
                     <TableCell>{cost.category}</TableCell>
-                    <TableCell>{currency(Number(cost.amount))}</TableCell>
-                    <TableCell className="text-neutral-500">{cost.note ?? "—"}</TableCell>
+                    <FixedCostEditableCells
+                      id={cost.id}
+                      initialAmount={Number(cost.amount)}
+                      initialNote={cost.note}
+                    />
                     <TableCell className="text-right">
                       <DeleteFixedCostButton id={cost.id} />
                     </TableCell>
@@ -218,7 +231,9 @@ export default async function PrecificacaoPage({
                 {variableCosts.map((cost) => (
                   <TableRow key={cost.id}>
                     <TableCell className="font-medium">{cost.category}</TableCell>
-                    <TableCell>{Number(cost.percentage).toLocaleString("pt-BR")}%</TableCell>
+                    <TableCell>
+                      <VariableCostPercentageInput id={cost.id} initialPercentage={Number(cost.percentage)} />
+                    </TableCell>
                     <TableCell className="text-right">
                       <DeleteVariableCostButton id={cost.id} />
                     </TableCell>
@@ -310,12 +325,14 @@ export default async function PrecificacaoPage({
                   <TableHead>Receita</TableHead>
                   <TableHead>Custo unitário</TableHead>
                   <TableHead>Preço sugerido</TableHead>
+                  <TableHead>Seu preço hoje</TableHead>
+                  <TableHead>Ajuste necessário</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {priceRows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-neutral-500">
+                    <TableCell colSpan={6} className="text-center text-neutral-500">
                       Nenhuma pizza, esfiha ou beirute cadastrada.
                     </TableCell>
                   </TableRow>
@@ -327,6 +344,25 @@ export default async function PrecificacaoPage({
                     <TableCell>{row.costPerUnit !== null ? currency(row.costPerUnit) : "—"}</TableCell>
                     <TableCell className="font-semibold text-primary">
                       {row.suggestedPrice !== null ? currency(row.suggestedPrice) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <RecipePriceInput recipeId={row.id} initialPrice={row.currentPrice} />
+                    </TableCell>
+                    <TableCell>
+                      {row.adjustmentPercent === null ? (
+                        "—"
+                      ) : Math.abs(row.adjustmentPercent) < 1 ? (
+                        <span className="text-emerald-600">✓ no preço certo</span>
+                      ) : row.adjustmentPercent > 0 ? (
+                        <span className="text-destructive">
+                          ▲ subir {row.adjustmentPercent.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
+                        </span>
+                      ) : (
+                        <span className="text-emerald-600">
+                          ▼ baixar{" "}
+                          {Math.abs(row.adjustmentPercent).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
+                        </span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

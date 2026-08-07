@@ -64,6 +64,13 @@ export async function removeFixedCost(id: string) {
   revalidatePath("/precificacao");
 }
 
+export async function updateFixedCost(id: string, amount: number, note: string | null) {
+  await requirePermission("canViewRelatorios");
+  if (!Number.isFinite(amount) || amount < 0) throw new Error("Valor inválido.");
+  await prisma.fixedCost.update({ where: { id }, data: { amount, note } });
+  revalidatePath("/precificacao");
+}
+
 const variableCostSchema = z.object({
   storeId: z.string().trim().min(1, "Selecione uma loja."),
   category: z.string().trim().min(1, "Informe a categoria."),
@@ -112,5 +119,19 @@ export async function upsertVariableCostRate(
 export async function removeVariableCostRate(id: string) {
   await requirePermission("canViewRelatorios");
   await prisma.variableCostRate.delete({ where: { id } });
+  revalidatePath("/precificacao");
+}
+
+export async function updateVariableCostRate(id: string, percentage: number) {
+  await requirePermission("canViewRelatorios");
+  if (!Number.isFinite(percentage) || percentage < 0) throw new Error("Percentual inválido.");
+  await prisma.variableCostRate.update({ where: { id }, data: { percentage } });
+  revalidatePath("/precificacao");
+}
+
+export async function updateRecipeCurrentPrice(recipeId: string, price: number | null) {
+  await requirePermission("canViewRelatorios");
+  if (price !== null && (!Number.isFinite(price) || price < 0)) throw new Error("Preço inválido.");
+  await prisma.recipe.update({ where: { id: recipeId }, data: { currentPrice: price } });
   revalidatePath("/precificacao");
 }
