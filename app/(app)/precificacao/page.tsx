@@ -67,33 +67,36 @@ export default async function PrecificacaoPage({
 
   const totalVariablePercent = variableCosts.reduce((sum, c) => sum + Number(c.percentage), 0);
 
-  // Custo fixo do mês mais recente cadastrado, virado % sobre o faturamento
-  // real da loja nesse mesmo mês — assim dá pra embutir o custo fixo (que é
-  // em R$) no preço de cada receita junto com os custos variáveis (que já
-  // são %).
+  // Custo fixo do mês mais recente cadastrado, virado % sobre a média de
+  // faturamento dos últimos 12 meses FECHADOS (sem contar o mês atual, que
+  // ainda não terminou e deixaria a base artificialmente baixa) — assim dá
+  // pra embutir o custo fixo (que é em R$) no preço de cada receita junto
+  // com os custos variáveis (que já são %).
   const latestFixedMonth = fixedCosts[0]?.referenceMonth ?? null;
   const latestMonthFixedTotal = latestFixedMonth
     ? fixedCosts
         .filter((c) => c.referenceMonth.getTime() === latestFixedMonth.getTime())
         .reduce((sum, c) => sum + Number(c.amount), 0)
     : 0;
-  const monthRevenueAgg = latestFixedMonth
-    ? await prisma.revenue.aggregate({
-        where: {
-          storeId: selectedStoreId,
-          date: {
-            gte: latestFixedMonth,
-            lt: new Date(
-              Date.UTC(latestFixedMonth.getUTCFullYear(), latestFixedMonth.getUTCMonth() + 1, 1),
-            ),
-          },
-        },
-        _sum: { amount: true },
-      })
-    : null;
-  const monthRevenueTotal = Number(monthRevenueAgg?._sum.amount ?? 0);
+
+  const today = new Date();
+  const currentMonthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  const twelveMonthsAgoStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 12, 1));
+  const last12MonthsRevenues = await prisma.revenue.findMany({
+    where: { storeId: selectedStoreId, date: { gte: twelveMonthsAgoStart, lt: currentMonthStart } },
+    select: { date: true, amount: true },
+  });
+  const revenueByMonth = new Map<string, number>();
+  for (const r of last12MonthsRevenues) {
+    const key = `${r.date.getUTCFullYear()}-${r.date.getUTCMonth()}`;
+    revenueByMonth.set(key, (revenueByMonth.get(key) ?? 0) + Number(r.amount));
+  }
+  const monthsWithRevenue = revenueByMonth.size;
+  const last12MonthsRevenueTotal = [...revenueByMonth.values()].reduce((sum, v) => sum + v, 0);
+  const avgMonthlyRevenue = monthsWithRevenue > 0 ? last12MonthsRevenueTotal / monthsWithRevenue : 0;
+
   const fixedCostPercent =
-    latestFixedMonth && monthRevenueTotal > 0 ? (latestMonthFixedTotal / monthRevenueTotal) * 100 : null;
+    latestFixedMonth && avgMonthlyRevenue > 0 ? (latestMonthFixedTotal / avgMonthlyRevenue) * 100 : null;
   const totalMarkupPercent = fixedCostPercent !== null ? fixedCostPercent + totalVariablePercent : null;
 
   const priceRows = recipes.map((recipe) => {
@@ -249,7 +252,7 @@ export default async function PrecificacaoPage({
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm text-neutral-500">🏠 Custo fixo do mês</CardTitle>
+                <CardTitle className="text-sm text-neutral-500">🏠 Custo fixo</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-lg font-semibold">
@@ -258,8 +261,9 @@ export default async function PrecificacaoPage({
                     : "—"}
                 </p>
                 <p className="text-xs text-neutral-500">
-                  {latestMonthFixedTotal > 0 ? currency(latestMonthFixedTotal) : "—"} sobre{" "}
-                  {monthRevenueTotal > 0 ? currency(monthRevenueTotal) : "sem faturamento"}
+                  {latestMonthFixedTotal > 0 ? currency(latestMonthFixedTotal) : "—"} sobre a média de{" "}
+                  {avgMonthlyRevenue > 0 ? currency(avgMonthlyRevenue) : "sem faturamento"}/mês (
+                  {monthsWithRevenue} {monthsWithRevenue === 1 ? "mês fechado" : "meses fechados"})
                 </p>
               </CardContent>
             </Card>
@@ -287,8 +291,8 @@ export default async function PrecificacaoPage({
 
           {(fixedCostPercent === null || totalMarkupPercent === null) && (
             <p className="text-sm text-neutral-500">
-              Cadastre os custos fixos do mês e garanta que a loja tenha faturamento lançado nesse mês
-              pra calcular o preço sugerido.
+              Cadastre os custos fixos e garanta que a loja tenha faturamento lançado em algum mês
+              fechado (antes do mês atual) pra calcular o preço sugerido.
             </p>
           )}
           {totalMarkupPercent !== null && totalMarkupPercent >= 100 && (
