@@ -19,7 +19,12 @@ import { FinanceiroCharts } from "./financeiro-charts";
 import { HistoricoCharts } from "./historico-charts";
 import { StoreDashboard } from "./store-dashboard";
 import { ChannelBadge } from "@/components/channel-badge";
-import { buildYearlySummary, MONTH_NAMES_SHORT, REVENUE_CHANNELS } from "@/lib/financeiro";
+import {
+  buildYearlySummary,
+  computeRevenueProjection,
+  MONTH_NAMES_SHORT,
+  REVENUE_CHANNELS,
+} from "@/lib/financeiro";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -267,6 +272,21 @@ export default async function FinanceiroPage({
     .sort((a, b) => b.amount - a.amount);
   const championStore = allTimeRanking[0] ?? null;
 
+  // Projeção (rede toda) — mesmo histórico usado no Histórico, só que sem
+  // agrupar por ano, pra função de projeção enxergar mês a mês.
+  const allRecordsFlat = allRevenues.map((r) => ({
+    date: r.date.toISOString().slice(0, 10),
+    amount: Number(r.amount),
+  }));
+  const networkProjection = computeRevenueProjection(allRecordsFlat);
+
+  const allDailyAmountsByStore = new Map<string, { date: string; amount: number }[]>();
+  for (const r of allRevenues) {
+    const list = allDailyAmountsByStore.get(r.storeId) ?? [];
+    list.push({ date: r.date.toISOString().slice(0, 10), amount: Number(r.amount) });
+    allDailyAmountsByStore.set(r.storeId, list);
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -347,6 +367,47 @@ export default async function FinanceiroPage({
               </CardContent>
             </Card>
           </div>
+
+          {year === networkProjection.year && (
+            <>
+              <Separator />
+              <SectionHeading
+                title="Projeção"
+                description="Com base no ritmo do mês e no crescimento observado esse ano vs. o anterior."
+              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm text-neutral-500">
+                      🔮 Projeção de fechamento do ano
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-semibold">{currency(networkProjection.yearProjectedTotal)}</p>
+                    <p className="text-xs text-neutral-500">
+                      {currency(networkProjection.yearActualSoFar)} já faturado
+                      {networkProjection.growthRate !== null && (
+                        <> · crescimento de {percent(networkProjection.growthRate)} vs {year - 1}</>
+                      )}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm text-neutral-500">
+                      📅 Projeção do mês — {MONTH_NAMES_SHORT[networkProjection.currentMonth]}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-semibold">{currency(networkProjection.currentMonthProjected)}</p>
+                    <p className="text-xs text-neutral-500">
+                      {currency(networkProjection.currentMonthActual)} já faturado nesse mês
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
 
           <Separator />
 
@@ -1036,6 +1097,7 @@ export default async function FinanceiroPage({
               store={s}
               year={year}
               dailyRecords={dailyRecordsByStore.get(s.storeId) ?? []}
+              allDailyAmounts={allDailyAmountsByStore.get(s.storeId) ?? []}
             />
           </TabsContent>
         ))}

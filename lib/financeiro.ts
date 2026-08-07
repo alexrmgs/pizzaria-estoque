@@ -239,3 +239,81 @@ export function buildYearlySummary(
     channelMonthly,
   };
 }
+
+export type RevenueProjection = {
+  year: number;
+  yearActualSoFar: number;
+  yearProjectedTotal: number;
+  growthRate: number | null;
+  currentMonth: number;
+  currentMonthActual: number;
+  currentMonthProjected: number;
+};
+
+/**
+ * Projeta o fechamento do ano e do mês corrente a partir do histórico.
+ * Meses já fechados entram como estão; o mês em andamento é extrapolado
+ * pelo ritmo diário (total até agora ÷ dias passados × dias do mês); os
+ * meses futuros usam o mesmo mês do ano anterior ajustado pela taxa de
+ * crescimento observada nos meses já fechados deste ano (sem histórico do
+ * ano anterior pra aquele mês, assume a média do que já rendeu esse ano).
+ * `records` deve conter o histórico completo (qualquer período/loja) — a
+ * função filtra sozinha o ano corrente e o anterior.
+ */
+export function computeRevenueProjection(
+  records: { date: string; amount: number }[],
+  today: Date = new Date(),
+): RevenueProjection {
+  const year = today.getUTCFullYear();
+  const month = today.getUTCMonth();
+  const day = today.getUTCDate();
+
+  const byMonthThisYear = Array.from({ length: 12 }, () => 0);
+  const byMonthLastYear = Array.from({ length: 12 }, () => 0);
+  let yearActualSoFar = 0;
+
+  for (const r of records) {
+    const y = Number(r.date.slice(0, 4));
+    const m = Number(r.date.slice(5, 7)) - 1;
+    if (y === year) {
+      byMonthThisYear[m] += r.amount;
+      yearActualSoFar += r.amount;
+    } else if (y === year - 1) {
+      byMonthLastYear[m] += r.amount;
+    }
+  }
+
+  let completedThis = 0;
+  let completedLast = 0;
+  for (let m = 0; m < month; m++) {
+    completedThis += byMonthThisYear[m];
+    completedLast += byMonthLastYear[m];
+  }
+  const growthRate = completedLast > 0 ? (completedThis - completedLast) / completedLast : null;
+
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const currentMonthActual = byMonthThisYear[month];
+  const currentMonthProjected = day > 0 ? (currentMonthActual / day) * daysInMonth : currentMonthActual;
+
+  const avgThisYearSoFar = month > 0 ? completedThis / month : currentMonthActual;
+  let projectedRemaining = 0;
+  for (let m = month + 1; m < 12; m++) {
+    if (byMonthLastYear[m] > 0) {
+      projectedRemaining += byMonthLastYear[m] * (1 + (growthRate ?? 0));
+    } else {
+      projectedRemaining += avgThisYearSoFar;
+    }
+  }
+
+  const yearProjectedTotal = completedThis + currentMonthProjected + projectedRemaining;
+
+  return {
+    year,
+    yearActualSoFar,
+    yearProjectedTotal,
+    growthRate,
+    currentMonth: month,
+    currentMonthActual,
+    currentMonthProjected,
+  };
+}

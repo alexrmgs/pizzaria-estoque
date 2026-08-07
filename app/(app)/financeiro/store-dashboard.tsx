@@ -36,7 +36,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MONTH_NAMES_SHORT, REVENUE_CHANNELS, REVENUE_CHANNEL_LABELS, type StoreYearAgg } from "@/lib/financeiro";
+import {
+  computeRevenueProjection,
+  MONTH_NAMES_SHORT,
+  REVENUE_CHANNELS,
+  REVENUE_CHANNEL_LABELS,
+  type StoreYearAgg,
+} from "@/lib/financeiro";
 import { ChannelBadge, CHANNEL_COLORS } from "@/components/channel-badge";
 
 const currency = (value: number) =>
@@ -239,11 +245,14 @@ export function StoreDashboard({
   store,
   year,
   dailyRecords,
+  allDailyAmounts,
 }: {
   store: StoreYearAgg;
   year: number;
   dailyRecords: DailyRecord[];
+  allDailyAmounts: { date: string; amount: number }[];
 }) {
+  const projection = useMemo(() => computeRevenueProjection(allDailyAmounts), [allDailyAmounts]);
   const trendData = store.months.map((m) => ({
     month: MONTH_NAMES_SHORT[m.month],
     faturamento: m.amount,
@@ -316,6 +325,40 @@ export function StoreDashboard({
           </CardContent>
         </Card>
       </div>
+
+      {year === projection.year && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm text-neutral-500">
+                🔮 Projeção de fechamento do ano
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold">{currency(projection.yearProjectedTotal)}</p>
+              <p className="text-xs text-neutral-500">
+                {currency(projection.yearActualSoFar)} já faturado
+                {projection.growthRate !== null && (
+                  <> · crescimento de {(projection.growthRate * 100).toFixed(1)}% vs {year - 1}</>
+                )}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm text-neutral-500">
+                📅 Projeção do mês — {MONTH_NAMES_SHORT[projection.currentMonth]}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold">{currency(projection.currentMonthProjected)}</p>
+              <p className="text-xs text-neutral-500">
+                {currency(projection.currentMonthActual)} já faturado nesse mês
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Card>
         <CardHeader>
