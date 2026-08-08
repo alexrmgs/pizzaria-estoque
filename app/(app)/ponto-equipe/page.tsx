@@ -40,6 +40,22 @@ function formatTime(date: Date) {
   return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
+/** Foto tirada pela facial no momento da batida, como prova. Clica pra abrir
+ * maior numa nova aba. */
+function ProofPhoto({ photo, label }: { photo: string | null; label: string }) {
+  if (!photo) return null;
+  return (
+    <a href={photo} target="_blank" rel="noreferrer" title={`Foto da ${label}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={photo}
+        alt={`Foto da ${label}`}
+        className="h-9 w-9 rounded object-cover ring-1 ring-neutral-200"
+      />
+    </a>
+  );
+}
+
 export default async function PontoEquipePage({
   searchParams,
 }: {
@@ -233,9 +249,17 @@ export default async function PontoEquipePage({
                         {r.role && <span className="text-neutral-500"> · {r.role}</span>}
                       </TableCell>
                       <TableCell className="text-neutral-500">{r.storeName ?? "—"}</TableCell>
-                      <TableCell>{r.entry ? formatTime(r.entry.clockIn) : "—"}</TableCell>
                       <TableCell>
-                        {r.entry?.clockOut ? formatTime(r.entry.clockOut) : r.entry ? "—" : "—"}
+                        <div className="flex items-center gap-2">
+                          <span>{r.entry ? formatTime(r.entry.clockIn) : "—"}</span>
+                          <ProofPhoto photo={r.entry?.clockInPhoto ?? null} label="entrada" />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span>{r.entry?.clockOut ? formatTime(r.entry.clockOut) : "—"}</span>
+                          <ProofPhoto photo={r.entry?.clockOutPhoto ?? null} label="saída" />
+                        </div>
                       </TableCell>
                       <TableCell className="text-neutral-500">
                         {r.entry?.clockOut

@@ -14,6 +14,21 @@ const FEEDBACK_STYLES: Record<NonNullable<Feedback>["kind"], string> = {
   error: "bg-destructive",
 };
 
+/** Tira um "print" pequeno do vídeo pra guardar como prova da batida. */
+function capturePhoto(video: HTMLVideoElement): string | undefined {
+  const width = 240;
+  const height = video.videoHeight
+    ? Math.round((video.videoHeight / video.videoWidth) * width)
+    : 320;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return undefined;
+  ctx.drawImage(video, 0, 0, width, height);
+  return canvas.toDataURL("image/jpeg", 0.6);
+}
+
 export function TotemKiosk() {
   const { videoRef, ready, error } = useCamera();
   const [modelsReady, setModelsReady] = useState(false);
@@ -35,7 +50,8 @@ export function TotemKiosk() {
       try {
         const descriptor = await detectDescriptor(videoRef.current);
         if (!descriptor) return;
-        const result = await registerFacialPonto(descriptor);
+        const photo = capturePhoto(videoRef.current);
+        const result = await registerFacialPonto(descriptor, photo);
         if (result.status === "ok") {
           setFeedback({ kind: "ok", text: `${result.employeeName} — ${result.action} às ${result.time}` });
           cooldownRef.current = Date.now() + 6000;

@@ -46,10 +46,22 @@ type FacialPontoResult =
   | { status: "unknown" }
   | { status: "error"; message: string };
 
-export async function registerFacialPonto(descriptor: number[]): Promise<FacialPontoResult> {
+function sanitizePhoto(photo: string | undefined): string | undefined {
+  // Só aceita uma imagem JPEG em data URL e limita o tamanho, pra não deixar
+  // gravarem qualquer coisa no banco.
+  if (!photo || !photo.startsWith("data:image/jpeg;base64,")) return undefined;
+  if (photo.length > 200_000) return undefined;
+  return photo;
+}
+
+export async function registerFacialPonto(
+  descriptor: number[],
+  photo?: string,
+): Promise<FacialPontoResult> {
   await requireUser();
   try {
     if (!isDescriptor(descriptor)) return { status: "error", message: "Leitura do rosto inválida." };
+    const safePhoto = sanitizePhoto(photo);
 
     const employees = await prisma.employee.findMany({
       where: { active: true, NOT: { faceDescriptor: { equals: undefined } } },
@@ -74,7 +86,10 @@ export async function registerFacialPonto(descriptor: number[]): Promise<FacialP
     });
 
     if (openEntry) {
-      await prisma.timeEntry.update({ where: { id: openEntry.id }, data: { clockOut: now } });
+      await prisma.timeEntry.update({
+        where: { id: openEntry.id },
+        data: { clockOut: now, clockOutPhoto: safePhoto },
+      });
       revalidatePath("/ponto-equipe");
       return {
         status: "ok",
@@ -87,7 +102,9 @@ export async function registerFacialPonto(descriptor: number[]): Promise<FacialP
     const todaysEntry = await prisma.timeEntry.findFirst({ where: { employeeId: best.id, date } });
     if (todaysEntry) return { status: "done", employeeName: best.name };
 
-    await prisma.timeEntry.create({ data: { employeeId: best.id, date, clockIn: now } });
+    await prisma.timeEntry.create({
+      data: { employeeId: best.id, date, clockIn: now, clockInPhoto: safePhoto },
+    });
     revalidatePath("/ponto-equipe");
     return {
       status: "ok",

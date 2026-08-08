@@ -312,8 +312,10 @@ model TimeEntry {
   date       DateTime  @db.Date
   clockIn    DateTime
   clockInDistanceM  Int?
+  clockInPhoto  String?
   clockOut   DateTime?
   clockOutDistanceM Int?
+  clockOutPhoto String?
   note       String?
   createdAt  DateTime  @default(now())
 
