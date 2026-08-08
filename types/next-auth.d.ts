@@ -8,6 +8,7 @@ export interface RolePermissions {
   canManageUsuarios: boolean;
   canViewRelatorios: boolean;
   canManageFuncionarios: boolean;
+  canPrintEtiquetas: boolean;
 }
 
 declare module "next-auth" {

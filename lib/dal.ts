@@ -20,3 +20,13 @@ export async function requirePermission(key: PermissionKey) {
   if (!user.role[key]) redirect("/meu-ponto");
   return user;
 }
+
+/** Acesso às etiquetas: quem gerencia estoque OU a conta dedicada de
+ * impressão. */
+export async function requireEtiquetasAccess() {
+  const user = await requireUser();
+  if (!user.role.canPrintEtiquetas && !user.role.canManageEstoque) {
+    redirect("/meu-ponto");
+  }
+  return user;
+}

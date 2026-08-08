@@ -2,14 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireEtiquetasAccess } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 
 export async function enfileirarEtiqueta(
   pedido: string,
   volumes: number,
 ): Promise<{ error?: string }> {
-  await requirePermission("canManageEstoque");
+  await requireEtiquetasAccess();
 
   const pedidoLimpo = pedido.trim();
   if (!pedidoLimpo) return { error: "Informe o número do pedido." };
@@ -34,7 +34,7 @@ export async function enfileirarEtiqueta(
 }
 
 export async function reimprimirEtiqueta(id: string): Promise<{ error?: string }> {
-  await requirePermission("canManageEstoque");
+  await requireEtiquetasAccess();
   const job = await prisma.printJob.findUnique({ where: { id } });
   if (!job) return { error: "Etiqueta não encontrada." };
 

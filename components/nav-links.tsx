@@ -12,6 +12,7 @@ type Permissions = {
   canManageUsuarios: boolean;
   canViewRelatorios: boolean;
   canManageFuncionarios: boolean;
+  canPrintEtiquetas: boolean;
 };
 
 type NavItem = { href: string; label: string };
@@ -60,6 +61,24 @@ function NavGroup({ title, items }: { title: string; items: NavItem[] }) {
 }
 
 export function NavLinks({ permissions }: { permissions: Permissions }) {
+  // Conta "estação de impressão": só imprime etiquetas, nada mais. Vê só essa
+  // tela, sem o resto do menu.
+  const isPrintOnly =
+    permissions.canPrintEtiquetas &&
+    !permissions.canManageEstoque &&
+    !permissions.canManageReceitas &&
+    !permissions.canManageUsuarios &&
+    !permissions.canViewRelatorios &&
+    !permissions.canManageFuncionarios;
+
+  if (isPrintOnly) {
+    return (
+      <nav className="flex flex-col gap-3">
+        <NavLink href="/etiquetas" label="Etiquetas" />
+      </nav>
+    );
+  }
+
   const estoqueItems: NavItem[] = [
     ...(permissions.canManageEstoque
       ? [

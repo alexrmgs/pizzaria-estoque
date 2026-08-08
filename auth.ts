@@ -42,6 +42,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             canManageUsuarios: user.role.canManageUsuarios,
             canViewRelatorios: user.role.canViewRelatorios,
             canManageFuncionarios: user.role.canManageFuncionarios,
+            canPrintEtiquetas: user.role.canPrintEtiquetas,
           },
         };
       },

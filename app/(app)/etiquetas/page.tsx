@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireEtiquetasAccess } from "@/lib/dal";
+import { getAppSettings } from "@/lib/settings";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -22,12 +23,12 @@ function formatDateTime(date: Date) {
 }
 
 export default async function EtiquetasPage() {
-  await requirePermission("canManageEstoque");
+  await requireEtiquetasAccess();
 
-  const jobs = await prisma.printJob.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 20,
-  });
+  const [jobs, settings] = await Promise.all([
+    prisma.printJob.findMany({ orderBy: { createdAt: "desc" }, take: 20 }),
+    getAppSettings(),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -39,7 +40,7 @@ export default async function EtiquetasPage() {
         </p>
       </div>
 
-      <EtiquetaForm />
+      <EtiquetaForm widthMm={settings.labelWidthMm} heightMm={settings.labelHeightMm} />
 
       <div className="rounded-lg border bg-white">
         <div className="border-b p-3 text-sm font-semibold uppercase text-neutral-500">

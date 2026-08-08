@@ -48,6 +48,7 @@ model Role {
   canManageUsuarios     Boolean  @default(false)
   canViewRelatorios     Boolean  @default(false)
   canManageFuncionarios Boolean  @default(false)
+  canPrintEtiquetas     Boolean  @default(false)
   createdAt             DateTime @default(now())
 
   users User[]

@@ -11,6 +11,8 @@ const roleSchema = z.object({
   canManageReceitas: z.coerce.boolean(),
   canManageUsuarios: z.coerce.boolean(),
   canViewRelatorios: z.coerce.boolean(),
+  canManageFuncionarios: z.coerce.boolean(),
+  canPrintEtiquetas: z.coerce.boolean(),
 });
 
 export type RoleFormState = { error?: string } | undefined;
@@ -22,6 +24,8 @@ function parseRoleForm(formData: FormData) {
     canManageReceitas: formData.get("canManageReceitas") === "on",
     canManageUsuarios: formData.get("canManageUsuarios") === "on",
     canViewRelatorios: formData.get("canViewRelatorios") === "on",
+    canManageFuncionarios: formData.get("canManageFuncionarios") === "on",
+    canPrintEtiquetas: formData.get("canPrintEtiquetas") === "on",
   });
 }
 

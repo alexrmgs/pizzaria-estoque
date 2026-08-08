@@ -23,6 +23,7 @@ type Role = {
   canManageUsuarios: boolean;
   canViewRelatorios: boolean;
   canManageFuncionarios: boolean;
+  canPrintEtiquetas: boolean;
 };
 
 const PERMISSIONS: { key: keyof Omit<Role, "id" | "name">; label: string; hint: string }[] = [
@@ -50,6 +51,11 @@ const PERMISSIONS: { key: keyof Omit<Role, "id" | "name">; label: string; hint: 
     key: "canManageFuncionarios",
     label: "Funcionários",
     hint: "Ponto, vales, bônus/descontos e pagamentos da equipe",
+  },
+  {
+    key: "canPrintEtiquetas",
+    label: "Impressão de etiquetas",
+    hint: "Acessa só a tela de etiquetas — ideal pra estação de impressão",
   },
 ];
 
