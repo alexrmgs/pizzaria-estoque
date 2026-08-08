@@ -66,26 +66,6 @@ export default async function ConfiguracoesPage() {
   const rhLinks: ConfigLink[] = role.canManageFuncionarios
     ? [
         {
-          href: "/funcionarios",
-          title: "Funcionários",
-          description: "Cadastro, ponto, vales, bônus/descontos e pagamentos.",
-        },
-        {
-          href: "/escalas",
-          title: "Escalas",
-          description: "Calendário de folgas da equipe e aprovação de trocas.",
-        },
-        {
-          href: "/pagamentos",
-          title: "Pagamentos",
-          description: "Feche o pagamento de qualquer funcionário num só lugar.",
-        },
-        {
-          href: "/vales",
-          title: "Vales",
-          description: "Lançamento rápido de vale para qualquer funcionário.",
-        },
-        {
           href: "/feriados",
           title: "Feriados",
           description: "Feriados nacionais, estaduais e municipais, usados no cálculo de faltas.",
