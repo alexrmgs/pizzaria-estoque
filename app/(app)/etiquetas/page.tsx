@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { EtiquetaForm } from "./etiqueta-form";
 import { ReimprimirButton } from "./reimprimir-button";
+import { BluetoothTest } from "./bluetooth-test";
 
 function formatDateTime(date: Date) {
   return date.toLocaleString("pt-BR", {
@@ -41,6 +42,10 @@ export default async function EtiquetasPage() {
       </div>
 
       <EtiquetaForm widthMm={settings.labelWidthMm} heightMm={settings.labelHeightMm} />
+
+      <div className="max-w-lg rounded-lg border border-dashed bg-white p-3">
+        <BluetoothTest />
+      </div>
 
       <div className="rounded-lg border bg-white">
         <div className="border-b p-3 text-sm font-semibold uppercase text-neutral-500">
