@@ -286,6 +286,7 @@ model Employee {
   scheduledEnd   String?
   weeklyDayOff   Int?
   active     Boolean   @default(true)
+  faceDescriptor Json?
   userId     String?   @unique
   user       User?     @relation(fields: [userId], references: [id])
   storeId    String?

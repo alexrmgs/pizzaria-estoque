@@ -78,6 +78,7 @@ export function NavLinks({ permissions }: { permissions: Permissions }) {
     ? [
         { href: "/funcionarios", label: "Funcionários" },
         { href: "/ponto-equipe", label: "Ponto da Equipe" },
+        { href: "/ponto-totem", label: "Ponto por Facial" },
         { href: "/escalas", label: "Escalas" },
         { href: "/pagamentos", label: "Pagamentos" },
         { href: "/vales", label: "Vales" },
