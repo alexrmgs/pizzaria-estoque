@@ -51,8 +51,43 @@ export default async function EtiquetasPage() {
             className={`${inputClassName} w-24`}
           />
         </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-neutral-500" htmlFor="largura">
+            Largura (mm)
+          </label>
+          <input
+            id="largura"
+            name="largura"
+            type="number"
+            min="20"
+            max="200"
+            defaultValue="100"
+            required
+            className={`${inputClassName} w-24`}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-neutral-500" htmlFor="altura">
+            Altura (mm)
+          </label>
+          <input
+            id="altura"
+            name="altura"
+            type="number"
+            min="20"
+            max="200"
+            defaultValue="70"
+            required
+            className={`${inputClassName} w-24`}
+          />
+        </div>
         <Button type="submit">Imprimir etiquetas</Button>
       </form>
+
+      <p className="max-w-lg text-xs text-neutral-400">
+        A largura e a altura devem ser as mesmas do rolo de etiqueta que você usa na impressora.
+        Ajuste uma vez e deixe fixo.
+      </p>
     </div>
   );
 }
