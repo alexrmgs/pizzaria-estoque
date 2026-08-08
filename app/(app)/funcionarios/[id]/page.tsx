@@ -230,6 +230,8 @@ export default async function FuncionarioDetalhePage({
           lateMinutes: lateMinutes(employee.scheduledStart, entry.clockIn),
           clockInDistanceM: entry.clockInDistanceM,
           clockOutDistanceM: entry.clockOutDistanceM,
+          clockInPhoto: entry.clockInPhoto,
+          clockOutPhoto: entry.clockOutPhoto,
           note: entry.note,
         }))}
       />

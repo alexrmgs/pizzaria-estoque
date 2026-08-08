@@ -224,7 +224,14 @@ export default async function MeuPontoPage() {
                   {employee.store.radiusMeters}m de raio)
                 </p>
               )}
-              <ClockButton isOpen={!!openEntry} hasStore={!!employee.store} />
+              {settings.pontoMode === "FACIAL" ? (
+                <p className="rounded-md bg-amber-50 p-3 text-sm text-amber-800">
+                  📷 O ponto agora é por reconhecimento facial, no aparelho da loja. Não precisa bater
+                  pelo celular.
+                </p>
+              ) : (
+                <ClockButton isOpen={!!openEntry} hasStore={!!employee.store} />
+              )}
             </CardContent>
           </Card>
 

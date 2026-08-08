@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SettingsForm } from "./settings-form";
 import { CltDeductionsForm } from "./clt-deductions-form";
 import { AttendanceScoreForm } from "./attendance-score-form";
+import { PontoModeForm } from "./ponto-mode-form";
 
 type Bracket = { upTo: number | null; rate: number };
 type Tier = { minScore: number; bonus: number };
@@ -145,6 +146,17 @@ export default async function ConfiguracoesPage() {
         {role.canManageFuncionarios && (
           <TabsContent value="rh" className="flex flex-col gap-6 pt-4">
             <LinkGrid links={rhLinks} />
+
+            {settings && (
+              <Card className="max-w-lg">
+                <CardHeader>
+                  <CardTitle className="text-lg">Como a equipe bate o ponto</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PontoModeForm current={settings.pontoMode} />
+                </CardContent>
+              </Card>
+            )}
 
             {settings && (
               <Card className="max-w-lg">

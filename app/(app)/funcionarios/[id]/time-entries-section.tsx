@@ -29,8 +29,24 @@ type TimeEntry = {
   lateMinutes: number;
   clockInDistanceM: number | null;
   clockOutDistanceM: number | null;
+  clockInPhoto: string | null;
+  clockOutPhoto: string | null;
   note: string | null;
 };
+
+function ProofPhoto({ photo, label }: { photo: string | null; label: string }) {
+  if (!photo) return null;
+  return (
+    <a href={photo} target="_blank" rel="noreferrer" title={`Foto da ${label}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={photo}
+        alt={`Foto da ${label}`}
+        className="h-9 w-9 rounded object-cover ring-1 ring-neutral-200"
+      />
+    </a>
+  );
+}
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -110,6 +126,7 @@ export function TimeEntriesSection({
                 <TableHead>Noturnas</TableHead>
                 <TableHead>Atraso</TableHead>
                 <TableHead>Local</TableHead>
+                <TableHead>Prova</TableHead>
                 <TableHead>Observação</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -117,7 +134,7 @@ export function TimeEntriesSection({
             <TableBody>
               {entries.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-neutral-500">
+                  <TableCell colSpan={10} className="text-center text-neutral-500">
                     Nenhum registro de ponto ainda.
                   </TableCell>
                 </TableRow>
@@ -143,6 +160,16 @@ export function TimeEntriesSection({
                   <TableCell className="text-neutral-500">
                     {entry.clockInDistanceM !== null ? `${entry.clockInDistanceM}m` : "—"}
                     {entry.clockOutDistanceM !== null ? ` / ${entry.clockOutDistanceM}m` : ""}
+                  </TableCell>
+                  <TableCell>
+                    {entry.clockInPhoto || entry.clockOutPhoto ? (
+                      <div className="flex gap-1">
+                        <ProofPhoto photo={entry.clockInPhoto} label="entrada" />
+                        <ProofPhoto photo={entry.clockOutPhoto} label="saída" />
+                      </div>
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                   <TableCell className="text-neutral-500">{entry.note ?? "—"}</TableCell>
                   <TableCell className="text-right">

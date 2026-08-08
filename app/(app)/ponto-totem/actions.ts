@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser, requirePermission } from "@/lib/dal";
+import { getAppSettings } from "@/lib/settings";
 import { todayInBrazil } from "@/lib/payroll";
 
 const FACE_MATCH_THRESHOLD = 0.55;
@@ -61,6 +62,15 @@ export async function registerFacialPonto(
   await requireUser();
   try {
     if (!isDescriptor(descriptor)) return { status: "error", message: "Leitura do rosto inválida." };
+
+    const settings = await getAppSettings();
+    if (settings.pontoMode === "CELULAR") {
+      return {
+        status: "error",
+        message: "O ponto está configurado pra ser batido pelo celular. Mude em Configurações pra usar a facial.",
+      };
+    }
+
     const safePhoto = sanitizePhoto(photo);
 
     const employees = await prisma.employee.findMany({

@@ -3,7 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
+import { getAppSettings } from "@/lib/settings";
 import { distanceMeters } from "@/lib/geo";
+
+async function ensureCelularPonto() {
+  const settings = await getAppSettings();
+  if (settings.pontoMode === "FACIAL") {
+    throw new Error(
+      "O ponto agora é por reconhecimento facial, no aparelho da loja. Fale com o gerente se precisar bater pelo celular.",
+    );
+  }
+}
 import {
   EARLY_CLOCK_IN_TOLERANCE_MINUTES,
   minutesBeforeScheduledStart,
@@ -54,6 +64,7 @@ function checkLocation(
 }
 
 export async function clockIn(coords: Coords) {
+  await ensureCelularPonto();
   const employee = await getOwnEmployee();
 
   const openEntry = await prisma.timeEntry.findFirst({
@@ -108,6 +119,7 @@ export async function clockIn(coords: Coords) {
 }
 
 export async function clockOut(coords: Coords) {
+  await ensureCelularPonto();
   const employee = await getOwnEmployee();
 
   const openEntry = await prisma.timeEntry.findFirst({

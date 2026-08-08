@@ -37,6 +37,20 @@ export async function updateSettings(
   revalidatePath("/configuracoes");
 }
 
+export async function updatePontoMode(mode: "CELULAR" | "FACIAL"): Promise<{ error?: string }> {
+  await requirePermission("canManageFuncionarios");
+  if (mode !== "CELULAR" && mode !== "FACIAL") return { error: "Opção inválida." };
+  await prisma.appSettings.upsert({
+    where: { id: "settings" },
+    update: { pontoMode: mode },
+    create: { id: "settings", pontoMode: mode },
+  });
+  revalidatePath("/configuracoes");
+  revalidatePath("/meu-ponto");
+  revalidatePath("/ponto-totem");
+  return {};
+}
+
 const bracketRateSchema = z.coerce.number().min(0).max(100);
 
 const cltDeductionsSchema = z.object({

@@ -101,8 +101,14 @@ enum OvertimeMode {
   BANCO_HORAS
 }
 
+enum PontoMode {
+  CELULAR
+  FACIAL
+}
+
 model AppSettings {
   id                  String       @id @default("settings")
+  pontoMode           PontoMode    @default(CELULAR)
   overtimeMode        OvertimeMode @default(HORA_EXTRA)
   dailyExpectedHours  Decimal      @default(8) @db.Decimal(4, 2)
   overtimeRate        Decimal      @default(1.5) @db.Decimal(4, 2)
