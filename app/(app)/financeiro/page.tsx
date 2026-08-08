@@ -19,6 +19,8 @@ import { FinanceiroCharts } from "./financeiro-charts";
 import { HistoricoCharts } from "./historico-charts";
 import { StoreDashboard } from "./store-dashboard";
 import { ChannelBadge } from "@/components/channel-badge";
+import { AiAnalysisPanel } from "@/components/ai-analysis-panel";
+import { analisarFinanceiro } from "./ai-actions";
 import {
   buildYearlySummary,
   computeRevenueProjection,
@@ -314,6 +316,7 @@ export default async function FinanceiroPage({
         </div>
 
         <TabsContent value="dashboard" className="flex flex-col gap-6 pt-4">
+          {year === new Date().getFullYear() && <AiAnalysisPanel action={analisarFinanceiro} />}
           <div className="flex items-center justify-between rounded-lg border bg-white p-3">
             <Button
               variant="outline"

@@ -20,6 +20,8 @@ import { VariableCostPercentageInput } from "./variable-cost-percentage-input";
 import { RecipePriceInput } from "./recipe-price-input";
 import { recipeItemCost, RECIPE_TYPE_LABELS } from "@/lib/recipe-cost";
 import { computeSuggestedPrice } from "@/lib/pricing";
+import { AiAnalysisPanel } from "@/components/ai-analysis-panel";
+import { analisarPrecificacao } from "./ai-actions";
 import type { RecipeType } from "@/lib/generated/prisma/client";
 
 const UNIT_YIELD_TYPES: RecipeType[] = ["PIZZA", "BEIRUTE", "ESFIHA"];
@@ -254,6 +256,10 @@ export default async function PrecificacaoPage({
         </TabsContent>
 
         <TabsContent value="preco-final" className="flex flex-col gap-6 pt-4">
+          <AiAnalysisPanel
+            action={analisarPrecificacao.bind(null, selectedStoreId)}
+            title="Análise de preços com IA"
+          />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader>
