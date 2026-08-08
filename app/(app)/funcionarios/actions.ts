@@ -210,11 +210,18 @@ export async function deleteEmployee(id: string) {
   await requirePermission("canManageFuncionarios");
 
   try {
-    await prisma.employee.delete({ where: { id } });
+    // Apaga tudo que está ligado ao funcionário antes de excluí-lo. Ponto,
+    // folgas e trocas de turno somem em cascata sozinhos; vales, ajustes e
+    // pagamentos (que travam a exclusão) são apagados na ordem certa aqui —
+    // vales/ajustes antes dos pagamentos, porque apontam pra eles.
+    await prisma.$transaction([
+      prisma.advance.deleteMany({ where: { employeeId: id } }),
+      prisma.payrollAdjustment.deleteMany({ where: { employeeId: id } }),
+      prisma.payment.deleteMany({ where: { employeeId: id } }),
+      prisma.employee.delete({ where: { id } }),
+    ]);
   } catch {
-    throw new Error(
-      "Esse funcionário já tem pagamentos fechados e não pode ser excluído — use \"Demitir\" pra tirar ele das telas de Pagamentos e Vales mantendo o histórico.",
-    );
+    throw new Error("Não foi possível excluir esse funcionário. Tente de novo.");
   }
 
   revalidatePath("/funcionarios");

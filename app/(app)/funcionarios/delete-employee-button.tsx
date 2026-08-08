@@ -27,7 +27,7 @@ export function DeleteEmployeeButton({
       onClick={() => {
         if (
           !confirm(
-            `Excluir "${name}" definitivamente? Isso apaga também o histórico de ponto, vales e ajustes dele. Essa ação não pode ser desfeita — se ele já tiver pagamentos fechados, a exclusão vai ser bloqueada (use "Demitir" nesse caso).`,
+            `Excluir "${name}" definitivamente? Isso apaga TODO o histórico dele — ponto, vales, ajustes e pagamentos. Essa ação não pode ser desfeita. Se quiser manter o histórico, use "Demitir".`,
           )
         )
           return;
