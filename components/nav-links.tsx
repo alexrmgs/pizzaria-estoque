@@ -68,6 +68,7 @@ export function NavLinks({ permissions }: { permissions: Permissions }) {
           { href: "/conferencia", label: "Conferência de Estoque" },
           { href: "/producao", label: "Produção" },
           { href: "/movimentacoes", label: "Movimentações" },
+          { href: "/etiquetas", label: "Etiquetas" },
         ]
       : []),
     ...(permissions.canManageReceitas ? [{ href: "/receitas", label: "Receitas" }] : []),
