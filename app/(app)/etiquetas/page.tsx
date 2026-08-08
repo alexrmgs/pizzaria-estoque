@@ -1,61 +1,92 @@
+import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { EtiquetaForm } from "./etiqueta-form";
+import { ReimprimirButton } from "./reimprimir-button";
 
-const inputClassName =
-  "h-10 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+function formatDateTime(date: Date) {
+  return date.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export default async function EtiquetasPage() {
   await requirePermission("canManageEstoque");
+
+  const jobs = await prisma.printJob.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
 
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold uppercase">Etiquetas</h1>
         <p className="text-sm text-neutral-500">
-          Digite o número do pedido e quantos volumes ele tem. O sistema imprime uma etiqueta pra
-          cada volume, numeradas (ex: 1/3, 2/3, 3/3).
+          Digite o pedido e quantos volumes ele tem. O sistema manda pra impressora da loja e imprime
+          uma etiqueta por volume, numeradas (ex: 1/3, 2/3, 3/3).
         </p>
       </div>
 
-      <form
-        action="/imprimir/etiquetas"
-        method="get"
-        target="_blank"
-        className="flex max-w-lg flex-wrap items-end gap-3 rounded-lg border bg-white p-4"
-      >
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-neutral-500" htmlFor="pedido">
-            Número do pedido
-          </label>
-          <input
-            id="pedido"
-            name="pedido"
-            inputMode="numeric"
-            required
-            placeholder="Ex: 1"
-            className={`${inputClassName} w-32`}
-          />
+      <EtiquetaForm />
+
+      <div className="rounded-lg border bg-white">
+        <div className="border-b p-3 text-sm font-semibold uppercase text-neutral-500">
+          Últimas etiquetas
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-neutral-500" htmlFor="volumes">
-            Volumes
-          </label>
-          <input
-            id="volumes"
-            name="volumes"
-            type="number"
-            min="1"
-            max="50"
-            defaultValue="1"
-            required
-            className={`${inputClassName} w-24`}
-          />
-        </div>
-        <Button type="submit">Imprimir etiquetas</Button>
-      </form>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Pedido</TableHead>
+              <TableHead>Volumes</TableHead>
+              <TableHead>Enviado</TableHead>
+              <TableHead>Situação</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {jobs.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-neutral-500">
+                  Nenhuma etiqueta enviada ainda.
+                </TableCell>
+              </TableRow>
+            )}
+            {jobs.map((job) => (
+              <TableRow key={job.id}>
+                <TableCell className="font-medium">{job.pedido}</TableCell>
+                <TableCell>{job.volumes}</TableCell>
+                <TableCell className="text-neutral-500">{formatDateTime(job.createdAt)}</TableCell>
+                <TableCell>
+                  {job.status === "IMPRESSO" ? (
+                    <Badge variant="secondary">Impresso</Badge>
+                  ) : (
+                    <Badge className="bg-amber-100 text-amber-800">Na fila</Badge>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <ReimprimirButton id={job.id} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       <p className="max-w-lg text-xs text-neutral-400">
-        O tamanho da etiqueta é definido em Configurações → Estoque.
+        As etiquetas saem sozinhas na impressora quando o computador da loja estiver configurado. O
+        tamanho é definido em Configurações → Estoque.
       </p>
     </div>
   );

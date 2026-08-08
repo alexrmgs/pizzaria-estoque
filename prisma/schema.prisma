@@ -106,6 +106,26 @@ enum PontoMode {
   FACIAL
 }
 
+enum PrintJobStatus {
+  PENDENTE
+  IMPRESSO
+}
+
+// Fila de impressão de etiquetas. O tablet enfileira aqui; o programa no PC
+// da loja pega os PENDENTE, imprime na impressora e marca como IMPRESSO.
+model PrintJob {
+  id            String         @id @default(cuid())
+  pedido        String
+  volumes       Int
+  labelWidthMm  Int
+  labelHeightMm Int
+  status        PrintJobStatus @default(PENDENTE)
+  createdAt     DateTime       @default(now())
+  printedAt     DateTime?
+
+  @@index([status, createdAt])
+}
+
 model AppSettings {
   id                  String       @id @default("settings")
   pontoMode           PontoMode    @default(CELULAR)
