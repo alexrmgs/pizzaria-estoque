@@ -1,11 +1,7 @@
 import { requirePermission } from "@/lib/dal";
+import { getAppSettings } from "@/lib/settings";
 import { PrintButton } from "@/components/print-button";
 import { AutoPrint } from "./auto-print";
-
-function clampNumber(raw: unknown, fallback: number, min: number, max: number): number {
-  const n = typeof raw === "string" ? parseInt(raw, 10) : NaN;
-  return Number.isFinite(n) ? Math.min(Math.max(n, min), max) : fallback;
-}
 
 export default async function ImprimirEtiquetasPage({
   searchParams,
@@ -13,13 +9,13 @@ export default async function ImprimirEtiquetasPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   await requirePermission("canManageEstoque");
-  const params = await searchParams;
+  const [params, settings] = await Promise.all([searchParams, getAppSettings()]);
 
   const pedido = typeof params.pedido === "string" ? params.pedido.trim() : "";
   const volumesRaw = typeof params.volumes === "string" ? parseInt(params.volumes, 10) : NaN;
   const volumes = Number.isFinite(volumesRaw) ? Math.min(Math.max(volumesRaw, 1), 50) : 0;
-  const larguraMm = clampNumber(params.largura, 100, 20, 200);
-  const alturaMm = clampNumber(params.altura, 70, 20, 200);
+  const larguraMm = settings.labelWidthMm;
+  const alturaMm = settings.labelHeightMm;
 
   // Escala o texto pelo tamanho da etiqueta pra ele preencher bem tanto uma
   // etiqueta pequena quanto uma grande.
@@ -70,9 +66,6 @@ export default async function ImprimirEtiquetasPage({
             style={{ width: `${larguraMm}mm`, height: `${alturaMm}mm` }}
             className="etiqueta flex flex-col items-center justify-center gap-1 rounded-lg border text-center"
           >
-            <p className="font-semibold tracking-widest text-neutral-500 uppercase" style={{ fontSize: `${volumeFont * 0.5}pt` }}>
-              FB Pizzaria
-            </p>
             <p className="font-black leading-none" style={{ fontSize: `${pedidoFont}pt` }}>
               PEDIDO {pedido}
             </p>

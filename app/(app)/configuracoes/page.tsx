@@ -8,6 +8,7 @@ import { SettingsForm } from "./settings-form";
 import { CltDeductionsForm } from "./clt-deductions-form";
 import { AttendanceScoreForm } from "./attendance-score-form";
 import { PontoModeForm } from "./ponto-mode-form";
+import { LabelSizeForm } from "./label-size-form";
 
 type Bracket = { upTo: number | null; rate: number };
 type Tier = { minScore: number; bonus: number };
@@ -91,7 +92,8 @@ export default async function ConfiguracoesPage() {
       ]
     : [];
 
-  const settings = role.canManageFuncionarios ? await getAppSettings() : null;
+  const settings =
+    role.canManageFuncionarios || role.canManageEstoque ? await getAppSettings() : null;
 
   const tabs = [
     { value: "estoque", label: "Estoque", visible: role.canManageEstoque },
@@ -118,8 +120,22 @@ export default async function ConfiguracoesPage() {
         </TabsList>
 
         {role.canManageEstoque && (
-          <TabsContent value="estoque" className="flex flex-col gap-4 pt-4">
+          <TabsContent value="estoque" className="flex flex-col gap-6 pt-4">
             <LinkGrid links={estoqueLinks} />
+
+            {settings && (
+              <Card className="max-w-lg">
+                <CardHeader>
+                  <CardTitle className="text-lg">Tamanho da etiqueta</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-2">
+                  <p className="text-sm text-neutral-500">
+                    Medida do rolo de etiqueta usado na impressão dos volumes dos pedidos.
+                  </p>
+                  <LabelSizeForm width={settings.labelWidthMm} height={settings.labelHeightMm} />
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         )}
 

@@ -117,6 +117,8 @@ model AppSettings {
   irrfDependentDeduction Decimal   @default(189.59) @db.Decimal(10, 2)
   valeTransporteRate  Decimal      @default(6) @db.Decimal(4, 2)
   latePenaltyPoints   Int          @default(3)
+  labelWidthMm        Int          @default(100)
+  labelHeightMm       Int          @default(70)
   attendanceBonusTiers Json        @default("[{\"minScore\":100,\"bonus\":0}]")
   attendanceStreakTiers Json       @default("[{\"months\":6,\"multiplier\":3},{\"months\":3,\"multiplier\":2},{\"months\":0,\"multiplier\":1}]")
   updatedAt           DateTime     @updatedAt

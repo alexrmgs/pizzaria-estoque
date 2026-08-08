@@ -37,6 +37,26 @@ export async function updateSettings(
   revalidatePath("/configuracoes");
 }
 
+export async function updateLabelSize(
+  widthMm: number,
+  heightMm: number,
+): Promise<{ error?: string }> {
+  await requirePermission("canManageEstoque");
+  const w = Math.round(widthMm);
+  const h = Math.round(heightMm);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w < 20 || w > 200 || h < 20 || h > 200) {
+    return { error: "A largura e a altura devem ficar entre 20 e 200 mm." };
+  }
+  await prisma.appSettings.upsert({
+    where: { id: "settings" },
+    update: { labelWidthMm: w, labelHeightMm: h },
+    create: { id: "settings", labelWidthMm: w, labelHeightMm: h },
+  });
+  revalidatePath("/configuracoes");
+  revalidatePath("/etiquetas");
+  return {};
+}
+
 export async function updatePontoMode(mode: "CELULAR" | "FACIAL"): Promise<{ error?: string }> {
   await requirePermission("canManageFuncionarios");
   if (mode !== "CELULAR" && mode !== "FACIAL") return { error: "Opção inválida." };
