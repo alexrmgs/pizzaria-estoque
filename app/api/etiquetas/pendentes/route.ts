@@ -17,7 +17,18 @@ export async function GET(request: Request) {
     where: { status: "PENDENTE" },
     orderBy: { createdAt: "asc" },
     take: 50,
-    select: { id: true, pedido: true, volumes: true, labelWidthMm: true, labelHeightMm: true },
+    select: {
+      id: true,
+      tipo: true,
+      pedido: true,
+      volumes: true,
+      produto: true,
+      producaoData: true,
+      validadeData: true,
+      copias: true,
+      labelWidthMm: true,
+      labelHeightMm: true,
+    },
   });
 
   return NextResponse.json({ jobs });

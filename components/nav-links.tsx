@@ -13,6 +13,7 @@ type Permissions = {
   canViewRelatorios: boolean;
   canManageFuncionarios: boolean;
   canPrintEtiquetas: boolean;
+  canPrintProducao: boolean;
 };
 
 type NavItem = { href: string; label: string };
@@ -61,20 +62,24 @@ function NavGroup({ title, items }: { title: string; items: NavItem[] }) {
 }
 
 export function NavLinks({ permissions }: { permissions: Permissions }) {
-  // Conta "estação de impressão": só imprime etiquetas, nada mais. Vê só essa
-  // tela, sem o resto do menu.
-  const isPrintOnly =
-    permissions.canPrintEtiquetas &&
-    !permissions.canManageEstoque &&
-    !permissions.canManageReceitas &&
-    !permissions.canManageUsuarios &&
-    !permissions.canViewRelatorios &&
-    !permissions.canManageFuncionarios;
+  const hasManage =
+    permissions.canManageEstoque ||
+    permissions.canManageReceitas ||
+    permissions.canManageUsuarios ||
+    permissions.canViewRelatorios ||
+    permissions.canManageFuncionarios;
 
-  if (isPrintOnly) {
+  // Estação de impressão: só imprime etiquetas (pedidos e/ou produção), nada
+  // mais. Vê só a(s) tela(s) que tem permissão.
+  if (!hasManage && (permissions.canPrintEtiquetas || permissions.canPrintProducao)) {
     return (
       <nav className="flex flex-col gap-3">
-        <NavLink href="/etiquetas" label="Etiquetas" />
+        {permissions.canPrintEtiquetas && (
+          <NavLink href="/etiquetas" label="Etiquetas — Pedidos" />
+        )}
+        {permissions.canPrintProducao && (
+          <NavLink href="/etiquetas-producao" label="Etiquetas — Produção" />
+        )}
       </nav>
     );
   }
@@ -87,7 +92,8 @@ export function NavLinks({ permissions }: { permissions: Permissions }) {
           { href: "/conferencia", label: "Conferência de Estoque" },
           { href: "/producao", label: "Produção" },
           { href: "/movimentacoes", label: "Movimentações" },
-          { href: "/etiquetas", label: "Etiquetas" },
+          { href: "/etiquetas", label: "Etiquetas (Pedidos)" },
+          { href: "/etiquetas-producao", label: "Etiquetas (Produção)" },
         ]
       : []),
     ...(permissions.canManageReceitas ? [{ href: "/receitas", label: "Receitas" }] : []),

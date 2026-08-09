@@ -24,6 +24,7 @@ type Role = {
   canViewRelatorios: boolean;
   canManageFuncionarios: boolean;
   canPrintEtiquetas: boolean;
+  canPrintProducao: boolean;
 };
 
 const PERMISSIONS: { key: keyof Omit<Role, "id" | "name">; label: string; hint: string }[] = [
@@ -54,8 +55,13 @@ const PERMISSIONS: { key: keyof Omit<Role, "id" | "name">; label: string; hint: 
   },
   {
     key: "canPrintEtiquetas",
-    label: "Impressão de etiquetas",
-    hint: "Acessa só a tela de etiquetas — ideal pra estação de impressão",
+    label: "Etiquetas — Pedidos (atendimento)",
+    hint: "Acessa só a tela de etiquetas de pedidos — pra estação do atendimento",
+  },
+  {
+    key: "canPrintProducao",
+    label: "Etiquetas — Produção (cozinha)",
+    hint: "Acessa só a tela de etiquetas de produção — pra estação da cozinha",
   },
 ];
 

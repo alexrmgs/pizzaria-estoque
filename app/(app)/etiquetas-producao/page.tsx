@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { requireEtiquetasAccess } from "@/lib/dal";
+import { requireProducaoAccess } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,9 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { EtiquetaForm } from "./etiqueta-form";
-import { ReimprimirButton } from "./reimprimir-button";
-import { BluetoothTest } from "./bluetooth-test";
+import { ProducaoForm } from "../etiquetas/producao-form";
+import { ReimprimirButton } from "../etiquetas/reimprimir-button";
 
 function formatDateTime(date: Date) {
   return date.toLocaleString("pt-BR", {
@@ -23,14 +22,24 @@ function formatDateTime(date: Date) {
   });
 }
 
-export default async function EtiquetasPage() {
-  await requireEtiquetasAccess();
+function formatDate(date: Date | null) {
+  if (!date) return "—";
+  return date.toLocaleDateString("pt-BR", { timeZone: "UTC" });
+}
 
-  const [jobs, settings] = await Promise.all([
+export default async function EtiquetasProducaoPage() {
+  await requireProducaoAccess();
+
+  const [jobs, produtos, settings] = await Promise.all([
     prisma.printJob.findMany({
-      where: { tipo: "PEDIDO" },
+      where: { tipo: "PRODUCAO" },
       orderBy: { createdAt: "desc" },
       take: 20,
+    }),
+    prisma.recipe.findMany({
+      where: { type: "PRODUCAO" },
+      orderBy: { name: "asc" },
+      select: { name: true },
     }),
     getAppSettings(),
   ]);
@@ -38,18 +47,18 @@ export default async function EtiquetasPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold uppercase">Etiquetas — Pedidos</h1>
+        <h1 className="text-2xl font-semibold uppercase">Etiquetas — Produção</h1>
         <p className="text-sm text-neutral-500">
-          Digite o pedido e quantos volumes ele tem. O sistema manda pra impressora e imprime uma
-          etiqueta por volume, numeradas (ex: 1/3, 2/3, 3/3).
+          Etiqueta pra identificar produções da cozinha (massa, molho, recheio…) com produto, data de
+          produção e validade.
         </p>
       </div>
 
-      <EtiquetaForm widthMm={settings.labelWidthMm} heightMm={settings.labelHeightMm} />
-
-      <div className="max-w-lg rounded-lg border border-dashed bg-white p-3">
-        <BluetoothTest />
-      </div>
+      <ProducaoForm
+        produtos={produtos.map((p) => p.name)}
+        widthMm={settings.labelWidthMm}
+        heightMm={settings.labelHeightMm}
+      />
 
       <div className="rounded-lg border bg-white">
         <div className="border-b p-3 text-sm font-semibold uppercase text-neutral-500">
@@ -58,8 +67,10 @@ export default async function EtiquetasPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Pedido</TableHead>
-              <TableHead>Volumes</TableHead>
+              <TableHead>Produto</TableHead>
+              <TableHead>Produção</TableHead>
+              <TableHead>Validade</TableHead>
+              <TableHead>Cópias</TableHead>
               <TableHead>Enviado</TableHead>
               <TableHead>Situação</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -68,15 +79,17 @@ export default async function EtiquetasPage() {
           <TableBody>
             {jobs.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-neutral-500">
+                <TableCell colSpan={7} className="text-center text-neutral-500">
                   Nenhuma etiqueta enviada ainda.
                 </TableCell>
               </TableRow>
             )}
             {jobs.map((job) => (
               <TableRow key={job.id}>
-                <TableCell className="font-medium">{job.pedido}</TableCell>
-                <TableCell>{job.volumes}</TableCell>
+                <TableCell className="font-medium">{job.produto}</TableCell>
+                <TableCell className="text-neutral-500">{formatDate(job.producaoData)}</TableCell>
+                <TableCell>{formatDate(job.validadeData)}</TableCell>
+                <TableCell className="text-neutral-500">{job.copias}</TableCell>
                 <TableCell className="text-neutral-500">{formatDateTime(job.createdAt)}</TableCell>
                 <TableCell>
                   {job.status === "IMPRESSO" ? (

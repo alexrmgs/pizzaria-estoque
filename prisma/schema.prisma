@@ -49,6 +49,7 @@ model Role {
   canViewRelatorios     Boolean  @default(false)
   canManageFuncionarios Boolean  @default(false)
   canPrintEtiquetas     Boolean  @default(false)
+  canPrintProducao      Boolean  @default(false)
   createdAt             DateTime @default(now())
 
   users User[]
@@ -112,12 +113,24 @@ enum PrintJobStatus {
   IMPRESSO
 }
 
+enum PrintJobType {
+  PEDIDO
+  PRODUCAO
+}
+
 // Fila de impressão de etiquetas. O tablet enfileira aqui; o programa no PC
 // da loja pega os PENDENTE, imprime na impressora e marca como IMPRESSO.
+// Dois tipos: PEDIDO (pedido + volumes numerados) e PRODUCAO (produto + data
+// de produção + validade).
 model PrintJob {
   id            String         @id @default(cuid())
-  pedido        String
-  volumes       Int
+  tipo          PrintJobType   @default(PEDIDO)
+  pedido        String?
+  volumes       Int?
+  produto       String?
+  producaoData  DateTime?      @db.Date
+  validadeData  DateTime?      @db.Date
+  copias        Int?
   labelWidthMm  Int
   labelHeightMm Int
   status        PrintJobStatus @default(PENDENTE)

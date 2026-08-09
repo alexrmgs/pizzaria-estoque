@@ -21,11 +21,29 @@ export async function requirePermission(key: PermissionKey) {
   return user;
 }
 
-/** Acesso às etiquetas: quem gerencia estoque OU a conta dedicada de
- * impressão. */
+/** Acesso às etiquetas de PEDIDO (atendimento). */
 export async function requireEtiquetasAccess() {
   const user = await requireUser();
   if (!user.role.canPrintEtiquetas && !user.role.canManageEstoque) {
+    redirect("/meu-ponto");
+  }
+  return user;
+}
+
+/** Acesso às etiquetas de PRODUÇÃO (cozinha). */
+export async function requireProducaoAccess() {
+  const user = await requireUser();
+  if (!user.role.canPrintProducao && !user.role.canManageEstoque) {
+    redirect("/meu-ponto");
+  }
+  return user;
+}
+
+/** Impressão pelo navegador serve as duas telas — aceita qualquer acesso de
+ * etiqueta. */
+export async function requireImpressaoAccess() {
+  const user = await requireUser();
+  if (!user.role.canPrintEtiquetas && !user.role.canPrintProducao && !user.role.canManageEstoque) {
     redirect("/meu-ponto");
   }
   return user;

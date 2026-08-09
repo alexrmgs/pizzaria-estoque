@@ -15,6 +15,7 @@ type Permissions = {
   canViewRelatorios: boolean;
   canManageFuncionarios: boolean;
   canPrintEtiquetas: boolean;
+  canPrintProducao: boolean;
 };
 
 export function MobileSidebar({
