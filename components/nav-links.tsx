@@ -18,16 +18,21 @@ type Permissions = {
 
 type NavItem = { href: string; label: string };
 
-function NavLink({ href, label }: NavItem) {
+function NavLink({ href, label, nested }: NavItem & { nested?: boolean }) {
   const pathname = usePathname();
+  const active = pathname.startsWith(href);
   return (
     <Link
       href={href}
       className={cn(
-        "rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent",
-        pathname.startsWith(href)
-          ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary"
-          : "text-sidebar-foreground",
+        "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+        nested
+          ? active
+            ? "bg-primary/15 text-white"
+            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-white"
+          : active
+            ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary"
+            : "text-sidebar-foreground hover:bg-sidebar-accent",
       )}
     >
       {label}
@@ -51,9 +56,9 @@ function NavGroup({ title, items }: { title: string; items: NavItem[] }) {
         <ChevronDown className={cn("size-3.5 transition-transform", !open && "-rotate-90")} />
       </button>
       {open && (
-        <div className="flex flex-col gap-1">
+        <div className="mt-1 mb-2 ml-3 flex flex-col gap-1.5 border-l-2 border-sidebar-border/60 pl-2">
           {items.map((item) => (
-            <NavLink key={item.href} {...item} />
+            <NavLink key={item.href} {...item} nested />
           ))}
         </div>
       )}
