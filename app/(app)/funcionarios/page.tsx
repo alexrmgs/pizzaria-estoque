@@ -16,7 +16,8 @@ import {
 import { EmployeeDialog } from "./employee-dialog";
 import { DismissEmployeeButton } from "./dismiss-employee-button";
 import { DeleteEmployeeButton } from "./delete-employee-button";
-import { attendanceScore, lateMinutes } from "@/lib/payroll";
+import { attendanceScore, attendanceBonusAmount, lateMinutes } from "@/lib/payroll";
+import type { AttendanceBonusTier } from "@/lib/payroll";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -50,8 +51,8 @@ export default async function FuncionariosPage() {
           select: { clockIn: true },
         },
         dayOffs: {
-          where: { date: { gte: monthStart, lte: monthEnd }, type: "FALTA" },
-          select: { id: true },
+          where: { date: { gte: monthStart, lte: monthEnd }, type: { in: ["FALTA", "ATESTADO"] } },
+          select: { type: true },
         },
       },
     }),
@@ -60,6 +61,7 @@ export default async function FuncionariosPage() {
   const unlinkedUsers = users.filter((u) => !u.employee);
 
   // Ranking do mês: pontualidade (menos atrasos) e assiduidade (menos faltas).
+  const bonusTiers = settings.attendanceBonusTiers as unknown as AttendanceBonusTier[];
   const ranking = rankingEmployees
     .map((emp) => {
       const dias = emp.timeEntries.length;
@@ -67,9 +69,11 @@ export default async function FuncionariosPage() {
         (e) => lateMinutes(emp.scheduledStart, e.clockIn) > 0,
       ).length;
       const faltas = emp.dayOffs.length;
+      const temFaltaOuAtestado = faltas > 0;
       const pontualidade = attendanceScore(atrasos, settings.latePenaltyPoints);
       const score = Math.max(0, Math.round(pontualidade - faltas * FALTA_PENALTY));
-      return { id: emp.id, name: emp.name, dias, atrasos, faltas, score };
+      const bonus = attendanceBonusAmount(pontualidade, temFaltaOuAtestado, bonusTiers);
+      return { id: emp.id, name: emp.name, dias, atrasos, faltas, score, bonus };
     })
     .filter((r) => r.dias > 0 || r.faltas > 0)
     .sort((a, b) => b.score - a.score || b.dias - a.dias || a.atrasos - b.atrasos);
@@ -106,6 +110,7 @@ export default async function FuncionariosPage() {
                     <TableHead className="w-12">#</TableHead>
                     <TableHead>Funcionário</TableHead>
                     <TableHead>Pontuação</TableHead>
+                    <TableHead>Bônus</TableHead>
                     <TableHead>Dias</TableHead>
                     <TableHead>Atrasos</TableHead>
                     <TableHead>Faltas</TableHead>
@@ -121,6 +126,9 @@ export default async function FuncionariosPage() {
                         </Link>
                       </TableCell>
                       <TableCell className="font-semibold text-primary">{r.score}</TableCell>
+                      <TableCell className="font-medium text-emerald-600">
+                        {r.bonus > 0 ? currency(r.bonus) : "—"}
+                      </TableCell>
                       <TableCell className="text-neutral-500">{r.dias}</TableCell>
                       <TableCell className="text-neutral-500">{r.atrasos}</TableCell>
                       <TableCell className="text-neutral-500">{r.faltas}</TableCell>
