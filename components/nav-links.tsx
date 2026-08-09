@@ -25,14 +25,14 @@ function NavLink({ href, label, nested }: NavItem & { nested?: boolean }) {
     <Link
       href={href}
       className={cn(
-        "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+        "rounded-md px-3 py-2 text-sm font-semibold transition-colors",
         nested
           ? active
-            ? "bg-primary/15 text-white"
-            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-white"
+            ? "bg-primary text-white"
+            : "text-white hover:bg-sidebar-accent"
           : active
             ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary"
-            : "text-sidebar-foreground hover:bg-sidebar-accent",
+            : "text-white hover:bg-sidebar-accent",
       )}
     >
       {label}
@@ -50,7 +50,7 @@ function NavGroup({ title, items }: { title: string; items: NavItem[] }) {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between rounded-md px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-sidebar-foreground/70 uppercase hover:text-sidebar-foreground"
+        className="flex w-full items-center justify-between rounded-md px-3 pt-2 pb-1 text-xs font-bold tracking-wide text-sidebar-foreground/90 uppercase hover:text-white"
       >
         {title}
         <ChevronDown className={cn("size-3.5 transition-transform", !open && "-rotate-90")} />
