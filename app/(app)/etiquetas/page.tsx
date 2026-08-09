@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { EtiquetaForm } from "./etiqueta-form";
+import { FilaPedidos } from "./fila-pedidos";
 import { ReimprimirButton } from "./reimprimir-button";
 import { BluetoothTest } from "./bluetooth-test";
 
@@ -40,12 +40,12 @@ export default async function EtiquetasPage() {
       <div>
         <h1 className="text-2xl font-semibold uppercase">Etiquetas — Pedidos</h1>
         <p className="text-sm text-neutral-500">
-          Digite o pedido e quantos volumes ele tem. O sistema manda pra impressora e imprime uma
+          A numeração é automática. Clique no pedido, escolha quantas caixas e imprima — uma
           etiqueta por volume, numeradas (ex: 1/3, 2/3, 3/3).
         </p>
       </div>
 
-      <EtiquetaForm widthMm={settings.labelWidthMm} heightMm={settings.labelHeightMm} />
+      <FilaPedidos proximoNumero={settings.etiquetaProximoNumero} />
 
       <div className="max-w-lg rounded-lg border border-dashed bg-white p-3">
         <BluetoothTest />
@@ -59,6 +59,7 @@ export default async function EtiquetasPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Pedido</TableHead>
+              <TableHead>Cliente</TableHead>
               <TableHead>Volumes</TableHead>
               <TableHead>Enviado</TableHead>
               <TableHead>Situação</TableHead>
@@ -68,7 +69,7 @@ export default async function EtiquetasPage() {
           <TableBody>
             {jobs.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-neutral-500">
+                <TableCell colSpan={6} className="text-center text-neutral-500">
                   Nenhuma etiqueta enviada ainda.
                 </TableCell>
               </TableRow>
@@ -76,6 +77,7 @@ export default async function EtiquetasPage() {
             {jobs.map((job) => (
               <TableRow key={job.id}>
                 <TableCell className="font-medium">{job.pedido}</TableCell>
+                <TableCell className="text-neutral-500">{job.cliente ?? "—"}</TableCell>
                 <TableCell>{job.volumes}</TableCell>
                 <TableCell className="text-neutral-500">{formatDateTime(job.createdAt)}</TableCell>
                 <TableCell>

@@ -103,6 +103,7 @@ export default async function ImprimirEtiquetasPage({
     ));
   } else {
     const pedido = str(params.pedido);
+    const cliente = str(params.cliente);
     const volumesRaw = parseInt(str(params.volumes), 10);
     const volumes = Number.isFinite(volumesRaw) ? Math.min(Math.max(volumesRaw, 1), 50) : 0;
     if (!pedido || volumes < 1) {
@@ -122,6 +123,11 @@ export default async function ImprimirEtiquetasPage({
         <p className="font-black leading-none" style={{ fontSize: `${baseFont * 1.15}pt` }}>
           PEDIDO {pedido}
         </p>
+        {cliente && (
+          <p className="font-semibold leading-none" style={{ fontSize: `${baseFont * 0.5}pt` }}>
+            {cliente}
+          </p>
+        )}
         <p className="font-bold leading-none" style={{ fontSize: `${baseFont * 0.7}pt` }}>
           {n}/{volumes} VOLUME
         </p>

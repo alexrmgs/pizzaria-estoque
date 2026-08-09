@@ -126,6 +126,7 @@ model PrintJob {
   id            String         @id @default(cuid())
   tipo          PrintJobType   @default(PEDIDO)
   pedido        String?
+  cliente       String?
   volumes       Int?
   produto       String?
   producaoData  DateTime?      @db.Date
@@ -156,6 +157,7 @@ model AppSettings {
   latePenaltyPoints   Int          @default(3)
   labelWidthMm        Int          @default(100)
   labelHeightMm       Int          @default(70)
+  etiquetaProximoNumero Int        @default(1)
   labelEmpresa        String?
   labelCnpj           String?
   labelEndereco       String?

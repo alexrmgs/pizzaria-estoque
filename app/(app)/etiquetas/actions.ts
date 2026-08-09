@@ -33,6 +33,55 @@ export async function enfileirarEtiqueta(
   return {};
 }
 
+export async function imprimirPedidoAuto(input: {
+  numero: number;
+  volumes: number;
+  cliente?: string;
+}): Promise<{ error?: string; proximo?: number }> {
+  await requireEtiquetasAccess();
+
+  const numero = Math.round(input.numero);
+  if (!Number.isFinite(numero) || numero < 1) return { error: "Número do pedido inválido." };
+  const vol = Math.round(input.volumes);
+  if (!Number.isFinite(vol) || vol < 1 || vol > 50) {
+    return { error: "A quantidade de volumes deve ser de 1 a 50." };
+  }
+
+  const settings = await getAppSettings();
+  const proximo = Math.max(settings.etiquetaProximoNumero, numero + 1);
+
+  await prisma.$transaction([
+    prisma.printJob.create({
+      data: {
+        pedido: String(numero),
+        cliente: input.cliente?.trim() || null,
+        volumes: vol,
+        labelWidthMm: settings.labelWidthMm,
+        labelHeightMm: settings.labelHeightMm,
+      },
+    }),
+    prisma.appSettings.update({
+      where: { id: "settings" },
+      data: { etiquetaProximoNumero: proximo },
+    }),
+  ]);
+
+  revalidatePath("/etiquetas");
+  return { proximo };
+}
+
+export async function ajustarProximoNumero(numero: number): Promise<{ error?: string }> {
+  await requireEtiquetasAccess();
+  const n = Math.round(numero);
+  if (!Number.isFinite(n) || n < 1 || n > 9_999_999) return { error: "Número inválido." };
+  await prisma.appSettings.update({
+    where: { id: "settings" },
+    data: { etiquetaProximoNumero: n },
+  });
+  revalidatePath("/etiquetas");
+  return {};
+}
+
 export async function enfileirarProducao(input: {
   produto: string;
   producaoISO: string;
@@ -90,6 +139,7 @@ export async function reimprimirEtiqueta(id: string): Promise<{ error?: string }
     data: {
       tipo: job.tipo,
       pedido: job.pedido,
+      cliente: job.cliente,
       volumes: job.volumes,
       produto: job.produto,
       producaoData: job.producaoData,
