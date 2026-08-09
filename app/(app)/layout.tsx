@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/dal";
 import { NavLinks } from "@/components/nav-links";
 import { SignOutButton } from "@/components/sign-out-button";
 import { MobileSidebar } from "@/components/mobile-sidebar";
+import { CollapsibleSidebar } from "@/components/collapsible-sidebar";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -10,8 +11,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex flex-1 flex-col md:flex-row">
       <MobileSidebar permissions={user.role} userName={user.name ?? ""} roleName={user.role.name} />
-      <aside className="hidden flex-col gap-6 bg-sidebar p-4 text-sidebar-foreground md:flex md:w-64 print:hidden">
-        <div className="flex items-center gap-2 px-1">
+      <CollapsibleSidebar>
+        <div className="flex items-center gap-2 px-1 pr-8">
           <Image src="/logo.png" alt="FB Pizzaria & Esfiharia" width={40} height={39} priority />
           <div>
             <p className="text-sm leading-tight font-bold text-white">FB Pizzaria</p>
@@ -28,7 +29,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
           <SignOutButton />
         </div>
-      </aside>
+      </CollapsibleSidebar>
       <main className="flex-1 p-6">{children}</main>
     </div>
   );
