@@ -12,6 +12,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatShiftDuration, lateMinutes, shiftHours } from "@/lib/payroll";
+import { EditPontoDialog } from "./edit-ponto-dialog";
+import { DeletePontoButton } from "./delete-ponto-button";
 
 const selectClassName =
   "h-9 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -230,12 +232,13 @@ export default async function PontoEquipePage({
                   <TableHead>Horas</TableHead>
                   <TableHead>Atraso</TableHead>
                   <TableHead>Situação</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-neutral-500">
+                    <TableCell colSpan={8} className="text-center text-neutral-500">
                       Nenhum funcionário ativo cadastrado.
                     </TableCell>
                   </TableRow>
@@ -280,6 +283,26 @@ export default async function PontoEquipePage({
                         {r.status === "SEM_REGISTRO" && (
                           <Badge variant="destructive">Não bateu ponto</Badge>
                         )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <EditPontoDialog
+                            employeeId={r.employeeId}
+                            employeeName={r.name}
+                            dateISO={dateISO}
+                            entry={
+                              r.entry
+                                ? {
+                                    id: r.entry.id,
+                                    clockIn: formatTime(r.entry.clockIn),
+                                    clockOut: r.entry.clockOut ? formatTime(r.entry.clockOut) : null,
+                                    note: r.entry.note,
+                                  }
+                                : null
+                            }
+                          />
+                          {r.entry && <DeletePontoButton employeeId={r.employeeId} id={r.entry.id} />}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

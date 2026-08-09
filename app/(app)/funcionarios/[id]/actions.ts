@@ -61,6 +61,7 @@ export async function addTimeEntry(
   });
 
   revalidatePath(`/funcionarios/${employeeId}`);
+  revalidatePath("/ponto-equipe");
 }
 
 export async function editTimeEntry(
@@ -97,12 +98,14 @@ export async function editTimeEntry(
   });
 
   revalidatePath(`/funcionarios/${employeeId}`);
+  revalidatePath("/ponto-equipe");
 }
 
 export async function deleteTimeEntry(employeeId: string, id: string) {
   await requirePermission("canManageFuncionarios");
   await prisma.timeEntry.delete({ where: { id } });
   revalidatePath(`/funcionarios/${employeeId}`);
+  revalidatePath("/ponto-equipe");
 }
 
 // ---------- Folgas (day off) ----------
