@@ -37,14 +37,16 @@ export function CollapsibleSidebar({ children }: { children: React.ReactNode }) 
         </aside>
       )}
       {ready && !open && (
-        <button
-          type="button"
-          onClick={toggle}
-          title="Abrir menu"
-          className="fixed top-3 left-3 z-30 hidden rounded-md border bg-white p-2 shadow-sm hover:bg-neutral-50 md:block print:hidden"
-        >
-          <Menu className="size-5" />
-        </button>
+        <div className="hidden shrink-0 border-r bg-white p-2 md:block print:hidden">
+          <button
+            type="button"
+            onClick={toggle}
+            title="Abrir menu"
+            className="rounded-md border bg-white p-2 shadow-sm hover:bg-neutral-50"
+          >
+            <Menu className="size-5" />
+          </button>
+        </div>
       )}
     </>
   );
