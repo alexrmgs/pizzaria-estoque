@@ -134,13 +134,21 @@ export default async function PontoEquipePage({
   const atrasos = rows.filter(
     (r) => r.entry && lateMinutes(r.scheduledStart, r.entry.clockIn) > 0,
   ).length;
+  const folgaRows = rows.filter((r) => r.status === "FOLGA");
 
   const weekdayLabel = WEEKDAY_LONG[date.getDay()];
+  const dataCompleta = date.toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold uppercase">Ponto da Equipe</h1>
+        <p className="text-sm font-medium capitalize text-primary">{dataCompleta}</p>
         <p className="text-sm text-neutral-500">
           Entrada e saída de todos os funcionários num único dia.
         </p>
@@ -215,6 +223,25 @@ export default async function PontoEquipePage({
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">De folga hoje ({folgaRows.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {folgaRows.length === 0 ? (
+            <p className="text-sm text-neutral-500">Ninguém de folga hoje.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {folgaRows.map((r) => (
+                <Badge key={r.employeeId} variant="outline" className="text-sm">
+                  {r.name}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
