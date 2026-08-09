@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { enfileirarProducao } from "./actions";
 
+const TEMP_SUGESTOES = ["Congelado (-18°C)", "Refrigerado (0 a 4°C)", "Ambiente"];
+
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -25,10 +27,12 @@ function addDaysISO(iso: string, days: number) {
 
 export function ProducaoForm({
   produtos,
+  responsaveis,
   widthMm,
   heightMm,
 }: {
   produtos: string[];
+  responsaveis: string[];
   widthMm: number;
   heightMm: number;
 }) {
@@ -36,22 +40,35 @@ export function ProducaoForm({
   const [produto, setProduto] = useState("");
   const [producao, setProducao] = useState(todayISO());
   const [validadeDias, setValidadeDias] = useState("3");
+  const [temperatura, setTemperatura] = useState("");
+  const [responsavel, setResponsavel] = useState("");
+  const [peso, setPeso] = useState("");
   const [copias, setCopias] = useState("1");
   const [isPending, startTransition] = useTransition();
 
   const dias = Math.max(0, Number(validadeDias) || 0);
   const validadeISO = /^\d{4}-\d{2}-\d{2}$/.test(producao) ? addDaysISO(producao, dias) : "";
-  const pedidoFont = Math.max(11, Math.min(widthMm, heightMm * 1.6) * 0.2);
+  const titleFont = Math.max(11, Math.min(widthMm, heightMm * 1.6) * 0.16);
+  const lineFont = titleFont * 0.5;
 
   function imprimir() {
     startTransition(async () => {
-      const result = await enfileirarProducao(produto, producao, dias, Number(copias));
+      const result = await enfileirarProducao({
+        produto,
+        producaoISO: producao,
+        validadeDias: dias,
+        copias: Number(copias),
+        temperatura,
+        responsavel,
+        peso,
+      });
       if (result.error) {
         toast.error(result.error);
         return;
       }
       toast.success("Enviado pra impressora ✅");
       setProduto("");
+      setPeso("");
       router.refresh();
     });
   }
@@ -66,6 +83,9 @@ export function ProducaoForm({
       produto: produto.trim(),
       producao,
       validade: validadeISO,
+      temperatura,
+      responsavel,
+      peso,
       copias,
     });
     window.open(`/imprimir/etiquetas?${params.toString()}`, "_blank");
@@ -73,30 +93,29 @@ export function ProducaoForm({
 
   return (
     <div className="flex max-w-lg flex-col gap-3 rounded-lg border bg-white p-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-1 flex-col gap-1">
-          <Label htmlFor="produto" className="text-xs">
-            Produto
-          </Label>
-          <Input
-            id="produto"
-            list="producao-produtos"
-            value={produto}
-            onChange={(e) => setProduto(e.target.value)}
-            placeholder="Ex: Molho de tomate"
-            className="h-10"
-          />
-          <datalist id="producao-produtos">
-            {produtos.map((p) => (
-              <option key={p} value={p} />
-            ))}
-          </datalist>
-        </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="produto" className="text-xs">
+          Produto (estoque de produção)
+        </Label>
+        <Input
+          id="produto"
+          list="producao-produtos"
+          value={produto}
+          onChange={(e) => setProduto(e.target.value)}
+          placeholder="Ex: Bacon fatiado"
+          className="h-10"
+        />
+        <datalist id="producao-produtos">
+          {produtos.map((p) => (
+            <option key={p} value={p} />
+          ))}
+        </datalist>
       </div>
+
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
           <Label htmlFor="producao" className="text-xs">
-            Data de produção
+            Data de fabricação
           </Label>
           <Input
             id="producao"
@@ -134,6 +153,57 @@ export function ProducaoForm({
             className="h-10 w-20"
           />
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="temperatura" className="text-xs">
+            Temperatura
+          </Label>
+          <Input
+            id="temperatura"
+            list="producao-temperaturas"
+            value={temperatura}
+            onChange={(e) => setTemperatura(e.target.value)}
+            placeholder="Ex: Congelado"
+            className="h-10 w-48"
+          />
+          <datalist id="producao-temperaturas">
+            {TEMP_SUGESTOES.map((t) => (
+              <option key={t} value={t} />
+            ))}
+          </datalist>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="peso" className="text-xs">
+            Peso do pacote
+          </Label>
+          <Input
+            id="peso"
+            value={peso}
+            onChange={(e) => setPeso(e.target.value)}
+            placeholder="Ex: 1,5 kg"
+            className="h-10 w-32"
+          />
+        </div>
+        <div className="flex flex-1 flex-col gap-1">
+          <Label htmlFor="responsavel" className="text-xs">
+            Responsável
+          </Label>
+          <Input
+            id="responsavel"
+            list="producao-responsaveis"
+            value={responsavel}
+            onChange={(e) => setResponsavel(e.target.value)}
+            placeholder="Nome de quem produziu"
+            className="h-10"
+          />
+          <datalist id="producao-responsaveis">
+            {responsaveis.map((r) => (
+              <option key={r} value={r} />
+            ))}
+          </datalist>
+        </div>
         <Button onClick={imprimir} disabled={isPending} className="h-10">
           Imprimir etiquetas
         </Button>
@@ -145,17 +215,29 @@ export function ProducaoForm({
         </p>
         <div
           style={{ width: `${widthMm}mm`, height: `${heightMm}mm` }}
-          className="flex max-w-full flex-col items-center justify-center gap-1 rounded-md border bg-white text-center"
+          className="flex max-w-full flex-col justify-center gap-0.5 rounded-md border bg-white px-3"
         >
-          <p className="font-black leading-tight" style={{ fontSize: `${pedidoFont}pt` }}>
+          <p className="text-center font-black leading-tight" style={{ fontSize: `${titleFont}pt` }}>
             {produto.trim() || "PRODUTO"}
           </p>
-          <p className="font-medium leading-none" style={{ fontSize: `${pedidoFont * 0.5}pt` }}>
-            Produção: {formatBR(producao)}
+          <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
+            <b>Fab:</b> {formatBR(producao)} &nbsp; <b>Val:</b> {validadeISO ? formatBR(validadeISO) : "—"}
           </p>
-          <p className="font-bold leading-none" style={{ fontSize: `${pedidoFont * 0.55}pt` }}>
-            Validade: {validadeISO ? formatBR(validadeISO) : "—"}
-          </p>
+          {temperatura.trim() && (
+            <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
+              <b>Temp:</b> {temperatura.trim()}
+            </p>
+          )}
+          {peso.trim() && (
+            <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
+              <b>Peso:</b> {peso.trim()}
+            </p>
+          )}
+          {responsavel.trim() && (
+            <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
+              <b>Resp:</b> {responsavel.trim()}
+            </p>
+          )}
         </div>
       </div>
 

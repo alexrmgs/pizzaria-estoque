@@ -33,27 +33,30 @@ export async function enfileirarEtiqueta(
   return {};
 }
 
-export async function enfileirarProducao(
-  produto: string,
-  producaoISO: string,
-  validadeDias: number,
-  copias: number,
-): Promise<{ error?: string }> {
+export async function enfileirarProducao(input: {
+  produto: string;
+  producaoISO: string;
+  validadeDias: number;
+  copias: number;
+  temperatura: string;
+  responsavel: string;
+  peso: string;
+}): Promise<{ error?: string }> {
   await requireProducaoAccess();
 
-  const produtoLimpo = produto.trim();
+  const produtoLimpo = input.produto.trim();
   if (!produtoLimpo) return { error: "Informe o produto." };
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(producaoISO)) return { error: "Data de produção inválida." };
-  const dias = Math.round(validadeDias);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.producaoISO)) return { error: "Data de produção inválida." };
+  const dias = Math.round(input.validadeDias);
   if (!Number.isFinite(dias) || dias < 0 || dias > 3650) {
     return { error: "Validade em dias inválida." };
   }
-  const qtd = Math.round(copias);
+  const qtd = Math.round(input.copias);
   if (!Number.isFinite(qtd) || qtd < 1 || qtd > 50) {
     return { error: "A quantidade de cópias deve ser de 1 a 50." };
   }
 
-  const producaoData = new Date(`${producaoISO}T00:00:00Z`);
+  const producaoData = new Date(`${input.producaoISO}T00:00:00Z`);
   const validadeData = new Date(producaoData);
   validadeData.setUTCDate(validadeData.getUTCDate() + dias);
 
@@ -64,13 +67,16 @@ export async function enfileirarProducao(
       produto: produtoLimpo,
       producaoData,
       validadeData,
+      temperatura: input.temperatura.trim() || null,
+      responsavel: input.responsavel.trim() || null,
+      peso: input.peso.trim() || null,
       copias: qtd,
       labelWidthMm: settings.labelWidthMm,
       labelHeightMm: settings.labelHeightMm,
     },
   });
 
-  revalidatePath("/etiquetas");
+  revalidatePath("/etiquetas-producao");
   return {};
 }
 
@@ -88,6 +94,9 @@ export async function reimprimirEtiqueta(id: string): Promise<{ error?: string }
       produto: job.produto,
       producaoData: job.producaoData,
       validadeData: job.validadeData,
+      temperatura: job.temperatura,
+      responsavel: job.responsavel,
+      peso: job.peso,
       copias: job.copias,
       labelWidthMm: settings.labelWidthMm,
       labelHeightMm: settings.labelHeightMm,
@@ -95,5 +104,6 @@ export async function reimprimirEtiqueta(id: string): Promise<{ error?: string }
   });
 
   revalidatePath("/etiquetas");
+  revalidatePath("/etiquetas-producao");
   return {};
 }

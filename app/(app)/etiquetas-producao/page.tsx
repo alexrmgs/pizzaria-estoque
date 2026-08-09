@@ -30,14 +30,19 @@ function formatDate(date: Date | null) {
 export default async function EtiquetasProducaoPage() {
   await requireProducaoAccess();
 
-  const [jobs, produtos, settings] = await Promise.all([
+  const [jobs, produtos, funcionarios, settings] = await Promise.all([
     prisma.printJob.findMany({
       where: { tipo: "PRODUCAO" },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
-    prisma.recipe.findMany({
-      where: { type: "PRODUCAO" },
+    prisma.ingredient.findMany({
+      where: { isProduced: true },
+      orderBy: { name: "asc" },
+      select: { name: true },
+    }),
+    prisma.employee.findMany({
+      where: { active: true },
       orderBy: { name: "asc" },
       select: { name: true },
     }),
@@ -56,6 +61,7 @@ export default async function EtiquetasProducaoPage() {
 
       <ProducaoForm
         produtos={produtos.map((p) => p.name)}
+        responsaveis={funcionarios.map((f) => f.name)}
         widthMm={settings.labelWidthMm}
         heightMm={settings.labelHeightMm}
       />

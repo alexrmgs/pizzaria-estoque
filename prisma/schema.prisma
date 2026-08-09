@@ -130,6 +130,9 @@ model PrintJob {
   produto       String?
   producaoData  DateTime?      @db.Date
   validadeData  DateTime?      @db.Date
+  temperatura   String?
+  responsavel   String?
+  peso          String?
   copias        Int?
   labelWidthMm  Int
   labelHeightMm Int

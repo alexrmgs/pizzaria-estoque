@@ -48,27 +48,44 @@ export default async function ImprimirEtiquetasPage({
     const produto = str(params.produto);
     const producao = str(params.producao);
     const validade = str(params.validade);
+    const temperatura = str(params.temperatura);
+    const responsavel = str(params.responsavel);
+    const peso = str(params.peso);
     const copiasRaw = parseInt(str(params.copias), 10);
     const copias = Number.isFinite(copiasRaw) ? Math.min(Math.max(copiasRaw, 1), 50) : 0;
     if (!produto || copias < 1) {
       return <div className="p-8 text-sm text-neutral-600">Informe o produto.</div>;
     }
+    const titleFont = baseFont * 0.7;
+    const lineFont = titleFont * 0.5;
     header = `${produto} — ${copias} ${copias === 1 ? "etiqueta" : "etiquetas"} · ${larguraMm}×${alturaMm}mm`;
     labels = Array.from({ length: copias }, (_, i) => (
       <div
         key={i}
         style={{ width: `${larguraMm}mm`, height: `${alturaMm}mm` }}
-        className="etiqueta flex flex-col items-center justify-center gap-1 rounded-lg border text-center"
+        className="etiqueta flex flex-col justify-center gap-0.5 rounded-lg border px-3"
       >
-        <p className="font-black leading-tight" style={{ fontSize: `${baseFont}pt` }}>
+        <p className="text-center font-black leading-tight" style={{ fontSize: `${titleFont}pt` }}>
           {produto}
         </p>
-        <p className="font-medium leading-none" style={{ fontSize: `${baseFont * 0.5}pt` }}>
-          Produção: {formatBR(producao)}
+        <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
+          <b>Fab:</b> {formatBR(producao)} &nbsp; <b>Val:</b> {formatBR(validade)}
         </p>
-        <p className="font-bold leading-none" style={{ fontSize: `${baseFont * 0.55}pt` }}>
-          Validade: {formatBR(validade)}
-        </p>
+        {temperatura && (
+          <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
+            <b>Temp:</b> {temperatura}
+          </p>
+        )}
+        {peso && (
+          <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
+            <b>Peso:</b> {peso}
+          </p>
+        )}
+        {responsavel && (
+          <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
+            <b>Resp:</b> {responsavel}
+          </p>
+        )}
       </div>
     ));
   } else {
