@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { FilaPedidos } from "./fila-pedidos";
 import { ReimprimirButton } from "./reimprimir-button";
+import { LimparFilaButton } from "./limpar-fila-button";
 import { BluetoothTest } from "./bluetooth-test";
 
 function formatDateTime(date: Date) {
@@ -52,8 +53,9 @@ export default async function EtiquetasPage() {
       </div>
 
       <div className="rounded-lg border bg-white">
-        <div className="border-b p-3 text-sm font-semibold uppercase text-neutral-500">
-          Últimas etiquetas
+        <div className="flex items-center justify-between border-b p-3">
+          <span className="text-sm font-semibold uppercase text-neutral-500">Últimas etiquetas</span>
+          <LimparFilaButton />
         </div>
         <Table>
           <TableHeader>

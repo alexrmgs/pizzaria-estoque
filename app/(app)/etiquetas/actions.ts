@@ -70,6 +70,15 @@ export async function imprimirPedidoAuto(input: {
   return { proximo };
 }
 
+export async function limparFilaPedidos(): Promise<{ error?: string; apagados?: number }> {
+  await requireEtiquetasAccess();
+  const result = await prisma.printJob.deleteMany({
+    where: { tipo: "PEDIDO", status: "PENDENTE" },
+  });
+  revalidatePath("/etiquetas");
+  return { apagados: result.count };
+}
+
 export async function reimprimirVolume(input: {
   pedido: string;
   volume: number;
