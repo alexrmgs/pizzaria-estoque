@@ -62,6 +62,13 @@ export default async function EtiquetasProducaoPage() {
       <ProducaoForm
         produtos={produtos.map((p) => p.name)}
         responsaveis={funcionarios.map((f) => f.name)}
+        empresa={{
+          nome: settings.labelEmpresa ?? "",
+          cnpj: settings.labelCnpj ?? "",
+          endereco: settings.labelEndereco ?? "",
+          cep: settings.labelCep ?? "",
+          cidade: settings.labelCidade ?? "",
+        }}
         widthMm={settings.labelWidthMm}
         heightMm={settings.labelHeightMm}
       />

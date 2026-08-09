@@ -34,11 +34,13 @@ function addDaysISO(iso: string, days: number) {
 export function ProducaoForm({
   produtos,
   responsaveis,
+  empresa,
   widthMm,
   heightMm,
 }: {
   produtos: string[];
   responsaveis: string[];
+  empresa: { nome: string; cnpj: string; endereco: string; cep: string; cidade: string };
   widthMm: number;
   heightMm: number;
 }) {
@@ -248,9 +250,14 @@ export function ProducaoForm({
           <div className="flex items-center gap-2 border-t border-black pt-1">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="" style={{ height: `${logoMm}mm` }} />
-            <span className="font-semibold leading-tight" style={{ fontSize: `${lineFont}pt` }}>
-              FB Pizzaria &amp; Esfiharia
-            </span>
+            <div className="flex flex-col leading-tight" style={{ fontSize: `${lineFont * 0.85}pt` }}>
+              <span className="font-bold">{empresa.nome || "FB Pizzaria & Esfiharia"}</span>
+              {empresa.cnpj && <span>CNPJ: {empresa.cnpj}</span>}
+              {(empresa.cep || empresa.endereco) && (
+                <span>{[empresa.cep, empresa.endereco].filter(Boolean).join(" ")}</span>
+              )}
+              {empresa.cidade && <span>{empresa.cidade}</span>}
+            </div>
           </div>
         </div>
       </div>

@@ -90,9 +90,14 @@ export default async function ImprimirEtiquetasPage({
         <div className="flex items-center gap-2 border-t border-black pt-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="" style={{ height: `${logoMm}mm` }} />
-          <span className="font-semibold leading-tight" style={{ fontSize: `${lineFont}pt` }}>
-            FB Pizzaria &amp; Esfiharia
-          </span>
+          <div className="flex flex-col leading-tight" style={{ fontSize: `${lineFont * 0.85}pt` }}>
+            <span className="font-bold">{settings.labelEmpresa || "FB Pizzaria & Esfiharia"}</span>
+            {settings.labelCnpj && <span>CNPJ: {settings.labelCnpj}</span>}
+            {(settings.labelCep || settings.labelEndereco) && (
+              <span>{[settings.labelCep, settings.labelEndereco].filter(Boolean).join(" ")}</span>
+            )}
+            {settings.labelCidade && <span>{settings.labelCidade}</span>}
+          </div>
         </div>
       </div>
     ));

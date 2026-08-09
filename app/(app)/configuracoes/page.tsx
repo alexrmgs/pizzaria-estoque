@@ -9,6 +9,7 @@ import { CltDeductionsForm } from "./clt-deductions-form";
 import { AttendanceScoreForm } from "./attendance-score-form";
 import { PontoModeForm } from "./ponto-mode-form";
 import { LabelSizeForm } from "./label-size-form";
+import { LabelEmpresaForm } from "./label-empresa-form";
 
 type Bracket = { upTo: number | null; rate: number };
 type Tier = { minScore: number; bonus: number };
@@ -133,6 +134,26 @@ export default async function ConfiguracoesPage() {
                     Medida do rolo de etiqueta usado na impressão dos volumes dos pedidos.
                   </p>
                   <LabelSizeForm width={settings.labelWidthMm} height={settings.labelHeightMm} />
+                </CardContent>
+              </Card>
+            )}
+
+            {settings && (
+              <Card className="max-w-lg">
+                <CardHeader>
+                  <CardTitle className="text-lg">Dados da loja na etiqueta de produção</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-2">
+                  <p className="text-sm text-neutral-500">
+                    Aparecem no rodapé da etiqueta de produção (deixe em branco pra não mostrar).
+                  </p>
+                  <LabelEmpresaForm
+                    empresa={settings.labelEmpresa ?? ""}
+                    cnpj={settings.labelCnpj ?? ""}
+                    endereco={settings.labelEndereco ?? ""}
+                    cep={settings.labelCep ?? ""}
+                    cidade={settings.labelCidade ?? ""}
+                  />
                 </CardContent>
               </Card>
             )}

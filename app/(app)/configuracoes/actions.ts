@@ -57,6 +57,38 @@ export async function updateLabelSize(
   return {};
 }
 
+export async function updateLabelEmpresa(input: {
+  empresa: string;
+  cnpj: string;
+  endereco: string;
+  cep: string;
+  cidade: string;
+}): Promise<{ error?: string }> {
+  await requirePermission("canManageEstoque");
+  const clean = (v: string) => v.trim().slice(0, 120) || null;
+  await prisma.appSettings.upsert({
+    where: { id: "settings" },
+    update: {
+      labelEmpresa: clean(input.empresa),
+      labelCnpj: clean(input.cnpj),
+      labelEndereco: clean(input.endereco),
+      labelCep: clean(input.cep),
+      labelCidade: clean(input.cidade),
+    },
+    create: {
+      id: "settings",
+      labelEmpresa: clean(input.empresa),
+      labelCnpj: clean(input.cnpj),
+      labelEndereco: clean(input.endereco),
+      labelCep: clean(input.cep),
+      labelCidade: clean(input.cidade),
+    },
+  });
+  revalidatePath("/configuracoes");
+  revalidatePath("/etiquetas-producao");
+  return {};
+}
+
 export async function updatePontoMode(mode: "CELULAR" | "FACIAL"): Promise<{ error?: string }> {
   await requirePermission("canManageFuncionarios");
   if (mode !== "CELULAR" && mode !== "FACIAL") return { error: "Opção inválida." };
