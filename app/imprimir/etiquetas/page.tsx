@@ -56,36 +56,44 @@ export default async function ImprimirEtiquetasPage({
     if (!produto || copias < 1) {
       return <div className="p-8 text-sm text-neutral-600">Informe o produto.</div>;
     }
-    const titleFont = baseFont * 0.7;
-    const lineFont = titleFont * 0.5;
+    const titleFont = baseFont * 0.6;
+    const lineFont = titleFont * 0.52;
+    const logoMm = Math.max(6, alturaMm * 0.12);
     header = `${produto} — ${copias} ${copias === 1 ? "etiqueta" : "etiquetas"} · ${larguraMm}×${alturaMm}mm`;
     labels = Array.from({ length: copias }, (_, i) => (
       <div
         key={i}
         style={{ width: `${larguraMm}mm`, height: `${alturaMm}mm` }}
-        className="etiqueta flex flex-col justify-center gap-0.5 rounded-lg border px-3"
+        className="etiqueta flex flex-col justify-between rounded-lg border px-3 py-2 text-left"
       >
-        <p className="text-center font-black leading-tight" style={{ fontSize: `${titleFont}pt` }}>
-          {produto}
-        </p>
-        <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
-          <b>Fab:</b> {formatBR(producao)} &nbsp; <b>Val:</b> {formatBR(validade)}
-        </p>
-        {temperatura && (
-          <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
-            <b>Temp:</b> {temperatura}
+        <div className="flex flex-col gap-0.5">
+          <p className="font-black uppercase leading-tight" style={{ fontSize: `${titleFont}pt` }}>
+            {produto}
           </p>
-        )}
-        {peso && (
+          <div className="my-0.5 border-t border-black" />
+          <div className="flex justify-between font-bold" style={{ fontSize: `${lineFont}pt` }}>
+            <span>{temperatura || "—"}</span>
+            <span>{peso}</span>
+          </div>
           <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
-            <b>Peso:</b> {peso}
+            <b>FABRICAÇÃO:</b> {formatBR(producao)}
           </p>
-        )}
-        {responsavel && (
           <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
-            <b>Resp:</b> {responsavel}
+            <b>VALIDADE:</b> {formatBR(validade)}
           </p>
-        )}
+          {responsavel && (
+            <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
+              <b>RESP.:</b> {responsavel}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 border-t border-black pt-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="" style={{ height: `${logoMm}mm` }} />
+          <span className="font-semibold leading-tight" style={{ fontSize: `${lineFont}pt` }}>
+            FB Pizzaria &amp; Esfiharia
+          </span>
+        </div>
       </div>
     ));
   } else {

@@ -8,7 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { enfileirarProducao } from "./actions";
 
-const TEMP_SUGESTOES = ["Congelado (-18°C)", "Refrigerado (0 a 4°C)", "Ambiente"];
+const TEMP_SUGESTOES = [
+  "2°C a -18°C",
+  "Congelado (-18°C)",
+  "Refrigerado (0 a 4°C)",
+  "Resfriado",
+  "Ambiente",
+];
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -48,8 +54,9 @@ export function ProducaoForm({
 
   const dias = Math.max(0, Number(validadeDias) || 0);
   const validadeISO = /^\d{4}-\d{2}-\d{2}$/.test(producao) ? addDaysISO(producao, dias) : "";
-  const titleFont = Math.max(11, Math.min(widthMm, heightMm * 1.6) * 0.16);
-  const lineFont = titleFont * 0.5;
+  const titleFont = Math.max(11, Math.min(widthMm, heightMm * 1.6) * 0.14);
+  const lineFont = titleFont * 0.52;
+  const logoMm = Math.max(6, heightMm * 0.12);
 
   function imprimir() {
     startTransition(async () => {
@@ -215,29 +222,36 @@ export function ProducaoForm({
         </p>
         <div
           style={{ width: `${widthMm}mm`, height: `${heightMm}mm` }}
-          className="flex max-w-full flex-col justify-center gap-0.5 rounded-md border bg-white px-3"
+          className="flex max-w-full flex-col justify-between rounded-md border bg-white px-3 py-2 text-black"
         >
-          <p className="text-center font-black leading-tight" style={{ fontSize: `${titleFont}pt` }}>
-            {produto.trim() || "PRODUTO"}
-          </p>
-          <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
-            <b>Fab:</b> {formatBR(producao)} &nbsp; <b>Val:</b> {validadeISO ? formatBR(validadeISO) : "—"}
-          </p>
-          {temperatura.trim() && (
-            <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
-              <b>Temp:</b> {temperatura.trim()}
+          <div className="flex flex-col gap-0.5">
+            <p className="font-black uppercase leading-tight" style={{ fontSize: `${titleFont}pt` }}>
+              {produto.trim() || "PRODUTO"}
             </p>
-          )}
-          {peso.trim() && (
+            <div className="my-0.5 border-t border-black" />
+            <div className="flex justify-between font-bold" style={{ fontSize: `${lineFont}pt` }}>
+              <span>{temperatura.trim() || "—"}</span>
+              <span>{peso.trim()}</span>
+            </div>
             <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
-              <b>Peso:</b> {peso.trim()}
+              <b>FABRICAÇÃO:</b> {formatBR(producao)}
             </p>
-          )}
-          {responsavel.trim() && (
             <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
-              <b>Resp:</b> {responsavel.trim()}
+              <b>VALIDADE:</b> {validadeISO ? formatBR(validadeISO) : "—"}
             </p>
-          )}
+            {responsavel.trim() && (
+              <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
+                <b>RESP.:</b> {responsavel.trim()}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 border-t border-black pt-1">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="" style={{ height: `${logoMm}mm` }} />
+            <span className="font-semibold leading-tight" style={{ fontSize: `${lineFont}pt` }}>
+              FB Pizzaria &amp; Esfiharia
+            </span>
+          </div>
         </div>
       </div>
 
