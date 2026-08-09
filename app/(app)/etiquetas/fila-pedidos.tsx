@@ -3,10 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Minus, Plus, Pencil } from "lucide-react";
+import { Minus, Plus, Pencil, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { imprimirPedidoAuto, ajustarProximoNumero } from "./actions";
+import { imprimirPedidoAuto, ajustarProximoNumero, reimprimirVolume } from "./actions";
 
 export function FilaPedidos({ proximoNumero }: { proximoNumero: number }) {
   const router = useRouter();
@@ -17,17 +17,18 @@ export function FilaPedidos({ proximoNumero }: { proximoNumero: number }) {
   const [editando, setEditando] = useState(false);
   const [novoInicio, setNovoInicio] = useState(String(proximoNumero));
 
-  // Mostra os próximos 5 números aguardando etiqueta.
-  const fila = Array.from({ length: 5 }, (_, i) => proximoNumero + i);
+  // Reimpressão de uma etiqueta específica.
+  const [rePedido, setRePedido] = useState("");
+  const [reVolume, setReVolume] = useState("1");
+  const [reTotal, setReTotal] = useState("3");
+
+  // Mostra os próximos 20 números aguardando etiqueta.
+  const fila = Array.from({ length: 20 }, (_, i) => proximoNumero + i);
 
   function abrir(numero: number) {
     setAberto(numero);
     setVolumes(1);
     setCliente("");
-  }
-
-  function fechar() {
-    setAberto(null);
   }
 
   function imprimir() {
@@ -45,9 +46,8 @@ export function FilaPedidos({ proximoNumero }: { proximoNumero: number }) {
   }
 
   function salvarInicio() {
-    const n = Number(novoInicio);
     startTransition(async () => {
-      const result = await ajustarProximoNumero(n);
+      const result = await ajustarProximoNumero(Number(novoInicio));
       if (result.error) {
         toast.error(result.error);
         return;
@@ -58,70 +58,157 @@ export function FilaPedidos({ proximoNumero }: { proximoNumero: number }) {
     });
   }
 
+  function resetar() {
+    if (!confirm("Voltar a numeração para o pedido 1?")) return;
+    startTransition(async () => {
+      const result = await ajustarProximoNumero(1);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Numeração reiniciada do 1 ✅");
+      router.refresh();
+    });
+  }
+
+  function reimprimir() {
+    startTransition(async () => {
+      const result = await reimprimirVolume({
+        pedido: rePedido,
+        volume: Number(reVolume),
+        volumes: Number(reTotal),
+      });
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`Reimpressão do pedido ${rePedido.trim()} (${reVolume}/${reTotal}) enviada ✅`);
+      setRePedido("");
+      router.refresh();
+    });
+  }
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-semibold uppercase text-neutral-500">
           Próximos pedidos na fila
         </p>
-        {editando ? (
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              min="1"
-              value={novoInicio}
-              onChange={(e) => setNovoInicio(e.target.value)}
-              className="h-8 w-24"
-            />
-            <Button size="sm" className="h-8" onClick={salvarInicio} disabled={isPending}>
-              Salvar
-            </Button>
-            <button
-              type="button"
-              onClick={() => setEditando(false)}
-              className="text-xs text-neutral-400 underline"
-            >
-              cancelar
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => {
-              setNovoInicio(String(proximoNumero));
-              setEditando(true);
-            }}
-            className="flex items-center gap-1 text-xs text-neutral-400 underline hover:text-neutral-600"
-          >
-            <Pencil className="size-3" /> ajustar número
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {editando ? (
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min="1"
+                value={novoInicio}
+                onChange={(e) => setNovoInicio(e.target.value)}
+                className="h-8 w-24"
+              />
+              <Button size="sm" className="h-8" onClick={salvarInicio} disabled={isPending}>
+                Salvar
+              </Button>
+              <button
+                type="button"
+                onClick={() => setEditando(false)}
+                className="text-xs text-neutral-400 underline"
+              >
+                cancelar
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setNovoInicio(String(proximoNumero));
+                  setEditando(true);
+                }}
+                className="flex items-center gap-1 text-xs text-neutral-400 underline hover:text-neutral-600"
+              >
+                <Pencil className="size-3" /> ajustar número
+              </button>
+              <button
+                type="button"
+                onClick={resetar}
+                disabled={isPending}
+                className="flex items-center gap-1 text-xs text-neutral-400 underline hover:text-red-600"
+              >
+                <RotateCcw className="size-3" /> resetar pro 1
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-10">
         {fila.map((numero, i) => (
           <button
             key={numero}
             type="button"
             onClick={() => abrir(numero)}
             className={
-              "flex aspect-square flex-col items-center justify-center rounded-xl border-2 bg-white transition-colors hover:border-primary hover:bg-primary/5 " +
+              "flex aspect-square flex-col items-center justify-center rounded-lg border-2 bg-white transition-colors hover:border-primary hover:bg-primary/5 " +
               (i === 0 ? "border-primary/60 ring-2 ring-primary/20" : "border-neutral-200")
             }
           >
-            <span className="text-[11px] font-semibold uppercase text-neutral-400">Pedido</span>
-            <span className="text-4xl font-black leading-none">{numero}</span>
-            <span className="mt-1 text-[11px] text-neutral-400">
-              {i === 0 ? "próximo" : "aguardando"}
-            </span>
+            <span className="text-[9px] font-semibold uppercase text-neutral-400">Pedido</span>
+            <span className="text-2xl font-black leading-none">{numero}</span>
           </button>
         ))}
+      </div>
+
+      {/* Reimpressão de uma etiqueta específica */}
+      <div className="mt-2 max-w-lg rounded-lg border bg-white p-4">
+        <p className="text-xs font-semibold uppercase text-neutral-500">Reimprimir uma etiqueta</p>
+        <p className="mt-1 text-xs text-neutral-400">
+          Perdeu ou rasgou uma etiqueta? Reimprime só ela (ex: pedido 5, volume 2 de 3).
+        </p>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs">Pedido</label>
+            <Input
+              inputMode="numeric"
+              value={rePedido}
+              onChange={(e) => setRePedido(e.target.value)}
+              placeholder="Ex: 5"
+              className="h-10 w-24"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs">Volume</label>
+            <Input
+              type="number"
+              min="1"
+              value={reVolume}
+              onChange={(e) => setReVolume(e.target.value)}
+              className="h-10 w-20"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs">De</label>
+            <Input
+              type="number"
+              min="1"
+              value={reTotal}
+              onChange={(e) => setReTotal(e.target.value)}
+              className="h-10 w-20"
+            />
+          </div>
+          <Button
+            variant="outline"
+            onClick={reimprimir}
+            disabled={isPending}
+            className="h-10"
+          >
+            Reimprimir
+          </Button>
+        </div>
       </div>
 
       {aberto != null && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={fechar}
+          onClick={() => setAberto(null)}
         >
           <div
             className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
@@ -165,7 +252,7 @@ export function FilaPedidos({ proximoNumero }: { proximoNumero: number }) {
             </Button>
             <button
               type="button"
-              onClick={fechar}
+              onClick={() => setAberto(null)}
               className="mt-3 w-full text-center text-sm text-neutral-400 hover:text-neutral-600"
             >
               Fechar

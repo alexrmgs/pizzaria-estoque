@@ -23,6 +23,7 @@ export async function GET(request: Request) {
       pedido: true,
       cliente: true,
       volumes: true,
+      volumeUnico: true,
       produto: true,
       producaoData: true,
       validadeData: true,

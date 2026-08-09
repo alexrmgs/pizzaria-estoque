@@ -70,6 +70,41 @@ export async function imprimirPedidoAuto(input: {
   return { proximo };
 }
 
+export async function reimprimirVolume(input: {
+  pedido: string;
+  volume: number;
+  volumes: number;
+  cliente?: string;
+}): Promise<{ error?: string }> {
+  await requireEtiquetasAccess();
+
+  const pedidoLimpo = input.pedido.trim();
+  if (!pedidoLimpo) return { error: "Informe o número do pedido." };
+  const total = Math.round(input.volumes);
+  const vol = Math.round(input.volume);
+  if (!Number.isFinite(total) || total < 1 || total > 50) {
+    return { error: "Total de volumes deve ser de 1 a 50." };
+  }
+  if (!Number.isFinite(vol) || vol < 1 || vol > total) {
+    return { error: `O volume deve ser de 1 a ${total}.` };
+  }
+
+  const settings = await getAppSettings();
+  await prisma.printJob.create({
+    data: {
+      pedido: pedidoLimpo,
+      cliente: input.cliente?.trim() || null,
+      volumes: total,
+      volumeUnico: vol,
+      labelWidthMm: settings.labelWidthMm,
+      labelHeightMm: settings.labelHeightMm,
+    },
+  });
+
+  revalidatePath("/etiquetas");
+  return {};
+}
+
 export async function ajustarProximoNumero(numero: number): Promise<{ error?: string }> {
   await requireEtiquetasAccess();
   const n = Math.round(numero);
@@ -141,6 +176,7 @@ export async function reimprimirEtiqueta(id: string): Promise<{ error?: string }
       pedido: job.pedido,
       cliente: job.cliente,
       volumes: job.volumes,
+      volumeUnico: job.volumeUnico,
       produto: job.produto,
       producaoData: job.producaoData,
       validadeData: job.validadeData,

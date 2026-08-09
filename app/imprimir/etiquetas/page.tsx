@@ -113,8 +113,17 @@ export default async function ImprimirEtiquetasPage({
         </div>
       );
     }
-    header = `Pedido ${pedido} — ${volumes} ${volumes === 1 ? "volume" : "volumes"} · ${larguraMm}×${alturaMm}mm`;
-    labels = Array.from({ length: volumes }, (_, i) => i + 1).map((n) => (
+    // Reimpressão de um volume específico (ex: só o 2/3).
+    const volumeUnicoRaw = parseInt(str(params.volume), 10);
+    const volumeUnico =
+      Number.isFinite(volumeUnicoRaw) && volumeUnicoRaw >= 1 && volumeUnicoRaw <= volumes
+        ? volumeUnicoRaw
+        : 0;
+    const nums = volumeUnico ? [volumeUnico] : Array.from({ length: volumes }, (_, i) => i + 1);
+    header = volumeUnico
+      ? `Pedido ${pedido} — volume ${volumeUnico}/${volumes} · ${larguraMm}×${alturaMm}mm`
+      : `Pedido ${pedido} — ${volumes} ${volumes === 1 ? "volume" : "volumes"} · ${larguraMm}×${alturaMm}mm`;
+    labels = nums.map((n) => (
       <div
         key={n}
         style={{ width: `${larguraMm}mm`, height: `${alturaMm}mm` }}
