@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
+import { getAppSettings } from "@/lib/settings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -14,23 +16,65 @@ import {
 import { EmployeeDialog } from "./employee-dialog";
 import { DismissEmployeeButton } from "./dismiss-employee-button";
 import { DeleteEmployeeButton } from "./delete-employee-button";
+import { attendanceScore, lateMinutes } from "@/lib/payroll";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+const MEDALS = ["🥇", "🥈", "🥉"];
+const FALTA_PENALTY = 15;
+
 export default async function FuncionariosPage() {
   await requirePermission("canManageFuncionarios");
 
-  const [employees, users, stores] = await Promise.all([
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59));
+
+  const [employees, users, stores, settings, rankingEmployees] = await Promise.all([
     prisma.employee.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] }),
     prisma.user.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true, email: true, employee: { select: { id: true } } },
     }),
     prisma.store.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    getAppSettings(),
+    prisma.employee.findMany({
+      where: { active: true },
+      select: {
+        id: true,
+        name: true,
+        scheduledStart: true,
+        timeEntries: {
+          where: { date: { gte: monthStart, lte: monthEnd } },
+          select: { clockIn: true },
+        },
+        dayOffs: {
+          where: { date: { gte: monthStart, lte: monthEnd }, type: "FALTA" },
+          select: { id: true },
+        },
+      },
+    }),
   ]);
 
   const unlinkedUsers = users.filter((u) => !u.employee);
+
+  // Ranking do mês: pontualidade (menos atrasos) e assiduidade (menos faltas).
+  const ranking = rankingEmployees
+    .map((emp) => {
+      const dias = emp.timeEntries.length;
+      const atrasos = emp.timeEntries.filter(
+        (e) => lateMinutes(emp.scheduledStart, e.clockIn) > 0,
+      ).length;
+      const faltas = emp.dayOffs.length;
+      const pontualidade = attendanceScore(atrasos, settings.latePenaltyPoints);
+      const score = Math.max(0, Math.round(pontualidade - faltas * FALTA_PENALTY));
+      return { id: emp.id, name: emp.name, dias, atrasos, faltas, score };
+    })
+    .filter((r) => r.dias > 0 || r.faltas > 0)
+    .sort((a, b) => b.score - a.score || b.dias - a.dias || a.atrasos - b.atrasos);
+
+  const mesLabel = now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,6 +87,51 @@ export default async function FuncionariosPage() {
         </div>
         <EmployeeDialog availableUsers={unlinkedUsers} stores={stores} />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg capitalize">🏆 Ranking do mês — {mesLabel}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-3 text-xs text-neutral-500">
+            Baseado na pontualidade (menos atrasos) e assiduidade (menos faltas) no mês.
+          </p>
+          {ranking.length === 0 ? (
+            <p className="text-sm text-neutral-500">Ainda não há dados de ponto neste mês.</p>
+          ) : (
+            <div className="rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">#</TableHead>
+                    <TableHead>Funcionário</TableHead>
+                    <TableHead>Pontuação</TableHead>
+                    <TableHead>Dias</TableHead>
+                    <TableHead>Atrasos</TableHead>
+                    <TableHead>Faltas</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ranking.map((r, i) => (
+                    <TableRow key={r.id} className={i === 0 ? "bg-amber-50" : undefined}>
+                      <TableCell className="font-semibold">{MEDALS[i] ?? `${i + 1}º`}</TableCell>
+                      <TableCell className="font-medium">
+                        <Link href={`/funcionarios/${r.id}`} className="hover:underline">
+                          {r.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="font-semibold text-primary">{r.score}</TableCell>
+                      <TableCell className="text-neutral-500">{r.dias}</TableCell>
+                      <TableCell className="text-neutral-500">{r.atrasos}</TableCell>
+                      <TableCell className="text-neutral-500">{r.faltas}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="rounded-lg border bg-white">
         <Table>
