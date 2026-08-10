@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Download } from "lucide-react";
@@ -44,25 +44,29 @@ export function SaiposSync({ stores }: { stores: { id: string; name: string }[] 
   const [storeId, setStoreId] = useState(stores[0]?.id ?? "");
   const [start, setStart] = useState(isoDaysAgo(7));
   const [end, setEnd] = useState(isoDaysAgo(0));
-  const [isPending, startTransition] = useTransition();
+  // Estado simples (sem useTransition) pra não congelar a página e mostrar o
+  // progresso a cada pedaço em tempo real.
+  const [loading, setLoading] = useState(false);
   const [progresso, setProgresso] = useState("");
 
-  function puxar() {
+  async function puxar() {
     if (end < start) {
       toast.error("A data final não pode ser antes da inicial.");
       return;
     }
     const ranges = chunkRanges(start, end, CHUNK_DAYS);
-    startTransition(async () => {
-      let dias = 0;
-      let pedidos = 0;
-      let total = 0;
+    setLoading(true);
+    let dias = 0;
+    let pedidos = 0;
+    let total = 0;
+    try {
       for (let i = 0; i < ranges.length; i++) {
         const [rStart, rEnd] = ranges[i];
-        setProgresso(`Puxando ${i + 1} de ${ranges.length}…`);
+        setProgresso(
+          `Puxando ${i + 1} de ${ranges.length}… (${total > 0 ? currency(total) : "R$ 0,00"} até agora)`,
+        );
         const result = await sincronizarSaipos({ storeId, start: rStart, end: rEnd });
         if (result.error) {
-          setProgresso("");
           toast.error(`Erro no pedaço ${rStart} a ${rEnd}: ${result.error}`);
           router.refresh();
           return;
@@ -71,7 +75,6 @@ export function SaiposSync({ stores }: { stores: { id: string; name: string }[] 
         pedidos += result.pedidos ?? 0;
         total += result.total ?? 0;
       }
-      setProgresso("");
       if (dias === 0) {
         toast.info("Nenhuma venda encontrada nesse período.");
         return;
@@ -80,7 +83,10 @@ export function SaiposSync({ stores }: { stores: { id: string; name: string }[] 
         `Faturamento importado: ${dias} dia(s), ${pedidos} pedido(s), ${currency(total)} ✅`,
       );
       router.refresh();
-    });
+    } finally {
+      setLoading(false);
+      setProgresso("");
+    }
   }
 
   return (
@@ -133,12 +139,14 @@ export function SaiposSync({ stores }: { stores: { id: string; name: string }[] 
               className="h-10 w-40"
             />
           </div>
-          <Button onClick={puxar} disabled={isPending || !storeId} className="h-10">
+          <Button onClick={puxar} disabled={loading || !storeId} className="h-10">
             <Download className="mr-1 size-4" />
-            {isPending ? "Puxando…" : "Puxar"}
+            {loading ? "Puxando…" : "Puxar"}
           </Button>
         </div>
-        {progresso && <p className="mt-2 text-xs text-neutral-500">{progresso}</p>}
+        {progresso && (
+          <p className="mt-2 text-xs font-medium text-primary">{progresso}</p>
+        )}
         <p className="mt-2 text-xs text-neutral-400">
           Períodos longos são puxados em pedaços de {CHUNK_DAYS} dias (a API da SaiPos é lenta). Pode
           demorar um pouco — não feche a página.
