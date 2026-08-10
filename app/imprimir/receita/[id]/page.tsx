@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { PrintButton } from "@/components/print-button";
-import { RECIPE_TYPE_LABELS, formatRecipeQuantity } from "@/lib/recipe-cost";
+import { RECIPE_TYPE_LABELS } from "@/lib/recipe-cost";
 
 export default async function ImprimirReceitaPage({
   params,
@@ -20,13 +20,40 @@ export default async function ImprimirReceitaPage({
 
   if (!recipe) notFound();
 
-  const yieldKg = recipe.yieldKg !== null ? Number(recipe.yieldKg) : null;
-  // Só faz sentido escalar "por 1kg" pra fichas de produção (massa, molho,
-  // recheio...) que rendem em quilos — pizza/beirute/esfiha rendem em
-  // unidades, não em peso.
-  const showPerKg = recipe.type === "PRODUCAO" && yieldKg !== null && yieldKg > 0;
-  // Escala a receita para cada 1 kg de rendimento: divide tudo pelo rendimento
-  // exato. Ex: rende 17,5 kg com 175 g de sal -> por 1 kg = 10 g de sal.
+  // Converte a quantidade de um ingrediente pra kg, pra achar o principal (o de
+  // maior peso, ex: o frango) e escalar a receita "por 1 kg" dele.
+  const toKg = (q: number, unit: string) => {
+    const u = unit.toUpperCase();
+    if (u === "KG" || u === "L") return q;
+    if (u === "G" || u === "ML") return q / 1000;
+    return 0;
+  };
+
+  // Mostra o total (ex: 17,5 kg de frango) em kg quando >= 1, senão em gramas
+  // (ex: 175 g de sal). Assim a ficha "por 1 kg" fica: 1 kg de frango, 10 g de sal.
+  const fmt = (q: number, unit: string) => {
+    const u = unit.toUpperCase();
+    if (u === "KG" || u === "L") {
+      if (q >= 1) {
+        return `${q.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} ${u === "KG" ? "kg" : "L"}`;
+      }
+      const small = Math.round(q * 1000 * 10) / 10;
+      return `${small.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${u === "KG" ? "g" : "ml"}`;
+    }
+    if (u === "G") return `${q.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} g`;
+    if (u === "ML") return `${q.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ml`;
+    return `${q.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} ${unit}`;
+  };
+
+  // Ingrediente principal = o de maior peso. A ficha "por 1 kg" divide tudo por
+  // ele, deixando o principal em 1 kg. Só pra fichas de produção.
+  const pesos = recipe.ingredients.map((item) =>
+    toKg(Number(item.quantity), item.ingredient.recipeUnit ?? item.ingredient.unit),
+  );
+  const baseKg = Math.max(0, ...pesos);
+  const baseIdx = pesos.indexOf(baseKg);
+  const baseName = baseIdx >= 0 ? recipe.ingredients[baseIdx].ingredient.name : "";
+  const showPerKg = recipe.type === "PRODUCAO" && baseKg > 0;
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6 p-8 print:p-0">
@@ -62,8 +89,7 @@ export default async function ImprimirReceitaPage({
         <h2 className="mb-2 text-lg font-semibold">Ingredientes</h2>
         {showPerKg && (
           <p className="-mt-1 mb-2 text-xs text-neutral-500">
-            Rendimento cadastrado: {yieldKg!.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} kg —
-            a coluna &quot;Por 1 kg&quot; mostra a receita para cada 1 kg de rendimento.
+            A coluna &quot;Por 1 kg&quot; mostra a receita para cada 1 kg de {baseName}.
           </p>
         )}
         {showPerKg && (
@@ -84,13 +110,13 @@ export default async function ImprimirReceitaPage({
                 <span>{item.ingredient.name}</span>
                 {showPerKg ? (
                   <span className="flex gap-4">
-                    <span className="w-20 text-right">{formatRecipeQuantity(quantity, unit)}</span>
+                    <span className="w-20 text-right">{fmt(quantity, unit)}</span>
                     <span className="w-20 text-right text-neutral-500">
-                      {formatRecipeQuantity(quantity / yieldKg!, unit)}
+                      {fmt(quantity / baseKg, unit)}
                     </span>
                   </span>
                 ) : (
-                  <span>{formatRecipeQuantity(quantity, unit)}</span>
+                  <span>{fmt(quantity, unit)}</span>
                 )}
               </li>
             );
