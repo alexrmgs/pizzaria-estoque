@@ -25,11 +25,8 @@ export default async function ImprimirReceitaPage({
   // recheio...) que rendem em quilos — pizza/beirute/esfiha rendem em
   // unidades, não em peso.
   const showPerKg = recipe.type === "PRODUCAO" && yieldKg !== null && yieldKg > 0;
-  // O rendimento cadastrado costuma vir de uma pesagem real (ex: 1,1756 kg),
-  // não de uma escala redonda escolhida de propósito — pra escalar a receita
-  // arredonda pro quilo fechado mais próximo (mínimo 1kg) em vez de usar essa
-  // fração exata, senão a proporção "por 1kg" fica com números quebrados.
-  const scaleKg = showPerKg ? Math.max(1, Math.round(yieldKg!)) : null;
+  // Escala a receita para cada 1 kg de rendimento: divide tudo pelo rendimento
+  // exato. Ex: rende 17,5 kg com 175 g de sal -> por 1 kg = 10 g de sal.
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6 p-8 print:p-0">
@@ -66,8 +63,7 @@ export default async function ImprimirReceitaPage({
         {showPerKg && (
           <p className="-mt-1 mb-2 text-xs text-neutral-500">
             Rendimento cadastrado: {yieldKg!.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} kg —
-            a coluna &quot;por {scaleKg}kg&quot; arredonda pro quilo fechado mais próximo, pra facilitar
-            escalar a produção.
+            a coluna &quot;Por 1 kg&quot; mostra a receita para cada 1 kg de rendimento.
           </p>
         )}
         {showPerKg && (
@@ -75,7 +71,7 @@ export default async function ImprimirReceitaPage({
             <span>Ingrediente</span>
             <span className="flex gap-4">
               <span className="w-20 text-right">Total</span>
-              <span className="w-20 text-right">Por {scaleKg}kg</span>
+              <span className="w-20 text-right">Por 1 kg</span>
             </span>
           </div>
         )}
@@ -85,17 +81,12 @@ export default async function ImprimirReceitaPage({
             const unit = item.ingredient.recipeUnit ?? item.ingredient.unit;
             return (
               <li key={item.id} className="flex justify-between border-b border-dashed py-1 text-sm">
-                <span>
-                  {item.ingredient.name}
-                  {Number(item.wastePercent) > 0 && (
-                    <span className="text-neutral-500"> ({Number(item.wastePercent)}% perda)</span>
-                  )}
-                </span>
+                <span>{item.ingredient.name}</span>
                 {showPerKg ? (
                   <span className="flex gap-4">
                     <span className="w-20 text-right">{formatRecipeQuantity(quantity, unit)}</span>
                     <span className="w-20 text-right text-neutral-500">
-                      {formatRecipeQuantity(quantity / scaleKg!, unit)}
+                      {formatRecipeQuantity(quantity / yieldKg!, unit)}
                     </span>
                   </span>
                 ) : (
