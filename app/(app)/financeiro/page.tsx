@@ -18,6 +18,7 @@ import { DeleteRevenueButton } from "./delete-revenue-button";
 import { FinanceiroCharts } from "./financeiro-charts";
 import { HistoricoCharts } from "./historico-charts";
 import { StoreDashboard } from "./store-dashboard";
+import { SaiposSync } from "./saipos-sync";
 import { ChannelBadge } from "@/components/channel-badge";
 import { AiAnalysisPanel } from "@/components/ai-analysis-panel";
 import { analisarFinanceiro } from "./ai-actions";
@@ -288,6 +289,16 @@ export default async function FinanceiroPage({
     list.push({ date: r.date.toISOString().slice(0, 10), amount: Number(r.amount) });
     allDailyAmountsByStore.set(r.storeId, list);
   }
+
+  // O token da SaiPos é só da FB Eusébio — a importação fica travada nessa loja.
+  const saiposStore =
+    stores.find((s) =>
+      s.name
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .toLowerCase()
+        .includes("eusebio"),
+    ) ?? null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -1106,6 +1117,7 @@ export default async function FinanceiroPage({
         ))}
 
         <TabsContent value="lancamentos" className="flex flex-col gap-6 pt-4">
+          {saiposStore && <SaiposSync stores={[saiposStore]} />}
           <form className="flex flex-wrap items-end gap-3 rounded-lg border bg-white p-4">
             <input type="hidden" name="tab" value="lancamentos" />
             <div className="flex flex-col gap-1">
