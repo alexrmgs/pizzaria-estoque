@@ -189,6 +189,31 @@ export function faltaAmount(baseSalary: number, faltaDays: number): number {
   return (baseSalary / 30) * faltaDays;
 }
 
+/**
+ * Dias não trabalhados no início do mês de admissão (os dias antes de começar),
+ * em avos de 30 — ex: admitido dia 6 -> 5 dias não trabalhados. Retorna 0
+ * quando a admissão não foi no mês que está sendo pago (periodEnd).
+ */
+export function admissionUnworkedDays(hireDate: Date | null, periodEnd: Date): number {
+  if (!hireDate) return 0;
+  if (
+    hireDate.getUTCFullYear() !== periodEnd.getUTCFullYear() ||
+    hireDate.getUTCMonth() !== periodEnd.getUTCMonth()
+  ) {
+    return 0;
+  }
+  return Math.min(30, Math.max(0, hireDate.getUTCDate() - 1));
+}
+
+/**
+ * Fração do salário do mês a pagar quando o funcionário foi admitido no meio do
+ * mês: 1 quando trabalhou o mês todo, menos quando entrou depois do dia 1.
+ * Conta 1/30 por dia não trabalhado antes da admissão (igual à falta).
+ */
+export function admissionProrationFactor(hireDate: Date | null, periodEnd: Date): number {
+  return (30 - admissionUnworkedDays(hireDate, periodEnd)) / 30;
+}
+
 function pad2(n: number) {
   return String(n).padStart(2, "0");
 }

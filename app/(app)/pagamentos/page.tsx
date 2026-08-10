@@ -304,7 +304,18 @@ export default async function PagamentosPage() {
                           {employee.name}
                         </Link>
                       </TableCell>
-                      <TableCell>{currency(baseSalary)}</TableCell>
+                      <TableCell>
+                        {preview && preview.admissionUnworkedDays > 0 ? (
+                          <div className="flex flex-col">
+                            <span>{currency(preview.proratedBaseSalary)}</span>
+                            <span className="text-[11px] text-amber-600">
+                              proporcional (admitido no mês)
+                            </span>
+                          </div>
+                        ) : (
+                          currency(baseSalary)
+                        )}
+                      </TableCell>
                       <TableCell className="text-neutral-500">
                         {preview ? formatShiftDuration(regularHours) : "—"}
                       </TableCell>

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getAppSettings } from "@/lib/settings";
 import {
+  admissionProrationFactor,
+  admissionUnworkedDays,
   attendanceBonusAmount,
   attendanceScore,
   attendanceStreakMultiplier,
@@ -20,6 +22,8 @@ import {
 
 export type PaymentPreview = {
   baseSalary: number;
+  proratedBaseSalary: number;
+  admissionUnworkedDays: number;
   totalHours: number;
   totalNightHours: number;
   nightPremium: number;
@@ -92,6 +96,10 @@ export async function computePaymentPreview(
   const priorStreakMonths = previousPayment?.attendanceStreakMonths ?? 0;
 
   const baseSalary = Number(employee.baseSalary);
+  // Salário proporcional se o funcionário foi admitido no meio do mês que está
+  // sendo pago (senão receberia o mês cheio sem ter trabalhado o mês todo).
+  const admissionUnworkedDaysVal = admissionUnworkedDays(employee.hireDate, periodEnd);
+  const proratedBaseSalary = baseSalary * admissionProrationFactor(employee.hireDate, periodEnd);
   let totalHours = 0;
   let totalNightHours = 0;
   let lateMinutesTotal = 0;
@@ -181,7 +189,7 @@ export async function computePaymentPreview(
   const discountTotal = discountItems.reduce((sum, i) => sum + i.amount, 0);
   const advancesTotal = advanceItems.reduce((sum, i) => sum + i.amount, 0);
   const netAmount =
-    baseSalary +
+    proratedBaseSalary +
     nightPremium +
     overtimePay +
     bonusTotal -
@@ -191,6 +199,8 @@ export async function computePaymentPreview(
 
   return {
     baseSalary,
+    proratedBaseSalary,
+    admissionUnworkedDays: admissionUnworkedDaysVal,
     totalHours,
     totalNightHours,
     nightPremium,

@@ -90,7 +90,8 @@ export function ClosePaymentDialog({
       } else {
         setError(undefined);
         setPreview(result);
-        setSalaryOverride(result.baseSalary.toFixed(2));
+        // Já vem proporcional se admitido no meio do mês (senão é o cheio).
+        setSalaryOverride(result.proratedBaseSalary.toFixed(2));
         setApplyAttendanceBonus(result.attendanceBonusAmount > 0);
         setApplyFalta(result.faltaDaysAuto > 0);
         setFaltaDays(String(result.faltaDaysAuto));
@@ -239,6 +240,12 @@ export function ClosePaymentDialog({
                 <p className="text-xs text-muted-foreground">
                   Ajuste aqui se o período for parcial (ex: só a quinzena).
                 </p>
+                {preview && preview.admissionUnworkedDays > 0 && (
+                  <p className="text-xs text-amber-600">
+                    Já proporcional: admitido no meio do mês, {30 - preview.admissionUnworkedDays} de
+                    30 dias (salário cheio {currency(preview.baseSalary)}).
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col gap-1 rounded-lg border p-3 text-sm">

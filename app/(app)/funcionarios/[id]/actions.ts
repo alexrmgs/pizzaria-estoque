@@ -328,6 +328,8 @@ export async function closePayment(
     return { error: preview.error };
   }
 
+  // O campo "salário base do período" já vem proporcional quando o funcionário
+  // foi admitido no meio do mês (prefill no diálogo), então usa como veio.
   const baseSalary = parsed.data.baseSalary;
 
   const grossForTax = baseSalary + preview.nightPremium + preview.overtimeAmount;
