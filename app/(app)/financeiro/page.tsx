@@ -29,6 +29,10 @@ import {
   REVENUE_CHANNELS,
 } from "@/lib/financeiro";
 
+// A API da SaiPos é lenta (~28s por página de 1000 vendas). Dá mais fôlego pro
+// server action de importação não estourar o tempo limite.
+export const maxDuration = 60;
+
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
