@@ -37,7 +37,9 @@ function chunkRanges(startISO: string, endISO: string, days: number): [string, s
   return ranges;
 }
 
-const CHUNK_DAYS = 7;
+// Pedaços pequenos porque a API da SaiPos é lenta e algumas lojas têm muito
+// volume (cada chamada curta evita timeout e é reprocessada se falhar).
+const CHUNK_DAYS = 3;
 
 export function SaiposSync({ stores }: { stores: { id: string; name: string }[] }) {
   const router = useRouter();

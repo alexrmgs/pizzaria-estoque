@@ -19,6 +19,8 @@ function toParam(d: Date, endOfDay = false): string {
   return `${iso}T${endOfDay ? "23:59:59" : "00:00:00"}`;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function fetchPage(
   token: string,
   startISO: string,
@@ -32,16 +34,33 @@ async function fetchPage(
   url.searchParams.set("p_limit", String(PAGE_LIMIT));
   url.searchParams.set("p_offset", String(offset));
 
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`SaiPos respondeu ${res.status}. ${body.slice(0, 200)}`);
+  // A API da SaiPos às vezes dá 504/timeout de pool sob carga — tenta de novo
+  // algumas vezes antes de desistir.
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt > 0) await sleep(1500 * attempt);
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (res.status >= 500 || res.status === 429) {
+        lastErr = new Error(`SaiPos instável (${res.status}). Tentando de novo…`);
+        continue;
+      }
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(`SaiPos respondeu ${res.status}. ${body.slice(0, 200)}`);
+      }
+      const data = (await res.json()) as SaiposSale[];
+      return Array.isArray(data) ? data : [];
+    } catch (e) {
+      lastErr = e;
+    }
   }
-  const data = (await res.json()) as SaiposSale[];
-  return Array.isArray(data) ? data : [];
+  throw lastErr instanceof Error
+    ? lastErr
+    : new Error("A SaiPos não respondeu (tente esse período de novo).");
 }
 
 async function fetchWindow(token: string, start: Date, end: Date): Promise<SaiposSale[]> {
