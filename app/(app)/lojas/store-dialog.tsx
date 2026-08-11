@@ -22,6 +22,7 @@ type Store = {
   latitude: string;
   longitude: string;
   radiusMeters: number;
+  saiposToken: string | null;
 };
 
 export function StoreDialog({ store }: { store?: Store }) {
@@ -143,6 +144,19 @@ export function StoreDialog({ store }: { store?: Store }) {
             />
             <p className="text-xs text-muted-foreground">
               Distância máxima da loja pra permitir bater o ponto.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="saiposToken">Token da API de Dados SaiPos (opcional)</Label>
+            <Input
+              id="saiposToken"
+              name="saiposToken"
+              defaultValue={store?.saiposToken ?? ""}
+              placeholder="Cole aqui o token dessa loja (sem o 'Bearer ')"
+            />
+            <p className="text-xs text-muted-foreground">
+              Com o token, dá pra puxar o faturamento dessa loja automático no Financeiro.
             </p>
           </div>
 

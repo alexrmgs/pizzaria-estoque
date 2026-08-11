@@ -52,7 +52,14 @@ export default async function LojasPage() {
             )}
             {stores.map((store) => (
               <TableRow key={store.id}>
-                <TableCell className="font-medium">{store.name}</TableCell>
+                <TableCell className="font-medium">
+                  {store.name}
+                  {store.saiposToken && (
+                    <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                      SaiPos
+                    </span>
+                  )}
+                </TableCell>
                 <TableCell className="text-neutral-500">{store.address ?? "—"}</TableCell>
                 <TableCell>{store.radiusMeters} m</TableCell>
                 <TableCell className="text-neutral-500">{store._count.employees}</TableCell>
@@ -66,6 +73,7 @@ export default async function LojasPage() {
                         latitude: store.latitude.toString(),
                         longitude: store.longitude.toString(),
                         radiusMeters: store.radiusMeters,
+                        saiposToken: store.saiposToken,
                       }}
                     />
                     <DeleteStoreButton id={store.id} name={store.name} />

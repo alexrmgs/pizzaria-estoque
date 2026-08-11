@@ -11,6 +11,13 @@ const storeSchema = z.object({
   latitude: z.coerce.number().min(-90).max(90, "Latitude inválida."),
   longitude: z.coerce.number().min(-180).max(180, "Longitude inválida."),
   radiusMeters: z.coerce.number().int().min(10, "O raio mínimo é 10 metros."),
+  // Aceita colar com ou sem "Bearer " na frente; vazio = sem integração.
+  saiposToken: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/^Bearer\s+/i, "").trim())
+    .transform((v) => (v.length > 0 ? v : null))
+    .nullable(),
 });
 
 export type StoreFormState = { error?: string } | undefined;
@@ -22,6 +29,7 @@ function parseStoreForm(formData: FormData) {
     latitude: formData.get("latitude"),
     longitude: formData.get("longitude"),
     radiusMeters: formData.get("radiusMeters"),
+    saiposToken: formData.get("saiposToken") ?? "",
   });
 }
 

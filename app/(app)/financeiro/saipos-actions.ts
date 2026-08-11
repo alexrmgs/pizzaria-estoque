@@ -44,9 +44,17 @@ export async function sincronizarSaipos(input: {
     return { error: "Período muito longo. Puxe no máximo 1 ano por vez." };
   }
 
+  const store = await prisma.store.findUnique({
+    where: { id: parsed.data.storeId },
+    select: { saiposToken: true },
+  });
+  if (!store?.saiposToken) {
+    return { error: "Essa loja não tem token da SaiPos configurado (cadastre em Lojas)." };
+  }
+
   let sales;
   try {
-    sales = await fetchSaiposSales(start, end);
+    sales = await fetchSaiposSales(store.saiposToken, start, end);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Falha ao consultar a SaiPos." };
   }

@@ -1,7 +1,7 @@
 // Cliente da API de Dados da SaiPos (https://saipos-data-api.readme.io).
 // Consulta as vendas por período (não é tempo real) pra puxar o faturamento
-// diário pro Financeiro. Token fica na env SAIPOS_API_TOKEN (só o JWT, sem o
-// "Bearer ").
+// diário pro Financeiro. Cada loja tem seu próprio token (Store.saiposToken,
+// só o JWT, sem o "Bearer ").
 
 const SAIPOS_BASE = "https://data.saipos.io/v1";
 const PAGE_LIMIT = 1000;
@@ -19,10 +19,12 @@ function toParam(d: Date, endOfDay = false): string {
   return `${iso}T${endOfDay ? "23:59:59" : "00:00:00"}`;
 }
 
-async function fetchPage(startISO: string, endISO: string, offset: number): Promise<SaiposSale[]> {
-  const token = process.env.SAIPOS_API_TOKEN;
-  if (!token) throw new Error("Integração SaiPos não configurada (falta o token).");
-
+async function fetchPage(
+  token: string,
+  startISO: string,
+  endISO: string,
+  offset: number,
+): Promise<SaiposSale[]> {
   const url = new URL(`${SAIPOS_BASE}/search_sales`);
   url.searchParams.set("p_date_column_filter", "shift_date");
   url.searchParams.set("p_filter_date_start", startISO);
@@ -42,14 +44,14 @@ async function fetchPage(startISO: string, endISO: string, offset: number): Prom
   return Array.isArray(data) ? data : [];
 }
 
-async function fetchWindow(start: Date, end: Date): Promise<SaiposSale[]> {
+async function fetchWindow(token: string, start: Date, end: Date): Promise<SaiposSale[]> {
   const startISO = toParam(start);
   const endISO = toParam(end, true);
   const all: SaiposSale[] = [];
   let offset = 0;
   // Pagina até vir uma página menor que o limite (fim dos registros).
   for (;;) {
-    const page = await fetchPage(startISO, endISO, offset);
+    const page = await fetchPage(token, startISO, endISO, offset);
     all.push(...page);
     if (page.length < PAGE_LIMIT) break;
     offset += PAGE_LIMIT;
@@ -58,17 +60,21 @@ async function fetchWindow(start: Date, end: Date): Promise<SaiposSale[]> {
 }
 
 /**
- * Busca todas as vendas do período, quebrando em janelas de 15 dias (limite da
- * API) e paginando cada uma.
+ * Busca todas as vendas do período usando o token da loja, quebrando em janelas
+ * de 15 dias (limite da API) e paginando cada uma.
  */
-export async function fetchSaiposSales(start: Date, end: Date): Promise<SaiposSale[]> {
+export async function fetchSaiposSales(
+  token: string,
+  start: Date,
+  end: Date,
+): Promise<SaiposSale[]> {
   const all: SaiposSale[] = [];
   const cursor = new Date(start);
   while (cursor <= end) {
     const windowEnd = new Date(cursor);
     windowEnd.setUTCDate(windowEnd.getUTCDate() + (MAX_WINDOW_DAYS - 1));
     const realEnd = windowEnd < end ? windowEnd : end;
-    all.push(...(await fetchWindow(cursor, realEnd)));
+    all.push(...(await fetchWindow(token, cursor, realEnd)));
     cursor.setUTCDate(cursor.getUTCDate() + MAX_WINDOW_DAYS);
   }
   return all;

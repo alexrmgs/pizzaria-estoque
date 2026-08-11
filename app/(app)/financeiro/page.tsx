@@ -294,15 +294,10 @@ export default async function FinanceiroPage({
     allDailyAmountsByStore.set(r.storeId, list);
   }
 
-  // O token da SaiPos é só da FB Eusébio — a importação fica travada nessa loja.
-  const saiposStore =
-    stores.find((s) =>
-      s.name
-        .normalize("NFD")
-        .replace(/[̀-ͯ]/g, "")
-        .toLowerCase()
-        .includes("eusebio"),
-    ) ?? null;
+  // Lojas com token da SaiPos configurado (em Lojas) podem importar faturamento.
+  const saiposStores = stores
+    .filter((s) => s.saiposToken)
+    .map((s) => ({ id: s.id, name: s.name }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -1121,7 +1116,7 @@ export default async function FinanceiroPage({
         ))}
 
         <TabsContent value="lancamentos" className="flex flex-col gap-6 pt-4">
-          {saiposStore && <SaiposSync stores={[saiposStore]} />}
+          {saiposStores.length > 0 && <SaiposSync stores={saiposStores} />}
           <form className="flex flex-wrap items-end gap-3 rounded-lg border bg-white p-4">
             <input type="hidden" name="tab" value="lancamentos" />
             <div className="flex flex-col gap-1">
