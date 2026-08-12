@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { parseNfeXml } from "@/lib/nfe";
+import { getAppSettings } from "@/lib/settings";
+import { focusConfigured, listarRecebidas, baixarXmlRecebida } from "@/lib/focusnfe";
 
 function weightedAveragePrice(
   currentStock: number,
@@ -97,6 +99,105 @@ export async function criarNotaDeXml(xmlText: string): Promise<{ id?: string; er
   });
   revalidatePath("/notas");
   return { id: nota.id };
+}
+
+export type SyncRecebidasResult = {
+  error?: string;
+  novas?: number;
+  semXml?: number;
+  configurado?: boolean;
+};
+
+/**
+ * Puxa da Focus NFe as notas emitidas contra o CNPJ (compras). Cada nota nova
+ * vira uma NotaFiscal em CONFERINDO — com os itens quando o XML completo está
+ * disponível, ou só o cabeçalho quando ainda não (aí precisa dar ciência).
+ */
+export async function sincronizarRecebidas(): Promise<SyncRecebidasResult> {
+  const user = await requirePermission("canManageEstoque");
+  if (!focusConfigured()) {
+    return { configurado: false, error: "Integração Focus NFe não configurada." };
+  }
+
+  const settings = await getAppSettings();
+  let versao = settings.focusUltimaVersao ?? 0;
+  const ingredients = await prisma.ingredient.findMany({ select: { id: true, name: true } });
+
+  let novas = 0;
+  let semXml = 0;
+  try {
+    // Pagina até acabar (até 100 por vez); teto de 20 páginas por segurança.
+    for (let page = 0; page < 20; page++) {
+      const { notas, maxVersion } = await listarRecebidas(versao);
+      if (notas.length === 0) break;
+
+      for (const nota of notas) {
+        const chave = nota.chave_nfe;
+        if (!chave) continue;
+        const existe = await prisma.notaFiscal.findFirst({ where: { chave } });
+        if (existe) continue;
+
+        const emissao = nota.data_emissao ? new Date(nota.data_emissao) : null;
+        const total = nota.valor_total ? Number(nota.valor_total) : 0;
+
+        if (nota.nfe_completa) {
+          try {
+            const xml = await baixarXmlRecebida(chave);
+            const parsed = parseNfeXml(xml);
+            await prisma.notaFiscal.create({
+              data: {
+                numero: parsed.numero,
+                fornecedor: parsed.fornecedor ?? nota.nome_emitente ?? null,
+                chave,
+                emissao: parsed.emissao ? new Date(`${parsed.emissao}T00:00:00Z`) : emissao,
+                total: parsed.total || total,
+                userId: user.id,
+                items: {
+                  create: parsed.items.map((it) => ({
+                    description: it.description,
+                    unit: it.unit,
+                    quantity: it.quantity,
+                    unitValue: it.unitValue,
+                    total: it.total,
+                    ingredientId: matchIngredient(it.description, ingredients),
+                  })),
+                },
+              },
+            });
+            novas++;
+            continue;
+          } catch {
+            // se o XML falhar, cai no cadastro só de cabeçalho abaixo
+          }
+        }
+
+        // Sem XML completo: guarda só o cabeçalho pra referência.
+        await prisma.notaFiscal.create({
+          data: {
+            fornecedor: nota.nome_emitente ?? null,
+            chave,
+            emissao,
+            total,
+            userId: user.id,
+          },
+        });
+        semXml++;
+      }
+
+      if (maxVersion <= versao) break;
+      versao = maxVersion;
+    }
+
+    await prisma.appSettings.update({
+      where: { id: "settings" },
+      data: { focusUltimaVersao: versao },
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Falha ao consultar a Focus NFe." };
+  }
+
+  revalidatePath("/notas");
+  return { novas, semXml, configurado: true };
 }
 
 export async function criarNotaManual(): Promise<{ id?: string; error?: string }> {

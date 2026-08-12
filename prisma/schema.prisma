@@ -159,6 +159,7 @@ model AppSettings {
   labelWidthMm        Int          @default(100)
   labelHeightMm       Int          @default(70)
   etiquetaProximoNumero Int        @default(1)
+  focusUltimaVersao   Int          @default(0)
   labelEmpresa        String?
   labelCnpj           String?
   labelEndereco       String?

@@ -11,6 +11,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { NewNota } from "./new-nota";
+import { PuxarRecebidas } from "./puxar-recebidas";
+import { focusConfigured } from "@/lib/focusnfe";
 
 const currency = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -36,7 +38,10 @@ export default async function NotasPage() {
             estoque. Se for boleto, já cria a conta a pagar.
           </p>
         </div>
-        <NewNota />
+        <div className="flex gap-2">
+          {focusConfigured() && <PuxarRecebidas />}
+          <NewNota />
+        </div>
       </div>
 
       <div className="rounded-lg border bg-white">

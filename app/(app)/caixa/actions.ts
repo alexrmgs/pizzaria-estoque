@@ -84,6 +84,32 @@ export async function editarConta(
   return {};
 }
 
+export async function lancarBoleto(input: {
+  description: string;
+  amount: number;
+  dueDate: string;
+}): Promise<{ error?: string }> {
+  const user = await requirePermission("canViewRelatorios");
+  const desc = input.description?.trim() || "Boleto";
+  const amount = Number(input.amount);
+  if (!Number.isFinite(amount) || amount <= 0) return { error: "Valor do boleto inválido." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) return { error: "Vencimento inválido." };
+
+  await prisma.payable.create({
+    data: {
+      description: desc,
+      category: "Fornecedor",
+      amount,
+      dueDate: new Date(`${input.dueDate}T00:00:00Z`),
+      status: "PENDENTE",
+      note: "Lançado por leitura de boleto",
+      userId: user.id,
+    },
+  });
+  revalidatePath("/caixa");
+  return {};
+}
+
 export async function marcarPaga(id: string, dataISO?: string): Promise<{ error?: string }> {
   await requirePermission("canViewRelatorios");
   const paidDate =
