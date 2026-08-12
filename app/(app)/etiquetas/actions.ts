@@ -37,6 +37,7 @@ export async function imprimirPedidoAuto(input: {
   numero: number;
   volumes: number;
   cliente?: string;
+  impresso?: boolean;
 }): Promise<{ error?: string; proximo?: number }> {
   await requireEtiquetasAccess();
 
@@ -58,6 +59,7 @@ export async function imprimirPedidoAuto(input: {
         volumes: vol,
         labelWidthMm: settings.labelWidthMm,
         labelHeightMm: settings.labelHeightMm,
+        ...(input.impresso ? { status: "IMPRESSO", printedAt: new Date() } : {}),
       },
     }),
     prisma.appSettings.update({
@@ -84,6 +86,7 @@ export async function reimprimirVolume(input: {
   volume: number;
   volumes: number;
   cliente?: string;
+  impresso?: boolean;
 }): Promise<{ error?: string }> {
   await requireEtiquetasAccess();
 
@@ -107,6 +110,7 @@ export async function reimprimirVolume(input: {
       volumeUnico: vol,
       labelWidthMm: settings.labelWidthMm,
       labelHeightMm: settings.labelHeightMm,
+      ...(input.impresso ? { status: "IMPRESSO", printedAt: new Date() } : {}),
     },
   });
 

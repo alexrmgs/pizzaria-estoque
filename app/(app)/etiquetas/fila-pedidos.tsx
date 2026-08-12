@@ -7,13 +7,24 @@ import { Minus, Plus, Pencil, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { imprimirPedidoAuto, ajustarProximoNumero, reimprimirVolume } from "./actions";
+import { imprimirTspl } from "./ble-print";
+import { buildPedidoTspl, buildVolumeTspl } from "./tspl";
 
-export function FilaPedidos({ proximoNumero }: { proximoNumero: number }) {
+export function FilaPedidos({
+  proximoNumero,
+  widthMm,
+  heightMm,
+}: {
+  proximoNumero: number;
+  widthMm: number;
+  heightMm: number;
+}) {
   const router = useRouter();
   const [aberto, setAberto] = useState<number | null>(null);
   const [volumes, setVolumes] = useState(1);
   const [cliente, setCliente] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [printing, setPrinting] = useState(false);
   const [editando, setEditando] = useState(false);
   const [novoInicio, setNovoInicio] = useState(String(proximoNumero));
 
@@ -31,18 +42,26 @@ export function FilaPedidos({ proximoNumero }: { proximoNumero: number }) {
     setCliente("");
   }
 
-  function imprimir() {
+  async function imprimir() {
     if (aberto == null) return;
-    startTransition(async () => {
-      const result = await imprimirPedidoAuto({ numero: aberto, volumes, cliente });
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success(`Pedido ${aberto} enviado ✅`);
-      setAberto(null);
-      router.refresh();
-    });
+    setPrinting(true);
+    try {
+      const tspl = buildPedidoTspl({ numero: aberto, cliente, volumes, widthMm, heightMm });
+      await imprimirTspl(tspl);
+    } catch (e) {
+      setPrinting(false);
+      toast.error("Não imprimiu: " + (e instanceof Error ? e.message : "erro no Bluetooth"));
+      return;
+    }
+    const result = await imprimirPedidoAuto({ numero: aberto, volumes, cliente, impresso: true });
+    setPrinting(false);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(`Pedido ${aberto} impresso ✅`);
+    setAberto(null);
+    router.refresh();
   }
 
   function salvarInicio() {
@@ -71,21 +90,40 @@ export function FilaPedidos({ proximoNumero }: { proximoNumero: number }) {
     });
   }
 
-  function reimprimir() {
-    startTransition(async () => {
-      const result = await reimprimirVolume({
-        pedido: rePedido,
+  async function reimprimir() {
+    if (!rePedido.trim()) {
+      toast.error("Informe o número do pedido.");
+      return;
+    }
+    setPrinting(true);
+    try {
+      const tspl = buildVolumeTspl({
+        numero: rePedido.trim(),
         volume: Number(reVolume),
         volumes: Number(reTotal),
+        widthMm,
+        heightMm,
       });
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success(`Reimpressão do pedido ${rePedido.trim()} (${reVolume}/${reTotal}) enviada ✅`);
-      setRePedido("");
-      router.refresh();
+      await imprimirTspl(tspl);
+    } catch (e) {
+      setPrinting(false);
+      toast.error("Não imprimiu: " + (e instanceof Error ? e.message : "erro no Bluetooth"));
+      return;
+    }
+    const result = await reimprimirVolume({
+      pedido: rePedido,
+      volume: Number(reVolume),
+      volumes: Number(reTotal),
+      impresso: true,
     });
+    setPrinting(false);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(`Reimpresso: pedido ${rePedido.trim()} (${reVolume}/${reTotal}) ✅`);
+    setRePedido("");
+    router.refresh();
   }
 
   return (
@@ -197,10 +235,10 @@ export function FilaPedidos({ proximoNumero }: { proximoNumero: number }) {
           <Button
             variant="outline"
             onClick={reimprimir}
-            disabled={isPending}
+            disabled={printing}
             className="h-10"
           >
-            Reimprimir
+            {printing ? "Imprimindo…" : "Reimprimir"}
           </Button>
         </div>
       </div>
@@ -245,10 +283,12 @@ export function FilaPedidos({ proximoNumero }: { proximoNumero: number }) {
 
             <Button
               onClick={imprimir}
-              disabled={isPending}
+              disabled={printing}
               className="mt-6 h-14 w-full rounded-xl text-lg font-bold"
             >
-              Imprimir {volumes} {volumes === 1 ? "etiqueta" : "etiquetas"}
+              {printing
+                ? "Imprimindo…"
+                : `Imprimir ${volumes} ${volumes === 1 ? "etiqueta" : "etiquetas"}`}
             </Button>
             <button
               type="button"

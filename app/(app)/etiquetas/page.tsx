@@ -46,7 +46,11 @@ export default async function EtiquetasPage() {
         </p>
       </div>
 
-      <FilaPedidos proximoNumero={settings.etiquetaProximoNumero} />
+      <FilaPedidos
+        proximoNumero={settings.etiquetaProximoNumero}
+        widthMm={settings.labelWidthMm}
+        heightMm={settings.labelHeightMm}
+      />
 
       <div className="max-w-lg rounded-lg border border-dashed bg-white p-3">
         <BluetoothTest />
