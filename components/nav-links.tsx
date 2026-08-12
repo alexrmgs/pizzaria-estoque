@@ -120,6 +120,7 @@ export function NavLinks({ permissions }: { permissions: Permissions }) {
     ? [
         { href: "/financeiro", label: "Financeiro" },
         { href: "/precificacao", label: "Precificação" },
+        { href: "/bancos", label: "Bancos" },
       ]
     : [];
 
