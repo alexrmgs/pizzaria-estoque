@@ -50,7 +50,6 @@ export default async function BancosPage() {
     : [];
 
   const from = isoDaysAgo(90);
-  const to = isoDaysAgo(0);
 
   // Busca contas e extrato de cada conexão (ao vivo na Pluggy).
   const contas: Conta[] = [];
@@ -70,7 +69,7 @@ export default async function BancosPage() {
         let transactions: PluggyTransaction[] = [];
         let extratoError: string | undefined;
         try {
-          transactions = await getTransactions(account.id, from, to);
+          transactions = await getTransactions(account.id, from);
         } catch (e) {
           extratoError = e instanceof Error ? e.message : "Falha ao buscar o extrato.";
         }

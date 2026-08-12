@@ -114,10 +114,12 @@ export async function getAccounts(itemId: string): Promise<PluggyAccount[]> {
 export async function getTransactions(
   accountId: string,
   from: string,
-  to: string,
 ): Promise<PluggyTransaction[]> {
+  // v2 usa paginação por cursor e NÃO aceita from/to/pageSize na query — retorna
+  // as transações mais recentes; filtramos pelos últimos dias (>= from) aqui.
   const data = await apiGet<{ results: PluggyTransaction[] }>(
-    `/transactions?accountId=${encodeURIComponent(accountId)}&from=${from}&to=${to}&pageSize=100`,
+    `/v2/transactions?accountId=${encodeURIComponent(accountId)}`,
   );
-  return data.results ?? [];
+  const all = data.results ?? [];
+  return all.filter((t) => (t.date ?? "").slice(0, 10) >= from);
 }
