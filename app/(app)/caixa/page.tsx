@@ -45,20 +45,35 @@ export default async function CaixaPage({
   const activeTab =
     params.tab === "pagar" || params.tab === "pagas" ? (params.tab as string) : "fluxo";
 
-  const [stores, pendentes, pagasMes, revenueAgg] = await Promise.all([
-    prisma.store.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+  // O financeiro (caixa/contas) é só da FB Eusébio — as outras lojas servem só
+  // pra registrar faturamento. Então as entradas do fluxo contam só a Eusébio.
+  const stores = await prisma.store.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+  const eusebio = stores.find((s) =>
+    s.name
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .includes("eusebio"),
+  );
+
+  const [pendentes, pagasMes, revenueAgg] = await Promise.all([
     prisma.payable.findMany({ where: { status: "PENDENTE" }, orderBy: { dueDate: "asc" } }),
     prisma.payable.findMany({
       where: { status: "PAGA", paidDate: { gte: monthStart, lte: monthEnd } },
       orderBy: { paidDate: "desc" },
     }),
     prisma.revenue.aggregate({
-      where: { date: { gte: monthStart, lte: monthEnd } },
+      where: {
+        date: { gte: monthStart, lte: monthEnd },
+        ...(eusebio ? { storeId: eusebio.id } : {}),
+      },
       _sum: { amount: true },
     }),
   ]);
 
-  const storeName = new Map(stores.map((s) => [s.id, s.name]));
   const hoje = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
   const entradasMes = Number(revenueAgg._sum.amount ?? 0);
@@ -84,7 +99,7 @@ export default async function CaixaPage({
             Fluxo de caixa, contas a pagar e contas pagas.
           </p>
         </div>
-        <PayableDialog stores={stores} />
+        <PayableDialog stores={[]} />
       </div>
 
       <Tabs defaultValue={activeTab} className="w-full">
@@ -109,7 +124,9 @@ export default async function CaixaPage({
           <div className="grid gap-4 sm:grid-cols-3">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-neutral-500">Entradas (faturamento)</CardTitle>
+                <CardTitle className="text-sm text-neutral-500">
+                  Entradas (faturamento FB Eusébio)
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold text-emerald-600">{currency(entradasMes)}</p>
@@ -199,7 +216,6 @@ export default async function CaixaPage({
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Categoria</TableHead>
-                  <TableHead>Loja</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -207,7 +223,7 @@ export default async function CaixaPage({
               <TableBody>
                 {pendentes.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-neutral-500">
+                    <TableCell colSpan={5} className="text-center text-neutral-500">
                       Nenhuma conta a pagar. 🎉
                     </TableCell>
                   </TableRow>
@@ -226,9 +242,6 @@ export default async function CaixaPage({
                       </TableCell>
                       <TableCell className="font-medium">{p.description}</TableCell>
                       <TableCell className="text-neutral-500">{p.category}</TableCell>
-                      <TableCell className="text-neutral-500">
-                        {p.storeId ? storeName.get(p.storeId) ?? "—" : "Geral"}
-                      </TableCell>
                       <TableCell className="text-right font-medium">
                         {currency(Number(p.amount))}
                       </TableCell>
@@ -236,7 +249,7 @@ export default async function CaixaPage({
                         <div className="flex items-center justify-end gap-3">
                           <MarcarPagaButton id={p.id} />
                           <PayableDialog
-                            stores={stores}
+                            stores={[]}
                             payable={{
                               id: p.id,
                               description: p.description,
@@ -280,7 +293,6 @@ export default async function CaixaPage({
                   <TableHead>Pago em</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Categoria</TableHead>
-                  <TableHead>Loja</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -288,7 +300,7 @@ export default async function CaixaPage({
               <TableBody>
                 {pagasMes.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-neutral-500">
+                    <TableCell colSpan={5} className="text-center text-neutral-500">
                       Nenhuma conta paga neste mês.
                     </TableCell>
                   </TableRow>
@@ -298,9 +310,6 @@ export default async function CaixaPage({
                     <TableCell>{p.paidDate ? brDate(p.paidDate) : "—"}</TableCell>
                     <TableCell className="font-medium">{p.description}</TableCell>
                     <TableCell className="text-neutral-500">{p.category}</TableCell>
-                    <TableCell className="text-neutral-500">
-                      {p.storeId ? storeName.get(p.storeId) ?? "—" : "Geral"}
-                    </TableCell>
                     <TableCell className="text-right font-medium">
                       {currency(Number(p.amount))}
                     </TableCell>
