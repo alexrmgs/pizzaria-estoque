@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FilaPedidos } from "./fila-pedidos";
-import { ReimprimirButton } from "./reimprimir-button";
+import { ReimprimirPedidoButton } from "./reimprimir-pedido-button";
 import { LimparFilaButton } from "./limpar-fila-button";
 import { BluetoothTest } from "./bluetooth-test";
 
@@ -94,7 +94,14 @@ export default async function EtiquetasPage() {
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <ReimprimirButton id={job.id} />
+                  <ReimprimirPedidoButton
+                    pedido={job.pedido ?? ""}
+                    cliente={job.cliente}
+                    volumes={job.volumes ?? 1}
+                    volumeUnico={job.volumeUnico}
+                    widthMm={job.labelWidthMm}
+                    heightMm={job.labelHeightMm}
+                  />
                 </TableCell>
               </TableRow>
             ))}
