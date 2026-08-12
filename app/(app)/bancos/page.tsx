@@ -13,6 +13,7 @@ import {
   pluggyConfigured,
   getAccounts,
   getTransactions,
+  getItem,
   type PluggyAccount,
   type PluggyTransaction,
 } from "@/lib/pluggy";
@@ -35,6 +36,7 @@ type Conta = {
   bankName: string;
   account: PluggyAccount;
   transactions: PluggyTransaction[];
+  sincronizando?: boolean;
   error?: string;
 };
 
@@ -46,13 +48,22 @@ export default async function BancosPage() {
     ? await prisma.bankConnection.findMany({ orderBy: { createdAt: "asc" } })
     : [];
 
-  const from = isoDaysAgo(30);
+  const from = isoDaysAgo(90);
   const to = isoDaysAgo(0);
 
   // Busca contas e extrato de cada conexão (ao vivo na Pluggy).
   const contas: Conta[] = [];
   for (const conn of connections) {
     try {
+      // Status do item: se ainda não terminou de atualizar, o extrato pode
+      // não ter chegado (a Pluggy puxa o histórico depois do saldo).
+      let sincronizando = false;
+      try {
+        const item = await getItem(conn.itemId);
+        sincronizando = !["UPDATED", "OUTDATED"].includes(item.status);
+      } catch {
+        // ignora
+      }
       const accounts = await getAccounts(conn.itemId);
       for (const account of accounts) {
         let transactions: PluggyTransaction[] = [];
@@ -66,6 +77,7 @@ export default async function BancosPage() {
           bankName: conn.name ?? "Banco",
           account,
           transactions,
+          sincronizando,
         });
       }
     } catch (e) {
@@ -155,10 +167,14 @@ export default async function BancosPage() {
           {!c.error && (
             <CardContent>
               <p className="mb-2 text-xs font-semibold uppercase text-neutral-500">
-                Extrato (últimos 30 dias)
+                Extrato (últimos 90 dias)
               </p>
               {c.transactions.length === 0 ? (
-                <p className="text-sm text-neutral-500">Sem movimentações no período.</p>
+                <p className="text-sm text-neutral-500">
+                  {c.sincronizando
+                    ? "A Pluggy ainda está puxando o extrato desse banco. Aguarde alguns minutos e atualize a página."
+                    : "Sem movimentações no período."}
+                </p>
               ) : (
                 <div className="rounded-lg border">
                   <Table>
