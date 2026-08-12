@@ -48,7 +48,6 @@ export function ConnectButton() {
       {open && token && (
         <PluggyConnect
           connectToken={token}
-          includeSandbox
           onSuccess={handleSuccess}
           onClose={() => setOpen(false)}
           onError={(err: { message?: string }) => {
