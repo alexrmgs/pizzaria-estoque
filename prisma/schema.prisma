@@ -328,6 +328,30 @@ model Holiday {
   @@unique([date])
 }
 
+enum PayableStatus {
+  PENDENTE
+  PAGA
+}
+
+// Conta a pagar / despesa do financeiro (aluguel, fornecedor, imposto...).
+// Quando paga, guarda a data do pagamento pra entrar no fluxo de caixa.
+model Payable {
+  id          String        @id @default(cuid())
+  description String
+  category    String
+  amount      Decimal       @db.Decimal(10, 2)
+  dueDate     DateTime      @db.Date
+  status      PayableStatus @default(PENDENTE)
+  paidDate    DateTime?     @db.Date
+  storeId     String?
+  note        String?
+  userId      String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([status, dueDate])
+}
+
 // Conexão bancária via Pluggy (Open Finance). Guarda só o itemId retornado
 // pelo widget; os dados (saldo/extrato) são consultados na hora pela API.
 model BankConnection {
