@@ -113,13 +113,24 @@ export async function getAccounts(itemId: string): Promise<PluggyAccount[]> {
 
 export async function getTransactions(
   accountId: string,
-  from: string,
+  monthsBack = 6,
 ): Promise<PluggyTransaction[]> {
-  // v2 usa paginação por cursor e NÃO aceita from/to/pageSize na query — retorna
-  // as transações mais recentes; filtramos pelos últimos dias (>= from) aqui.
-  const data = await apiGet<{ results: PluggyTransaction[] }>(
-    `/v2/transactions?accountId=${encodeURIComponent(accountId)}`,
-  );
-  const all = data.results ?? [];
-  return all.filter((t) => (t.date ?? "").slice(0, 10) >= from);
+  // v2 usa paginação por cursor: a resposta traz `next` já como querystring
+  // (?accountId=...&after=...). Puxa páginas até cobrir ~monthsBack meses (com
+  // um teto de páginas pra não pesar), e o filtro fino fica no front.
+  const target = new Date();
+  target.setMonth(target.getMonth() - monthsBack);
+  const targetISO = target.toISOString().slice(0, 10);
+
+  const all: PluggyTransaction[] = [];
+  let path = `/v2/transactions?accountId=${encodeURIComponent(accountId)}`;
+  for (let page = 0; page < 4; page++) {
+    const data = await apiGet<{ results: PluggyTransaction[]; next?: string | null }>(path);
+    const results = data.results ?? [];
+    all.push(...results);
+    const oldest = results[results.length - 1]?.date?.slice(0, 10) ?? "";
+    if (!data.next || results.length === 0 || oldest <= targetISO) break;
+    path = `/v2/transactions${data.next}`;
+  }
+  return all;
 }

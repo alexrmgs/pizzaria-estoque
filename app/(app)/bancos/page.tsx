@@ -18,12 +18,6 @@ export const maxDuration = 60;
 const currency = (v: number, code = "BRL") =>
   v.toLocaleString("pt-BR", { style: "currency", currency: code || "BRL" });
 
-function isoDaysAgo(days: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
 type Conta = {
   connectionId: string;
   bankName: string;
@@ -41,8 +35,6 @@ export default async function BancosPage() {
   const connections = configured
     ? await prisma.bankConnection.findMany({ orderBy: { createdAt: "asc" } })
     : [];
-
-  const from = isoDaysAgo(90);
 
   // Busca contas e extrato de cada conexão (ao vivo na Pluggy).
   const contas: Conta[] = [];
@@ -62,7 +54,7 @@ export default async function BancosPage() {
         let transactions: PluggyTransaction[] = [];
         let extratoError: string | undefined;
         try {
-          transactions = await getTransactions(account.id, from);
+          transactions = await getTransactions(account.id);
         } catch (e) {
           extratoError = e instanceof Error ? e.message : "Falha ao buscar o extrato.";
         }
@@ -215,7 +207,8 @@ export default async function BancosPage() {
                     transactions={c.transactions}
                     sincronizando={c.sincronizando}
                     extratoError={c.extratoError}
-                  />
+                    nome={` - `}
+                    />
                 )}
               </Card>
             );
@@ -258,7 +251,8 @@ export default async function BancosPage() {
                     transactions={c.transactions}
                     sincronizando={c.sincronizando}
                     extratoError={c.extratoError}
-                  />
+                    nome={` - `}
+                    />
                 )}
             </Card>
           ))}

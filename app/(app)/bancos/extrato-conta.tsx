@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, Download } from "lucide-react";
 
 type Transacao = {
   id: string;
@@ -14,32 +14,49 @@ type Transacao = {
 const currency = (v: number, code = "BRL") =>
   v.toLocaleString("pt-BR", { style: "currency", currency: code || "BRL" });
 
+const brDate = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
+
+function daysAgoISO(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
 export function ExtratoConta({
   transactions,
   sincronizando,
   extratoError,
+  nome,
 }: {
   transactions: Transacao[];
   sincronizando?: boolean;
   extratoError?: string;
+  nome: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [periodo, setPeriodo] = useState<"7" | "30" | "90">("90");
+  const [periodo, setPeriodo] = useState<"7" | "30" | "90" | "custom">("90");
   const [tipo, setTipo] = useState<"todos" | "entradas" | "saidas">("todos");
+  const [de, setDe] = useState(daysAgoISO(30));
+  const [ate, setAte] = useState(daysAgoISO(0));
 
   const filtradas = useMemo(() => {
-    const hoje = new Date();
-    const limite = new Date(hoje);
-    limite.setDate(hoje.getDate() - Number(periodo));
-    const limiteISO = limite.toISOString().slice(0, 10);
+    let inicio: string;
+    let fim = "9999-12-31";
+    if (periodo === "custom") {
+      inicio = de;
+      fim = ate;
+    } else {
+      inicio = daysAgoISO(Number(periodo));
+    }
     const q = query
       .normalize("NFD")
       .replace(/[̀-ͯ]/g, "")
       .toLowerCase()
       .trim();
     return transactions.filter((t) => {
-      if (t.date.slice(0, 10) < limiteISO) return false;
+      const d = t.date.slice(0, 10);
+      if (d < inicio || d > fim) return false;
       if (tipo === "entradas" && t.amount < 0) return false;
       if (tipo === "saidas" && t.amount >= 0) return false;
       if (q) {
@@ -51,9 +68,29 @@ export function ExtratoConta({
       }
       return true;
     });
-  }, [transactions, query, periodo, tipo]);
+  }, [transactions, query, periodo, tipo, de, ate]);
 
   const totalFiltrado = filtradas.reduce((s, t) => s + t.amount, 0);
+
+  function exportarCSV() {
+    const header = ["Data", "Descrição", "Valor"];
+    const linhas = filtradas.map((t) => [
+      brDate(t.date),
+      (t.description ?? "").replace(/"/g, '""'),
+      t.amount.toFixed(2).replace(".", ","),
+    ]);
+    const csv = [header, ...linhas]
+      .map((r) => r.map((c) => `"${c}"`).join(";"))
+      .join("\r\n");
+    // BOM pra o Excel abrir com acento certo
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `extrato-${nome}`.replace(/[^\w.-]+/g, "_").slice(0, 60) + ".csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="border-t">
@@ -94,28 +131,55 @@ export function ExtratoConta({
                 </div>
                 <select
                   value={periodo}
-                  onChange={(e) => setPeriodo(e.target.value as "7" | "30" | "90")}
+                  onChange={(e) => setPeriodo(e.target.value as typeof periodo)}
                   className="h-9 rounded-md border border-input px-2 text-sm"
                 >
                   <option value="7">Últimos 7 dias</option>
                   <option value="30">Últimos 30 dias</option>
                   <option value="90">Últimos 90 dias</option>
+                  <option value="custom">Personalizado</option>
                 </select>
+                {periodo === "custom" && (
+                  <>
+                    <input
+                      type="date"
+                      value={de}
+                      onChange={(e) => setDe(e.target.value)}
+                      className="h-9 rounded-md border border-input px-2 text-sm"
+                    />
+                    <span className="text-xs text-neutral-400">até</span>
+                    <input
+                      type="date"
+                      value={ate}
+                      onChange={(e) => setAte(e.target.value)}
+                      className="h-9 rounded-md border border-input px-2 text-sm"
+                    />
+                  </>
+                )}
                 <select
                   value={tipo}
-                  onChange={(e) => setTipo(e.target.value as "todos" | "entradas" | "saidas")}
+                  onChange={(e) => setTipo(e.target.value as typeof tipo)}
                   className="h-9 rounded-md border border-input px-2 text-sm"
                 >
                   <option value="todos">Tudo</option>
                   <option value="entradas">Só entradas</option>
                   <option value="saidas">Só saídas</option>
                 </select>
-                <span className="ml-auto text-xs text-neutral-500">
-                  {filtradas.length} lançamento(s) · saldo do filtro:{" "}
-                  <b className={totalFiltrado < 0 ? "text-red-600" : "text-emerald-600"}>
-                    {currency(totalFiltrado)}
-                  </b>
-                </span>
+                <button
+                  type="button"
+                  onClick={exportarCSV}
+                  disabled={filtradas.length === 0}
+                  className="flex h-9 items-center gap-1 rounded-md border border-input px-3 text-sm font-medium hover:bg-neutral-50 disabled:opacity-50"
+                >
+                  <Download className="size-4" /> Exportar
+                </button>
+              </div>
+
+              <div className="mb-2 text-xs text-neutral-500">
+                {filtradas.length} lançamento(s) · saldo do filtro:{" "}
+                <b className={totalFiltrado < 0 ? "text-red-600" : "text-emerald-600"}>
+                  {currency(totalFiltrado)}
+                </b>
               </div>
 
               {filtradas.length === 0 ? (
@@ -133,9 +197,7 @@ export function ExtratoConta({
                     <tbody>
                       {filtradas.map((t) => (
                         <tr key={t.id} className="border-t">
-                          <td className="p-2 whitespace-nowrap text-neutral-500">
-                            {t.date.slice(0, 10).split("-").reverse().join("/")}
-                          </td>
+                          <td className="p-2 whitespace-nowrap text-neutral-500">{brDate(t.date)}</td>
                           <td className="p-2">{t.description}</td>
                           <td
                             className={
