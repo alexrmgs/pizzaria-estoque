@@ -333,6 +333,46 @@ enum PayableStatus {
   PAGA
 }
 
+enum NotaStatus {
+  CONFERINDO
+  LANCADA
+}
+
+// Nota fiscal de entrada (compra de fornecedor). Pode vir de XML da NFe ou ser
+// digitada. Fica em CONFERINDO até o usuário conferir/casar os itens e lançar
+// a entrada no estoque (vira LANCADA). Se for boleto, gera uma conta a pagar.
+model NotaFiscal {
+  id          String           @id @default(cuid())
+  numero      String?
+  fornecedor  String?
+  chave       String?
+  emissao     DateTime?        @db.Date
+  total       Decimal          @default(0) @db.Decimal(10, 2)
+  status      NotaStatus       @default(CONFERINDO)
+  boleto      Boolean          @default(false)
+  vencimento  DateTime?        @db.Date
+  payableId   String?
+  userId      String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  items       NotaFiscalItem[]
+}
+
+model NotaFiscalItem {
+  id           String     @id @default(cuid())
+  nota         NotaFiscal @relation(fields: [notaId], references: [id], onDelete: Cascade)
+  notaId       String
+  description  String
+  unit         String?
+  quantity     Decimal    @db.Decimal(10, 3)
+  unitValue    Decimal    @db.Decimal(10, 4)
+  total        Decimal    @db.Decimal(10, 2)
+  ingredientId String?
+  createdAt    DateTime   @default(now())
+
+  @@index([notaId])
+}
+
 // Conta a pagar / despesa do financeiro (aluguel, fornecedor, imposto...).
 // Quando paga, guarda a data do pagamento pra entrar no fluxo de caixa.
 model Payable {

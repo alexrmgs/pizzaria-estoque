@@ -97,6 +97,7 @@ export function NavLinks({ permissions }: { permissions: Permissions }) {
           { href: "/conferencia", label: "Conferência de Estoque" },
           { href: "/producao", label: "Produção" },
           { href: "/movimentacoes", label: "Movimentações" },
+          { href: "/notas", label: "Notas de Entrada" },
           { href: "/etiquetas", label: "Etiquetas (Pedidos)" },
           { href: "/etiquetas-producao", label: "Etiquetas (Produção)" },
         ]
