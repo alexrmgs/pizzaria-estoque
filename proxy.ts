@@ -18,5 +18,7 @@ export const proxy = auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!api/auth|_next/static|_next/image|.*\\..*).*)"],
+  // Ignora todas as rotas /api (elas fazem a própria autenticação por token /
+  // são webhooks públicos), além dos assets estáticos.
+  matcher: ["/((?!api|_next/static|_next/image|.*\\..*).*)"],
 };
