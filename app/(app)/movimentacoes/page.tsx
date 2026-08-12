@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MovementForm } from "./movement-form";
 import { EditMovementDialog } from "./edit-movement-dialog";
 import { DeleteMovementButton } from "./delete-movement-button";
+import { NotasEntradaPanel } from "../notas/notas-list";
 
 type Movement = {
   id: string;
@@ -129,10 +130,21 @@ export default async function MovimentacoesPage() {
         </TabsList>
 
         <TabsContent value="entrada" className="pt-4">
-          <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-            <MovementForm ingredients={ingredients} type="ENTRADA" />
-            <MovementsTable movements={entradas} ingredients={ingredients} />
-          </div>
+          <Tabs defaultValue="manual">
+            <TabsList>
+              <TabsTrigger value="manual">Manual</TabsTrigger>
+              <TabsTrigger value="nota">Com nota</TabsTrigger>
+            </TabsList>
+            <TabsContent value="manual" className="pt-4">
+              <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+                <MovementForm ingredients={ingredients} type="ENTRADA" />
+                <MovementsTable movements={entradas} ingredients={ingredients} />
+              </div>
+            </TabsContent>
+            <TabsContent value="nota" className="pt-4">
+              <NotasEntradaPanel />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="saida" className="pt-4">
