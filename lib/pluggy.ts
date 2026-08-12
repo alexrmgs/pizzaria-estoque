@@ -62,13 +62,27 @@ export async function createConnectToken(): Promise<string> {
 
 export type PluggyAccount = {
   id: string;
-  type: string;
+  type: string; // BANK | CREDIT
   subtype: string | null;
   name: string;
   marketingName: string | null;
   number: string | null;
   balance: number;
   currencyCode: string;
+  bankData?: {
+    closingBalance?: number | null;
+    automaticallyInvestedBalance?: number | null;
+    overdraftContractedLimit?: number | null; // limite de cheque especial
+    overdraftUsedLimit?: number | null;
+  } | null;
+  creditData?: {
+    creditLimit?: number | null; // limite total do cartão
+    availableCreditLimit?: number | null; // limite ainda disponível
+    balanceCloseDate?: string | null;
+    balanceDueDate?: string | null;
+    minimumPayment?: number | null;
+    brand?: string | null;
+  } | null;
 };
 
 export type PluggyTransaction = {
