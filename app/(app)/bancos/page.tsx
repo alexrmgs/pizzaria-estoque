@@ -37,6 +37,7 @@ type Conta = {
   account: PluggyAccount;
   transactions: PluggyTransaction[];
   sincronizando?: boolean;
+  extratoError?: string;
   error?: string;
 };
 
@@ -67,10 +68,11 @@ export default async function BancosPage() {
       const accounts = await getAccounts(conn.itemId);
       for (const account of accounts) {
         let transactions: PluggyTransaction[] = [];
+        let extratoError: string | undefined;
         try {
           transactions = await getTransactions(account.id, from, to);
-        } catch {
-          transactions = [];
+        } catch (e) {
+          extratoError = e instanceof Error ? e.message : "Falha ao buscar o extrato.";
         }
         contas.push({
           connectionId: conn.id,
@@ -78,6 +80,7 @@ export default async function BancosPage() {
           account,
           transactions,
           sincronizando,
+          extratoError,
         });
       }
     } catch (e) {
@@ -269,9 +272,13 @@ function ExtratoTabela({ c }: { c: Conta }) {
       </p>
       {c.transactions.length === 0 ? (
         <p className="text-sm text-neutral-500">
-          {c.sincronizando
-            ? "A Pluggy ainda está puxando o extrato desse banco. Aguarde alguns minutos e atualize a página."
-            : "Sem movimentações no período."}
+          {c.extratoError ? (
+            <span className="text-red-600">Erro ao buscar extrato: {c.extratoError}</span>
+          ) : c.sincronizando ? (
+            "A Pluggy ainda está puxando o extrato desse banco. Aguarde alguns minutos e atualize a página."
+          ) : (
+            "Sem movimentações no período."
+          )}
         </p>
       ) : (
         <div className="rounded-lg border">
