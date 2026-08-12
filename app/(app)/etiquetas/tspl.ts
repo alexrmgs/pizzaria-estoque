@@ -1,8 +1,11 @@
-// Gera o TSPL (linguagem da impressora Knup) das etiquetas. As posições são
-// calculadas a partir do tamanho real da etiqueta (em dots, 203dpi = 8 dots/mm)
-// pra nada sair cortado, independente do tamanho configurado.
+// Gera o TSPL (linguagem da impressora Knup) das etiquetas. Posições e tamanho
+// da fonte são calculados a partir do tamanho real da etiqueta (203dpi = 8
+// dots/mm) e a fonte se ajusta pra caber na largura — nada sai cortado.
 
 const DPMM = 8; // 203 dpi
+const FONT = "3"; // fonte interna 16x24 (base)
+const CHAR_W = 16; // largura base de 1 caractere na fonte "3"
+const CHAR_H = 24; // altura base
 
 // Remove acentos e aspas (impressora térmica não renderiza bem acento).
 function limpar(s: string): string {
@@ -13,6 +16,14 @@ function limpar(s: string): string {
     .toUpperCase();
 }
 
+// Maior escala (1..max) em que o texto cabe na largura disponível.
+function escalaQueCabe(texto: string, larguraDisp: number, maxEscala: number): number {
+  for (let s = maxEscala; s >= 1; s--) {
+    if (texto.length * CHAR_W * s <= larguraDisp) return s;
+  }
+  return 1;
+}
+
 function corpo(
   widthMm: number,
   heightMm: number,
@@ -20,14 +31,22 @@ function corpo(
   cliente: string,
   linhaVolume: string,
 ): string[] {
+  const wd = Math.round(widthMm * DPMM);
   const hd = Math.round(heightMm * DPMM);
-  const margem = Math.round(3 * DPMM); // 3mm
+  const margem = Math.round(2 * DPMM); // 2mm
+  const disp = wd - 2 * margem;
 
-  // A linha do volume fica ancorada embaixo, com margem — nunca corta.
-  const alturaVolume = 24 * 2; // fonte "3" x2
-  const yVolume = Math.max(margem, hd - alturaVolume - margem);
+  const textoPedido = `PEDIDO ${pedido}`;
+  const escPedido = escalaQueCabe(textoPedido, disp, 4);
+  const altPedido = CHAR_H * escPedido;
+
+  const escVolume = escalaQueCabe(linhaVolume, disp, 2);
+  const altVolume = CHAR_H * escVolume;
+
   const yPedido = margem;
-  const yCliente = Math.round(hd * 0.45);
+  const yVolume = Math.max(yPedido + altPedido + 4, hd - altVolume - margem);
+  const yCliente = Math.round((yPedido + altPedido + yVolume) / 2) - CHAR_H / 2;
+  const temEspacoCliente = cliente && yVolume - (yPedido + altPedido) > CHAR_H + 8;
 
   const linhas = [
     `SIZE ${widthMm} mm,${heightMm} mm`,
@@ -35,10 +54,12 @@ function corpo(
     "DIRECTION 1",
     "REFERENCE 0,0",
     "CLS",
-    `TEXT ${margem},${yPedido},"3",0,3,3,"PEDIDO ${pedido}"`,
+    `TEXT ${margem},${yPedido},"${FONT}",0,${escPedido},${escPedido},"${textoPedido}"`,
   ];
-  if (cliente) linhas.push(`TEXT ${margem},${yCliente},"2",0,1,1,"${cliente}"`);
-  linhas.push(`TEXT ${margem},${yVolume},"3",0,2,2,"${linhaVolume}"`);
+  if (temEspacoCliente) {
+    linhas.push(`TEXT ${margem},${yCliente},"2",0,1,1,"${cliente}"`);
+  }
+  linhas.push(`TEXT ${margem},${yVolume},"${FONT}",0,${escVolume},${escVolume},"${linhaVolume}"`);
   linhas.push("PRINT 1,1");
   return linhas;
 }
