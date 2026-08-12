@@ -2,14 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   pluggyConfigured,
   getAccounts,
   getTransactions,
@@ -19,6 +11,7 @@ import {
 } from "@/lib/pluggy";
 import { ConnectButton } from "./connect-button";
 import { RemoveButton } from "./remove-button";
+import { ExtratoConta } from "./extrato-conta";
 
 export const maxDuration = 60;
 
@@ -217,7 +210,13 @@ export default async function BancosPage() {
                   </div>
                   <RemoveButton id={c.connectionId} name={c.bankName} />
                 </CardHeader>
-                {!c.error && <ExtratoTabela c={c} />}
+                {!c.error && (
+                  <ExtratoConta
+                    transactions={c.transactions}
+                    sincronizando={c.sincronizando}
+                    extratoError={c.extratoError}
+                  />
+                )}
               </Card>
             );
           })}
@@ -254,62 +253,17 @@ export default async function BancosPage() {
                 </div>
                 <RemoveButton id={c.connectionId} name={c.bankName} />
               </CardHeader>
-              {!c.error && <ExtratoTabela c={c} />}
+              {!c.error && (
+                  <ExtratoConta
+                    transactions={c.transactions}
+                    sincronizando={c.sincronizando}
+                    extratoError={c.extratoError}
+                  />
+                )}
             </Card>
           ))}
         </div>
       )}
     </div>
-  );
-}
-
-function ExtratoTabela({ c }: { c: Conta }) {
-  return (
-    <CardContent>
-      <p className="mb-2 text-xs font-semibold uppercase text-neutral-500">
-        Extrato (últimos 90 dias)
-      </p>
-      {c.transactions.length === 0 ? (
-        <p className="text-sm text-neutral-500">
-          {c.extratoError ? (
-            <span className="text-red-600">Erro ao buscar extrato: {c.extratoError}</span>
-          ) : c.sincronizando ? (
-            "A Pluggy ainda está puxando o extrato desse banco. Aguarde alguns minutos e atualize a página."
-          ) : (
-            "Sem movimentações no período."
-          )}
-        </p>
-      ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {c.transactions.map((t) => (
-                <TableRow key={t.id}>
-                  <TableCell className="text-neutral-500">
-                    {t.date.slice(0, 10).split("-").reverse().join("/")}
-                  </TableCell>
-                  <TableCell>{t.description}</TableCell>
-                  <TableCell
-                    className={
-                      "text-right font-medium " +
-                      (t.amount < 0 ? "text-red-600" : "text-emerald-600")
-                    }
-                  >
-                    {currency(t.amount, t.currencyCode)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-    </CardContent>
   );
 }
