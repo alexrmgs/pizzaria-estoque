@@ -34,7 +34,7 @@ function limparCache() {
 }
 
 async function acharCaracteristica(device: any): Promise<any> {
-  const server = await comTimeout(
+  const server = await comTimeout<any>(
     device.gatt.connect(),
     12000,
     "Não conectei na impressora (ela pode estar desligada ou dormindo). Ligue/aproxime e tente de novo.",
