@@ -36,6 +36,14 @@ export default async function EtiquetasPage() {
     getAppSettings(),
   ]);
 
+  // Fila = próximos 20 números a partir do início, pulando os já impressos.
+  const inicio = settings.etiquetaProximoNumero;
+  const impressos = new Set((settings.etiquetaImpressos as unknown as number[]) ?? []);
+  const fila: number[] = [];
+  for (let num = inicio; fila.length < 20 && num < inicio + 500; num++) {
+    if (!impressos.has(num)) fila.push(num);
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -47,7 +55,8 @@ export default async function EtiquetasPage() {
       </div>
 
       <FilaPedidos
-        proximoNumero={settings.etiquetaProximoNumero}
+        fila={fila}
+        inicio={inicio}
         widthMm={settings.labelWidthMm}
         heightMm={settings.labelHeightMm}
       />

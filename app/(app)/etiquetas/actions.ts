@@ -49,7 +49,9 @@ export async function imprimirPedidoAuto(input: {
   }
 
   const settings = await getAppSettings();
-  const proximo = Math.max(settings.etiquetaProximoNumero, numero + 1);
+  // Marca só ESSE número como impresso (some só ele da fila; os outros ficam).
+  const impressos = new Set((settings.etiquetaImpressos as unknown as number[]) ?? []);
+  impressos.add(numero);
 
   await prisma.$transaction([
     prisma.printJob.create({
@@ -64,12 +66,12 @@ export async function imprimirPedidoAuto(input: {
     }),
     prisma.appSettings.update({
       where: { id: "settings" },
-      data: { etiquetaProximoNumero: proximo },
+      data: { etiquetaImpressos: [...impressos].sort((a, b) => a - b) },
     }),
   ]);
 
   revalidatePath("/etiquetas");
-  return { proximo };
+  return {};
 }
 
 export async function marcarImpresso(id: string): Promise<{ error?: string }> {
@@ -132,9 +134,10 @@ export async function ajustarProximoNumero(numero: number): Promise<{ error?: st
   await requireEtiquetasAccess();
   const n = Math.round(numero);
   if (!Number.isFinite(n) || n < 1 || n > 9_999_999) return { error: "Número inválido." };
+  // Ajustar/resetar começa um ciclo novo — limpa os impressos.
   await prisma.appSettings.update({
     where: { id: "settings" },
-    data: { etiquetaProximoNumero: n },
+    data: { etiquetaProximoNumero: n, etiquetaImpressos: [] },
   });
   revalidatePath("/etiquetas");
   return {};

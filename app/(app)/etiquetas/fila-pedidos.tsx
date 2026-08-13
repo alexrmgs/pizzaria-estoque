@@ -11,11 +11,13 @@ import { imprimirTspl } from "./ble-print";
 import { buildPedidoTspl, buildVolumeTspl } from "./tspl";
 
 export function FilaPedidos({
-  proximoNumero,
+  fila,
+  inicio,
   widthMm,
   heightMm,
 }: {
-  proximoNumero: number;
+  fila: number[];
+  inicio: number;
   widthMm: number;
   heightMm: number;
 }) {
@@ -26,15 +28,12 @@ export function FilaPedidos({
   const [isPending, startTransition] = useTransition();
   const [printing, setPrinting] = useState(false);
   const [editando, setEditando] = useState(false);
-  const [novoInicio, setNovoInicio] = useState(String(proximoNumero));
+  const [novoInicio, setNovoInicio] = useState(String(inicio));
 
   // Reimpressão de uma etiqueta específica.
   const [rePedido, setRePedido] = useState("");
   const [reVolume, setReVolume] = useState("1");
   const [reTotal, setReTotal] = useState("3");
-
-  // Mostra os próximos 20 números aguardando etiqueta.
-  const fila = Array.from({ length: 20 }, (_, i) => proximoNumero + i);
 
   function abrir(numero: number) {
     setAberto(numero);
@@ -158,7 +157,7 @@ export function FilaPedidos({
               <button
                 type="button"
                 onClick={() => {
-                  setNovoInicio(String(proximoNumero));
+                  setNovoInicio(String(inicio));
                   setEditando(true);
                 }}
                 className="flex items-center gap-1 text-xs text-neutral-400 underline hover:text-neutral-600"
