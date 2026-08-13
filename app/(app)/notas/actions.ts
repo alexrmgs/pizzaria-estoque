@@ -58,6 +58,9 @@ export type NotaItemInput = {
   unitValue: number;
   total: number;
   ingredientId?: string | null;
+  // Conversão pra unidade do estoque: quantos [unidade do estoque] cabem em 1
+  // [unidade da nota]. Ex: nota em caixa, estoque em un, 1 cx = 12 un -> 12.
+  fator?: number;
 };
 
 export type NotaHeaderInput = {
@@ -247,6 +250,7 @@ async function salvar(notaId: string, header: NotaHeaderInput, items: NotaItemIn
             unitValue: it.unitValue,
             total: it.total,
             ingredientId: it.ingredientId || null,
+            fator: it.fator && it.fator > 0 ? it.fator : 1,
           })),
         },
       },
@@ -289,24 +293,29 @@ export async function lancarNota(
       for (const it of comProduto) {
         const ing = await tx.ingredient.findUniqueOrThrow({ where: { id: it.ingredientId! } });
         const current = Number(ing.currentStock);
+        // Converte pra unidade do estoque: qtd no estoque = qtd da nota × fator;
+        // custo por unidade do estoque = valor unit da nota ÷ fator.
+        const fator = it.fator && it.fator > 0 ? it.fator : 1;
+        const qtdEstoque = it.quantity * fator;
+        const custoEstoque = it.unitValue / fator;
         await tx.stockMovement.create({
           data: {
             ingredientId: it.ingredientId!,
             type: "ENTRADA",
-            quantity: it.quantity,
+            quantity: qtdEstoque,
             reason: `NF ${header.numero ?? ""} ${header.fornecedor ?? ""}`.trim() || "Nota fiscal",
             userId: user.id,
-            unitPriceAtEntry: it.unitValue || Number(ing.unitPrice),
+            unitPriceAtEntry: custoEstoque || Number(ing.unitPrice),
           },
         });
         const newPrice =
-          it.unitValue > 0
-            ? weightedAveragePrice(current, Number(ing.unitPrice), it.quantity, it.unitValue)
+          custoEstoque > 0
+            ? weightedAveragePrice(current, Number(ing.unitPrice), qtdEstoque, custoEstoque)
             : undefined;
         await tx.ingredient.update({
           where: { id: it.ingredientId! },
           data: {
-            currentStock: { increment: it.quantity },
+            currentStock: { increment: qtdEstoque },
             ...(newPrice !== undefined ? { unitPrice: newPrice } : {}),
           },
         });

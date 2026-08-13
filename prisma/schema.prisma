@@ -370,6 +370,7 @@ model NotaFiscalItem {
   unitValue    Decimal    @db.Decimal(10, 4)
   total        Decimal    @db.Decimal(10, 2)
   ingredientId String?
+  fator        Decimal    @default(1) @db.Decimal(12, 4)
   createdAt    DateTime   @default(now())
 
   @@index([notaId])

@@ -47,6 +47,7 @@ export default async function NotaPage({ params }: { params: Promise<{ id: strin
           quantity: it.quantity.toString(),
           unitValue: it.unitValue.toString(),
           ingredientId: it.ingredientId ?? "",
+          fator: it.fator ? it.fator.toString() : "1",
         }))}
       />
     </div>
