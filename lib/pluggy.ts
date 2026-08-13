@@ -104,6 +104,21 @@ export async function getItem(itemId: string): Promise<PluggyItem> {
   return apiGet<PluggyItem>(`/items/${itemId}`);
 }
 
+/** Força a Pluggy a re-sincronizar a conexão com o banco (PATCH /items/{id}). */
+export async function atualizarItem(itemId: string): Promise<void> {
+  const apiKey = await getApiKey();
+  const res = await fetch(`${BASE}/items/${encodeURIComponent(itemId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", "X-API-KEY": apiKey },
+    body: JSON.stringify({}),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Pluggy PATCH /items (${res.status}). ${body.slice(0, 150)}`);
+  }
+}
+
 export async function getAccounts(itemId: string): Promise<PluggyAccount[]> {
   const data = await apiGet<{ results: PluggyAccount[] }>(
     `/accounts?itemId=${encodeURIComponent(itemId)}`,

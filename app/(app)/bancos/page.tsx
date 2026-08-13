@@ -10,6 +10,7 @@ import {
 import { ConnectButton } from "./connect-button";
 import { RemoveButton } from "./remove-button";
 import { ExtratoConta } from "./extrato-conta";
+import { AtualizarButton } from "./atualizar-button";
 
 export const maxDuration = 60;
 
@@ -96,7 +97,12 @@ export default async function BancosPage() {
             Conecte suas contas (Open Finance) e veja saldo e extrato automático.
           </p>
         </div>
-        {configured && <ConnectButton />}
+        {configured && (
+          <div className="flex gap-2">
+            {connections.length > 0 && <AtualizarButton />}
+            <ConnectButton />
+          </div>
+        )}
       </div>
 
       {!configured && (
