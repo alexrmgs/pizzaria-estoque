@@ -75,9 +75,10 @@ Com base no consumo semanal (saídas) e no estoque atual de cada insumo, escreva
 - 1 ou 2 linhas do que está no ponto certo
 
 Regras:
-- Baseie a QUANTIDADE no consumo semanal e no estoque atual (sugira o bastante pra ~1 a 2 semanas; se houver "estoque ideal", use como referência).
-- Se um item não teve saída e tem estoque, NÃO mande comprar.
-- Cite números reais (consumo/semana, estoque atual). Não invente insumos.
+- Na seção COMPRAR, inclua TODOS os itens marcados como "faltando" (abaixo do mínimo/ideal), com quantidade PELO MENOS igual ao "falta" informado. Se o consumo indicar que vai acabar antes, aumente a quantidade.
+- Não deixe de fora nenhum item que está faltando.
+- Um item com estoque ok e sem saída NÃO entra em COMPRAR.
+- Cite números reais (consumo/semana, estoque atual, quanto falta). Não invente insumos.
 - Sem introdução nem despedida. Curto e direto.`,
     dataSummary,
     2000,

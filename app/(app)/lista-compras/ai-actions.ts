@@ -24,6 +24,7 @@ export async function analisarCompras(): Promise<{ text?: string; error?: string
           currentStock: true,
           minStock: true,
           idealStock: true,
+          isProduced: true,
         },
       }),
       prisma.stockMovement.findMany({
@@ -49,37 +50,51 @@ export async function analisarCompras(): Promise<{ text?: string; error?: string
       agg.set(m.ingredientId, a);
     }
 
-    const linhas: string[] = [];
-    linhas.push("Insumos (estoque atual, consumo e compras nas últimas semanas):");
-    let incluidos = 0;
+    const faltando: string[] = [];
+    const comConsumo: string[] = [];
+
     for (const ing of ingredientes) {
+      if (ing.isProduced) continue; // produzido é fabricado, não comprado
       const a = agg.get(ing.id);
       const estoque = Number(ing.currentStock);
-      const ideal = ing.idealStock !== null ? Number(ing.idealStock) : null;
       const min = Number(ing.minStock);
+      const ideal = ing.idealStock !== null ? Number(ing.idealStock) : null;
+      const alvo = ideal !== null && ideal > min ? ideal : min;
+      const falta = Math.max(alvo - estoque, 0);
       const temMov = a && (a.saida30 > 0 || a.entrada30 > 0);
-      const abaixo = estoque <= (ideal ?? min);
-      // Só manda pra IA o que é relevante (teve movimento ou está baixo).
-      if (!temMov && !abaixo) continue;
-      if (incluidos >= 80) break;
-      incluidos++;
 
-      const partes = [
-        `- ${ing.name} (${ing.unit}): estoque ${n(estoque)}`,
-        `mín ${n(min)}`,
-      ];
-      if (ideal !== null) partes.push(`ideal ${n(ideal)}`);
-      partes.push(`consumo 7d ${n(a?.saida7 ?? 0)}`);
-      partes.push(`consumo 30d ${n(a?.saida30 ?? 0)}`);
-      if ((a?.entrada7 ?? 0) > 0 || (a?.entrada30 ?? 0) > 0) {
-        partes.push(`comprado 7d ${n(a?.entrada7 ?? 0)} / 30d ${n(a?.entrada30 ?? 0)}`);
+      // Está faltando (abaixo do mínimo/ideal) → sempre entra na lista de compra.
+      if (falta > 0) {
+        const abaixoMin = estoque < min;
+        faltando.push(
+          `- ${ing.name} (${ing.unit}): estoque ${n(estoque)}` +
+            (abaixoMin ? " [ABAIXO DO MÍNIMO]" : "") +
+            ` · mín ${n(min)}${ideal !== null ? ` · ideal ${n(ideal)}` : ""}` +
+            ` · falta ~${n(falta)} pro ${ideal !== null && ideal > min ? "ideal" : "mínimo"}` +
+            ` · consumo 7d ${n(a?.saida7 ?? 0)} / 30d ${n(a?.saida30 ?? 0)}`,
+        );
+      } else if (temMov) {
+        // Estoque ok, mas mostra consumo x estoque pra IA achar dinheiro parado.
+        comConsumo.push(
+          `- ${ing.name} (${ing.unit}): estoque ${n(estoque)} · consumo 7d ${n(a?.saida7 ?? 0)} / 30d ${n(a?.saida30 ?? 0)}` +
+            ((a?.entrada30 ?? 0) > 0 ? ` · comprado 30d ${n(a?.entrada30 ?? 0)}` : ""),
+        );
       }
-      linhas.push(partes.join(" · "));
     }
 
-    if (incluidos === 0) {
-      return { text: "Sem movimentação suficiente pra analisar ainda. Registre entradas e saídas de estoque que a IA passa a sugerir compras." };
+    if (faltando.length === 0 && comConsumo.length === 0) {
+      return {
+        text: "Nenhum insumo abaixo do estoque e sem movimentação pra analisar. Cadastre estoque mínimo/ideal nos ingredientes e registre as saídas que a IA passa a sugerir compras.",
+      };
     }
+
+    const linhas: string[] = [];
+    linhas.push(
+      "ITENS FALTANDO (abaixo do mínimo/ideal — precisam de compra; a quantidade sugerida é pelo menos o que falta):",
+    );
+    linhas.push(faltando.length ? faltando.join("\n") : "(nenhum)");
+    linhas.push("\nITENS COM ESTOQUE OK (pra checar se há compra em excesso / dinheiro parado):");
+    linhas.push(comConsumo.length ? comConsumo.slice(0, 60).join("\n") : "(nenhum)");
 
     const text = await generatePurchaseAnalysis(linhas.join("\n"));
     return { text };
