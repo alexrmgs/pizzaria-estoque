@@ -63,6 +63,21 @@ export function FilaPedidos({
     router.refresh();
   }
 
+  // Pedido interno: só marca o número como usado (sai da fila), sem imprimir.
+  async function interno() {
+    if (aberto == null) return;
+    setPrinting(true);
+    const result = await imprimirPedidoAuto({ numero: aberto, volumes, cliente, impresso: true });
+    setPrinting(false);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(`Pedido ${aberto} marcado como interno (não imprimiu)`);
+    setAberto(null);
+    router.refresh();
+  }
+
   function salvarInicio() {
     startTransition(async () => {
       const result = await ajustarProximoNumero(Number(novoInicio));
@@ -289,6 +304,14 @@ export function FilaPedidos({
                 ? "Imprimindo…"
                 : `Imprimir ${volumes} ${volumes === 1 ? "etiqueta" : "etiquetas"}`}
             </Button>
+            <button
+              type="button"
+              onClick={interno}
+              disabled={printing}
+              className="mt-3 w-full rounded-xl border py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+            >
+              Pedido interno (não imprime)
+            </button>
             <button
               type="button"
               onClick={() => setAberto(null)}
