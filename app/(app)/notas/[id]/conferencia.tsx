@@ -17,7 +17,7 @@ type ItemRow = {
   quantity: string;
   unitValue: string;
   ingredientId: string;
-  fator: string;
+  qtdEstoque: string;
 };
 
 type Props = {
@@ -59,7 +59,7 @@ export function Conferencia({ notaId, lancada, ingredients, header, itens }: Pro
   function addRow() {
     setRows((prev) => [
       ...prev,
-      { description: "", unit: null, quantity: "0", unitValue: "0", ingredientId: "", fator: "1" },
+      { description: "", unit: null, quantity: "0", unitValue: "0", ingredientId: "", qtdEstoque: "0" },
     ]);
   }
   function removeRow(i: number) {
@@ -77,7 +77,7 @@ export function Conferencia({ notaId, lancada, ingredients, header, itens }: Pro
         unitValue,
         total: Math.round(quantity * unitValue * 100) / 100,
         ingredientId: r.ingredientId || null,
-        fator: Number(r.fator) || 1,
+        qtdEstoque: Number(r.qtdEstoque) || 0,
       };
     });
     return {
@@ -193,8 +193,8 @@ export function Conferencia({ notaId, lancada, ingredients, header, itens }: Pro
               <tr className="border-b text-left text-xs text-neutral-500">
                 <th className="p-2">Descrição na nota</th>
                 <th className="p-2">Produto no estoque</th>
-                <th className="p-2 w-24">Qtd</th>
-                <th className="p-2 w-40">Conversão p/ estoque</th>
+                <th className="p-2 w-24">Qtd nota</th>
+                <th className="p-2 w-40">Qtd no estoque</th>
                 <th className="p-2 w-28">Custo unit.</th>
                 <th className="p-2 w-24 text-right">Total</th>
                 {!lancada && <th className="p-2 w-8"></th>}
@@ -245,28 +245,20 @@ export function Conferencia({ notaId, lancada, ingredients, header, itens }: Pro
                       />
                     </td>
                     <td className="p-2">
-                      <div className="flex items-center gap-1 text-[11px] text-neutral-500">
-                        <span>1 {r.unit || "un"} =</span>
+                      <div className="flex items-center gap-1">
                         <Input
                           type="number"
-                          step="0.0001"
-                          value={r.fator}
-                          onChange={(e) => setRow(i, { fator: e.target.value })}
+                          step="0.001"
+                          value={r.qtdEstoque}
+                          onChange={(e) => setRow(i, { qtdEstoque: e.target.value })}
                           disabled={lancada}
-                          className="h-8 w-16"
+                          className="h-8"
                         />
-                        <span>{un || "un"}</span>
+                        <span className="text-[11px] text-neutral-400">{un || ""}</span>
                       </div>
-                      {r.ingredientId && (
-                        <span className="text-[11px] text-emerald-600">
-                          entra:{" "}
-                          {((Number(r.quantity) || 0) * (Number(r.fator) || 1)).toLocaleString(
-                            "pt-BR",
-                            { maximumFractionDigits: 3 },
-                          )}{" "}
-                          {un}
-                        </span>
-                      )}
+                      <span className="text-[11px] text-neutral-400">
+                        quanto entra de verdade no estoque
+                      </span>
                     </td>
                     <td className="p-2">
                       <Input

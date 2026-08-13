@@ -58,9 +58,10 @@ export type NotaItemInput = {
   unitValue: number;
   total: number;
   ingredientId?: string | null;
-  // Conversão pra unidade do estoque: quantos [unidade do estoque] cabem em 1
-  // [unidade da nota]. Ex: nota em caixa, estoque em un, 1 cx = 12 un -> 12.
-  fator?: number;
+  // Quantidade que REALMENTE entra no estoque, já na unidade do estoque (ex: a
+  // nota veio "2 CX" mas entra "20 kg" -> qtdEstoque = 20). O usuário digita
+  // direto, sem multiplicar. Guardada na coluna `fator` do banco.
+  qtdEstoque?: number;
 };
 
 export type NotaHeaderInput = {
@@ -100,6 +101,7 @@ export async function criarNotaDeXml(xmlText: string): Promise<{ id?: string; er
           unitValue: it.unitValue,
           total: it.total,
           ingredientId: matchIngredient(it.description, ingredients),
+          fator: it.quantity, // qtd no estoque começa igual à qtd da nota
         })),
       },
     },
@@ -172,6 +174,7 @@ export async function sincronizarRecebidas(): Promise<SyncRecebidasResult> {
               unitValue: it.unitValue,
               total: it.total,
               ingredientId: matchIngredient(it.description, ingredients),
+              fator: it.quantity, // qtd no estoque começa igual à qtd da nota
             }));
 
             if (existe) {
@@ -250,7 +253,8 @@ async function salvar(notaId: string, header: NotaHeaderInput, items: NotaItemIn
             unitValue: it.unitValue,
             total: it.total,
             ingredientId: it.ingredientId || null,
-            fator: it.fator && it.fator > 0 ? it.fator : 1,
+            // fator guarda a "qtd no estoque" (default = qtd da nota).
+            fator: it.qtdEstoque && it.qtdEstoque > 0 ? it.qtdEstoque : it.quantity,
           })),
         },
       },
@@ -293,11 +297,10 @@ export async function lancarNota(
       for (const it of comProduto) {
         const ing = await tx.ingredient.findUniqueOrThrow({ where: { id: it.ingredientId! } });
         const current = Number(ing.currentStock);
-        // Converte pra unidade do estoque: qtd no estoque = qtd da nota × fator;
-        // custo por unidade do estoque = valor unit da nota ÷ fator.
-        const fator = it.fator && it.fator > 0 ? it.fator : 1;
-        const qtdEstoque = it.quantity * fator;
-        const custoEstoque = it.unitValue / fator;
+        // Qtd que entra no estoque (o usuário informa direto); custo por unidade
+        // do estoque = total da linha ÷ essa quantidade.
+        const qtdEstoque = it.qtdEstoque && it.qtdEstoque > 0 ? it.qtdEstoque : it.quantity;
+        const custoEstoque = qtdEstoque > 0 ? it.total / qtdEstoque : it.unitValue;
         await tx.stockMovement.create({
           data: {
             ingredientId: it.ingredientId!,
