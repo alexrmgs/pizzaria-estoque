@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { imprimirTspl } from "./ble-print";
 import { buildPedidoTspl, buildVolumeTspl } from "./tspl";
+import { marcarImpresso } from "./actions";
 
 export function ReimprimirPedidoButton({
+  id,
   pedido,
   cliente,
   volumes,
@@ -14,6 +17,7 @@ export function ReimprimirPedidoButton({
   widthMm,
   heightMm,
 }: {
+  id: string;
   pedido: string;
   cliente?: string | null;
   volumes: number;
@@ -21,6 +25,7 @@ export function ReimprimirPedidoButton({
   widthMm: number;
   heightMm: number;
 }) {
+  const router = useRouter();
   const [printing, setPrinting] = useState(false);
 
   async function reimprimir() {
@@ -43,7 +48,9 @@ export function ReimprimirPedidoButton({
             heightMm,
           });
       await imprimirTspl(tspl);
+      await marcarImpresso(id);
       toast.success("Reimpresso ✅");
+      router.refresh();
     } catch (e) {
       toast.error("Não imprimiu: " + (e instanceof Error ? e.message : "erro no Bluetooth"));
     } finally {

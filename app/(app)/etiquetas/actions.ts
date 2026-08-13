@@ -72,6 +72,16 @@ export async function imprimirPedidoAuto(input: {
   return { proximo };
 }
 
+export async function marcarImpresso(id: string): Promise<{ error?: string }> {
+  await requireEtiquetasAccess();
+  await prisma.printJob.update({
+    where: { id },
+    data: { status: "IMPRESSO", printedAt: new Date() },
+  });
+  revalidatePath("/etiquetas");
+  return {};
+}
+
 export async function limparFilaPedidos(): Promise<{ error?: string; apagados?: number }> {
   await requireEtiquetasAccess();
   const result = await prisma.printJob.deleteMany({

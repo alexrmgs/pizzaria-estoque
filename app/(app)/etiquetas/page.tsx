@@ -95,6 +95,7 @@ export default async function EtiquetasPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   <ReimprimirPedidoButton
+                    id={job.id}
                     pedido={job.pedido ?? ""}
                     cliente={job.cliente}
                     volumes={job.volumes ?? 1}
