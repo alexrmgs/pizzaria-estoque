@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Search, Download } from "lucide-react";
+import { FbLoading } from "@/components/fb-loading";
+import { buscarExtrato } from "./actions";
 
 type Transacao = {
   id: string;
@@ -23,24 +25,40 @@ function daysAgoISO(days: number) {
 }
 
 export function ExtratoConta({
-  transactions,
+  accountId,
   sincronizando,
-  extratoError,
   nome,
 }: {
-  transactions: Transacao[];
+  accountId: string;
   sincronizando?: boolean;
-  extratoError?: string;
   nome: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [txs, setTxs] = useState<Transacao[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState<string | undefined>();
   const [query, setQuery] = useState("");
   const [periodo, setPeriodo] = useState<"7" | "30" | "90" | "custom">("90");
   const [tipo, setTipo] = useState<"todos" | "entradas" | "saidas">("todos");
   const [de, setDe] = useState(daysAgoISO(30));
   const [ate, setAte] = useState(daysAgoISO(0));
 
+  async function toggle() {
+    const abrindo = !open;
+    setOpen(abrindo);
+    // Busca o extrato só na primeira vez que abre (deixa a tela leve).
+    if (abrindo && txs === null && !loading) {
+      setLoading(true);
+      setErro(undefined);
+      const r = await buscarExtrato(accountId);
+      setLoading(false);
+      if (r.error) setErro(r.error);
+      else setTxs(r.transactions ?? []);
+    }
+  }
+
   const filtradas = useMemo(() => {
+    if (!txs) return [];
     let inicio: string;
     let fim = "9999-12-31";
     if (periodo === "custom") {
@@ -54,7 +72,7 @@ export function ExtratoConta({
       .replace(/[̀-ͯ]/g, "")
       .toLowerCase()
       .trim();
-    return transactions.filter((t) => {
+    return txs.filter((t) => {
       const d = t.date.slice(0, 10);
       if (d < inicio || d > fim) return false;
       if (tipo === "entradas" && t.amount < 0) return false;
@@ -68,7 +86,7 @@ export function ExtratoConta({
       }
       return true;
     });
-  }, [transactions, query, periodo, tipo, de, ate]);
+  }, [txs, query, periodo, tipo, de, ate]);
 
   const totalFiltrado = filtradas.reduce((s, t) => s + t.amount, 0);
 
@@ -79,10 +97,7 @@ export function ExtratoConta({
       (t.description ?? "").replace(/"/g, '""'),
       t.amount.toFixed(2).replace(".", ","),
     ]);
-    const csv = [header, ...linhas]
-      .map((r) => r.map((c) => `"${c}"`).join(";"))
-      .join("\r\n");
-    // BOM pra o Excel abrir com acento certo
+    const csv = [header, ...linhas].map((r) => r.map((c) => `"${c}"`).join(";")).join("\r\n");
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -96,24 +111,24 @@ export function ExtratoConta({
     <div className="border-t">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium hover:bg-neutral-50"
       >
         <span className="flex items-center gap-2 text-neutral-600">
           {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
           Extrato
-          {!sincronizando && !extratoError && (
-            <span className="text-neutral-400">({transactions.length} lançamentos)</span>
-          )}
+          {txs && !erro && <span className="text-neutral-400">({txs.length} lançamentos)</span>}
         </span>
         <span className="text-xs text-neutral-400">{open ? "Recolher" : "Ver extrato"}</span>
       </button>
 
       {open && (
         <div className="px-4 pb-4">
-          {extratoError ? (
-            <p className="text-sm text-red-600">Erro ao buscar extrato: {extratoError}</p>
-          ) : sincronizando && transactions.length === 0 ? (
+          {loading ? (
+            <FbLoading label="Carregando extrato…" />
+          ) : erro ? (
+            <p className="text-sm text-red-600">Erro ao buscar extrato: {erro}</p>
+          ) : sincronizando && (!txs || txs.length === 0) ? (
             <p className="text-sm text-neutral-500">
               A Pluggy ainda está puxando o extrato. Aguarde alguns minutos e atualize a página.
             </p>

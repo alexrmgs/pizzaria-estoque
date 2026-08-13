@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
-import { createConnectToken, getItem } from "@/lib/pluggy";
+import { createConnectToken, getItem, getTransactions, type PluggyTransaction } from "@/lib/pluggy";
 
 export async function novoConnectToken(): Promise<{ token?: string; error?: string }> {
   await requirePermission("canViewRelatorios");
@@ -35,6 +35,20 @@ export async function salvarConexao(itemId: string): Promise<{ error?: string }>
 
   revalidatePath("/bancos");
   return {};
+}
+
+// Busca o extrato de uma conta só quando o usuário abre — deixa a tela Bancos
+// carregar rápido (só saldos) e o extrato vem sob demanda.
+export async function buscarExtrato(
+  accountId: string,
+): Promise<{ transactions?: PluggyTransaction[]; error?: string }> {
+  await requirePermission("canViewRelatorios");
+  try {
+    const transactions = await getTransactions(accountId);
+    return { transactions };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Falha ao buscar o extrato." };
+  }
 }
 
 export async function removerConexao(id: string): Promise<{ error?: string }> {

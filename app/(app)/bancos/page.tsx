@@ -4,10 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   pluggyConfigured,
   getAccounts,
-  getTransactions,
   getItem,
   type PluggyAccount,
-  type PluggyTransaction,
 } from "@/lib/pluggy";
 import { ConnectButton } from "./connect-button";
 import { RemoveButton } from "./remove-button";
@@ -22,9 +20,7 @@ type Conta = {
   connectionId: string;
   bankName: string;
   account: PluggyAccount;
-  transactions: PluggyTransaction[];
   sincronizando?: boolean;
-  extratoError?: string;
   error?: string;
 };
 
@@ -51,20 +47,11 @@ export default async function BancosPage() {
       }
       const accounts = await getAccounts(conn.itemId);
       for (const account of accounts) {
-        let transactions: PluggyTransaction[] = [];
-        let extratoError: string | undefined;
-        try {
-          transactions = await getTransactions(account.id);
-        } catch (e) {
-          extratoError = e instanceof Error ? e.message : "Falha ao buscar o extrato.";
-        }
         contas.push({
           connectionId: conn.id,
           bankName: conn.name ?? "Banco",
           account,
-          transactions,
           sincronizando,
-          extratoError,
         });
       }
     } catch (e) {
@@ -81,7 +68,6 @@ export default async function BancosPage() {
           balance: 0,
           currencyCode: "BRL",
         },
-        transactions: [],
         error: e instanceof Error ? e.message : "Falha ao consultar o banco.",
       });
     }
@@ -203,13 +189,12 @@ export default async function BancosPage() {
                   <RemoveButton id={c.connectionId} name={c.bankName} />
                 </CardHeader>
                 {!c.error && (
-                  <ExtratoConta
-                    transactions={c.transactions}
-                    sincronizando={c.sincronizando}
-                    extratoError={c.extratoError}
-                    nome={` - `}
-                    />
-                )}
+                <ExtratoConta
+                  accountId={c.account.id}
+                  sincronizando={c.sincronizando}
+                  nome={`${c.bankName} ${c.account.marketingName || c.account.name}`}
+                />
+              )}
               </Card>
             );
           })}
@@ -247,13 +232,12 @@ export default async function BancosPage() {
                 <RemoveButton id={c.connectionId} name={c.bankName} />
               </CardHeader>
               {!c.error && (
-                  <ExtratoConta
-                    transactions={c.transactions}
-                    sincronizando={c.sincronizando}
-                    extratoError={c.extratoError}
-                    nome={` - `}
-                    />
-                )}
+                <ExtratoConta
+                  accountId={c.account.id}
+                  sincronizando={c.sincronizando}
+                  nome={`${c.bankName} ${c.account.marketingName || c.account.name}`}
+                />
+              )}
             </Card>
           ))}
         </div>
