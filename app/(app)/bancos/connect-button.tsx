@@ -3,10 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { PluggyConnect } from "react-pluggy-connect";
+import dynamic from "next/dynamic";
 import { Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { novoConnectToken, salvarConexao } from "./actions";
+
+// O widget da Pluggy usa `window` no carregamento — só pode rodar no navegador,
+// nunca no servidor (senão a página Bancos quebra com "window is not defined").
+const PluggyConnect = dynamic(
+  () => import("react-pluggy-connect").then((m) => m.PluggyConnect),
+  { ssr: false },
+);
 
 export function ConnectButton() {
   const router = useRouter();
