@@ -115,9 +115,7 @@ export function buildProducaoTspl(input: {
   ];
   let y = margem;
   linhas.push(`TEXT ${margem},${y},"${FONT}",0,${escProduto},${escProduto},"${produto}"`);
-  y += CHAR_H * escProduto + 4;
-  linhas.push(`BAR ${margem},${y},${disp},2`);
-  y += 8;
+  y += CHAR_H * escProduto + 10;
 
   const linhasDet: string[] = [];
   const tempPeso = [limpar(input.temperatura), limpar(input.peso)].filter(Boolean).join("   ");
