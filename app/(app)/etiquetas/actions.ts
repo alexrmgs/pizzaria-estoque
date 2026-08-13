@@ -151,6 +151,7 @@ export async function enfileirarProducao(input: {
   temperatura: string;
   responsavel: string;
   peso: string;
+  impresso?: boolean;
 }): Promise<{ error?: string }> {
   await requireProducaoAccess();
 
@@ -181,8 +182,9 @@ export async function enfileirarProducao(input: {
       responsavel: input.responsavel.trim() || null,
       peso: input.peso.trim() || null,
       copias: qtd,
-      labelWidthMm: settings.labelWidthMm,
-      labelHeightMm: settings.labelHeightMm,
+      labelWidthMm: settings.labelProducaoWidthMm,
+      labelHeightMm: settings.labelProducaoHeightMm,
+      ...(input.impresso ? { status: "IMPRESSO", printedAt: new Date() } : {}),
     },
   });
 

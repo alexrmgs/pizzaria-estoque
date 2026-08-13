@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { enfileirarProducao } from "./actions";
+import { imprimirTspl } from "./ble-print";
+import { buildProducaoTspl } from "./tspl";
 
 const TEMP_SUGESTOES = [
   "2°C a -18°C",
@@ -52,7 +54,7 @@ export function ProducaoForm({
   const [responsavel, setResponsavel] = useState("");
   const [peso, setPeso] = useState("");
   const [copias, setCopias] = useState("1");
-  const [isPending, startTransition] = useTransition();
+  const [printing, setPrinting] = useState(false);
 
   const dias = Math.max(0, Number(validadeDias) || 0);
   const validadeISO = /^\d{4}-\d{2}-\d{2}$/.test(producao) ? addDaysISO(producao, dias) : "";
@@ -60,26 +62,52 @@ export function ProducaoForm({
   const lineFont = titleFont * 0.52;
   const logoMm = Math.max(6, heightMm * 0.12);
 
-  function imprimir() {
-    startTransition(async () => {
-      const result = await enfileirarProducao({
+  async function imprimir() {
+    if (!produto.trim()) {
+      toast.error("Informe o produto.");
+      return;
+    }
+    setPrinting(true);
+    try {
+      const tspl = buildProducaoTspl({
         produto,
-        producaoISO: producao,
-        validadeDias: dias,
-        copias: Number(copias),
         temperatura,
-        responsavel,
         peso,
+        fabricacao: formatBR(producao),
+        validade: validadeISO ? formatBR(validadeISO) : "—",
+        responsavel,
+        empresaNome: empresa.nome,
+        empresaCnpj: empresa.cnpj,
+        empresaCidade: empresa.cidade,
+        copias: Number(copias) || 1,
+        widthMm,
+        heightMm,
       });
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Enviado pra impressora ✅");
-      setProduto("");
-      setPeso("");
-      router.refresh();
+      await imprimirTspl(tspl);
+    } catch (e) {
+      setPrinting(false);
+      toast.error("Não imprimiu: " + (e instanceof Error ? e.message : "erro no Bluetooth"));
+      return;
+    }
+    const result = await enfileirarProducao({
+      produto,
+      producaoISO: producao,
+      validadeDias: dias,
+      copias: Number(copias),
+      temperatura,
+      responsavel,
+      peso,
+      impresso: true,
     });
+    setPrinting(false);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Etiqueta impressa ✅");
+    setProduto("");
+    setPeso("");
+    router.refresh();
   }
 
   function imprimirNavegador() {
@@ -213,8 +241,8 @@ export function ProducaoForm({
             ))}
           </datalist>
         </div>
-        <Button onClick={imprimir} disabled={isPending} className="h-10">
-          Imprimir etiquetas
+        <Button onClick={imprimir} disabled={printing} className="h-10">
+          {printing ? "Imprimindo…" : "Imprimir etiquetas"}
         </Button>
       </div>
 

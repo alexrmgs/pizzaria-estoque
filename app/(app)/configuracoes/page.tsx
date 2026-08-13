@@ -127,13 +127,32 @@ export default async function ConfiguracoesPage() {
             {settings && (
               <Card className="max-w-lg">
                 <CardHeader>
-                  <CardTitle className="text-lg">Tamanho da etiqueta</CardTitle>
+                  <CardTitle className="text-lg">Tamanho da etiqueta — Pedidos</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2">
                   <p className="text-sm text-neutral-500">
-                    Medida do rolo de etiqueta usado na impressão dos volumes dos pedidos.
+                    Medida do rolo usado nas etiquetas de volumes dos pedidos.
                   </p>
                   <LabelSizeForm width={settings.labelWidthMm} height={settings.labelHeightMm} />
+                </CardContent>
+              </Card>
+            )}
+
+            {settings && (
+              <Card className="max-w-lg">
+                <CardHeader>
+                  <CardTitle className="text-lg">Tamanho da etiqueta — Produção</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-2">
+                  <p className="text-sm text-neutral-500">
+                    Medida do rolo usado nas etiquetas de produção (pode ser diferente da de
+                    pedidos).
+                  </p>
+                  <LabelSizeForm
+                    tipo="producao"
+                    width={settings.labelProducaoWidthMm}
+                    height={settings.labelProducaoHeightMm}
+                  />
                 </CardContent>
               </Card>
             )}

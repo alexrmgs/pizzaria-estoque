@@ -40,6 +40,7 @@ export async function updateSettings(
 export async function updateLabelSize(
   widthMm: number,
   heightMm: number,
+  tipo: "pedido" | "producao" = "pedido",
 ): Promise<{ error?: string }> {
   await requirePermission("canManageEstoque");
   const w = Math.round(widthMm);
@@ -47,13 +48,18 @@ export async function updateLabelSize(
   if (!Number.isFinite(w) || !Number.isFinite(h) || w < 20 || w > 200 || h < 20 || h > 200) {
     return { error: "A largura e a altura devem ficar entre 20 e 200 mm." };
   }
+  const data =
+    tipo === "producao"
+      ? { labelProducaoWidthMm: w, labelProducaoHeightMm: h }
+      : { labelWidthMm: w, labelHeightMm: h };
   await prisma.appSettings.upsert({
     where: { id: "settings" },
-    update: { labelWidthMm: w, labelHeightMm: h },
-    create: { id: "settings", labelWidthMm: w, labelHeightMm: h },
+    update: data,
+    create: { id: "settings", ...data },
   });
   revalidatePath("/configuracoes");
   revalidatePath("/etiquetas");
+  revalidatePath("/etiquetas-producao");
   return {};
 }
 

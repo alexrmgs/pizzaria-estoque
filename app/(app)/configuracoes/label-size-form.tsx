@@ -7,14 +7,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateLabelSize } from "./actions";
 
-export function LabelSizeForm({ width, height }: { width: number; height: number }) {
+export function LabelSizeForm({
+  width,
+  height,
+  tipo = "pedido",
+}: {
+  width: number;
+  height: number;
+  tipo?: "pedido" | "producao";
+}) {
   const [w, setW] = useState(String(width));
   const [h, setH] = useState(String(height));
   const [isPending, startTransition] = useTransition();
 
   function save() {
     startTransition(async () => {
-      const result = await updateLabelSize(Number(w), Number(h));
+      const result = await updateLabelSize(Number(w), Number(h), tipo);
       if (result.error) {
         toast.error(result.error);
       } else {
@@ -26,11 +34,11 @@ export function LabelSizeForm({ width, height }: { width: number; height: number
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div className="flex flex-col gap-1">
-        <Label htmlFor="labelWidth" className="text-xs">
+        <Label htmlFor={`labelWidth-${tipo}`} className="text-xs">
           Largura (mm)
         </Label>
         <Input
-          id="labelWidth"
+          id={`labelWidth-${tipo}`}
           type="number"
           min="20"
           max="200"
@@ -40,11 +48,11 @@ export function LabelSizeForm({ width, height }: { width: number; height: number
         />
       </div>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="labelHeight" className="text-xs">
+        <Label htmlFor={`labelHeight-${tipo}`} className="text-xs">
           Altura (mm)
         </Label>
         <Input
-          id="labelHeight"
+          id={`labelHeight-${tipo}`}
           type="number"
           min="20"
           max="200"

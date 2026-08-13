@@ -83,6 +83,74 @@ export function buildPedidoTspl(input: {
   return linhas.join("\r\n");
 }
 
+/** Etiqueta de produção (produto, temperatura, validade, responsável, empresa). */
+export function buildProducaoTspl(input: {
+  produto: string;
+  temperatura: string;
+  peso: string;
+  fabricacao: string; // dd/mm/aaaa
+  validade: string; // dd/mm/aaaa
+  responsavel: string;
+  empresaNome: string;
+  empresaCnpj: string;
+  empresaCidade: string;
+  copias: number;
+  widthMm: number;
+  heightMm: number;
+}): string {
+  const wd = Math.round(input.widthMm * DPMM);
+  const hd = Math.round(input.heightMm * DPMM);
+  const margem = Math.round(2 * DPMM);
+  const disp = wd - 2 * margem;
+
+  const produto = limpar(input.produto) || "PRODUTO";
+  const escProduto = escalaQueCabe(produto, disp, 3);
+
+  const linhas: string[] = [
+    `SIZE ${input.widthMm} mm,${input.heightMm} mm`,
+    "GAP 2 mm,0 mm",
+    "DIRECTION 1",
+    "REFERENCE 0,0",
+    "CLS",
+  ];
+  let y = margem;
+  linhas.push(`TEXT ${margem},${y},"${FONT}",0,${escProduto},${escProduto},"${produto}"`);
+  y += CHAR_H * escProduto + 4;
+  linhas.push(`BAR ${margem},${y},${disp},2`);
+  y += 8;
+
+  const linhasDet: string[] = [];
+  const tempPeso = [limpar(input.temperatura), limpar(input.peso)].filter(Boolean).join("   ");
+  if (tempPeso) linhasDet.push(tempPeso);
+  linhasDet.push(`FABRIC: ${input.fabricacao}`);
+  linhasDet.push(`VALIDADE: ${input.validade}`);
+  if (input.responsavel.trim()) linhasDet.push(`RESP: ${limpar(input.responsavel)}`);
+  for (const l of linhasDet) {
+    linhas.push(`TEXT ${margem},${y},"1",0,1,1,"${l}"`);
+    y += 20;
+  }
+
+  // Rodapé com a empresa, ancorado embaixo.
+  const rod: string[] = [];
+  if (input.empresaNome) rod.push(limpar(input.empresaNome));
+  const cnpjCidade = [input.empresaCnpj ? `CNPJ ${input.empresaCnpj}` : "", limpar(input.empresaCidade)]
+    .filter(Boolean)
+    .join("  ");
+  if (cnpjCidade) rod.push(cnpjCidade);
+  let yRod = hd - margem - rod.length * 14;
+  for (const l of rod) {
+    if (yRod > y) {
+      linhas.push(`TEXT ${margem},${yRod},"1",0,1,1,"${l}"`);
+    }
+    yRod += 14;
+  }
+
+  const copias = Math.max(1, Math.min(input.copias, 50));
+  linhas.push(`PRINT ${copias},1`);
+  linhas.push("");
+  return linhas.join("\r\n");
+}
+
 /** Reimpressão de um volume específico (ex: só o 2/3). */
 export function buildVolumeTspl(input: {
   numero: number | string;

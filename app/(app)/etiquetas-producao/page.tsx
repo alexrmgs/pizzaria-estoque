@@ -69,8 +69,8 @@ export default async function EtiquetasProducaoPage() {
           cep: settings.labelCep ?? "",
           cidade: settings.labelCidade ?? "",
         }}
-        widthMm={settings.labelWidthMm}
-        heightMm={settings.labelHeightMm}
+        widthMm={settings.labelProducaoWidthMm}
+        heightMm={settings.labelProducaoHeightMm}
       />
 
       <div className="rounded-lg border bg-white">
