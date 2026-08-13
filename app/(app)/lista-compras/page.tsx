@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/table";
 import { PrintButton } from "@/components/print-button";
 import { WhatsAppShareButton } from "./whatsapp-share-button";
+import { AiAnalysisPanel } from "@/components/ai-analysis-panel";
+import { analisarCompras } from "./ai-actions";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -67,6 +69,10 @@ export default async function ListaComprasPage() {
             <PrintButton />
           </div>
         )}
+      </div>
+
+      <div className="print:hidden">
+        <AiAnalysisPanel action={analisarCompras} title="Sugestão de compras (IA)" />
       </div>
 
       <div className="hidden print:block">
