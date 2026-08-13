@@ -6,8 +6,9 @@ import { generatePurchaseAnalysis } from "@/lib/ai-analysis";
 
 const n = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 
-// Quantos dias o estoque deve cobrir na "compra inteligente" (1 semana + folga).
+// Cobertura alvo da compra (1 semana + folga) e janela pra estimar o ritmo.
 const COBERTURA_DIAS = 8;
+const JANELA_DIAS = 60;
 
 export async function analisarCompras(): Promise<{ text?: string; error?: string }> {
   await requirePermission("canManageEstoque");
@@ -15,7 +16,7 @@ export async function analisarCompras(): Promise<{ text?: string; error?: string
   try {
     const agora = new Date();
     const ha7 = new Date(agora.getTime() - 7 * 86_400_000);
-    const ha30 = new Date(agora.getTime() - 30 * 86_400_000);
+    const janela = new Date(agora.getTime() - JANELA_DIAS * 86_400_000);
 
     const [ingredientes, movs] = await Promise.all([
       prisma.ingredient.findMany({
@@ -30,18 +31,25 @@ export async function analisarCompras(): Promise<{ text?: string; error?: string
         },
       }),
       prisma.stockMovement.findMany({
-        where: { type: "SAIDA", createdAt: { gte: ha30 } },
-        select: { ingredientId: true, quantity: true, createdAt: true },
+        where: { createdAt: { gte: janela } },
+        select: { ingredientId: true, type: true, quantity: true, createdAt: true },
       }),
     ]);
 
-    // Consumo (saídas) por ingrediente em 7 e 30 dias.
-    const saida7 = new Map<string, number>();
-    const saida30 = new Map<string, number>();
+    // Por ingrediente: total de saídas e de compras (entradas) na janela, e a
+    // saída dos últimos 7 dias (pra pegar aceleração recente).
+    type Agg = { saida: number; entrada: number; saida7: number };
+    const agg = new Map<string, Agg>();
     for (const m of movs) {
+      const a = agg.get(m.ingredientId) ?? { saida: 0, entrada: 0, saida7: 0 };
       const q = Number(m.quantity);
-      saida30.set(m.ingredientId, (saida30.get(m.ingredientId) ?? 0) + q);
-      if (m.createdAt >= ha7) saida7.set(m.ingredientId, (saida7.get(m.ingredientId) ?? 0) + q);
+      if (m.type === "SAIDA") {
+        a.saida += q;
+        if (m.createdAt >= ha7) a.saida7 += q;
+      } else {
+        a.entrada += q;
+      }
+      agg.set(m.ingredientId, a);
     }
 
     const comprar: string[] = [];
@@ -51,48 +59,53 @@ export async function analisarCompras(): Promise<{ text?: string; error?: string
       if (ing.isProduced) continue; // produzido é fabricado, não comprado
       const estoque = Number(ing.currentStock);
       const min = Number(ing.minStock);
-      const s7 = saida7.get(ing.id) ?? 0;
-      const s30 = saida30.get(ing.id) ?? 0;
+      const a = agg.get(ing.id);
 
-      // Consumo semanal estimado: usa a média dos 30 dias (mais estável); se só
-      // tem dado recente, usa os 7 dias.
-      const consumoSemana = s30 > 0 ? (s30 * 7) / 30 : s7;
-      const diaria = consumoSemana / 7;
+      const semanaSaida = a ? (a.saida * 7) / JANELA_DIAS : 0;
+      const semanaCompra = a ? (a.entrada * 7) / JANELA_DIAS : 0;
+      const semanaSaida7 = a ? a.saida7 : 0;
+      // Ritmo semanal = o maior entre o que sai, o que se compra e a saída
+      // recente — assim não subestima quando a saída não é toda registrada.
+      const ritmoSemana = Math.max(semanaSaida, semanaCompra, semanaSaida7);
+      const diaria = ritmoSemana / 7;
       const duraDias = diaria > 0 ? estoque / diaria : Infinity;
 
-      if (consumoSemana > 0) {
+      if (ritmoSemana > 0) {
         const alvo = diaria * COBERTURA_DIAS;
         const sugestao = Math.max(0, alvo - estoque);
+        const base =
+          semanaCompra >= semanaSaida && semanaCompra > 0
+            ? `compra ~${n(semanaCompra)}/sem`
+            : `consumo ~${n(semanaSaida || semanaSaida7)}/sem`;
         if (sugestao > 0.001) {
           comprar.push(
-            `- ${ing.name} (${ing.unit}): comprar ~${n(sugestao)} · estoque atual ${n(estoque)} (dura ~${duraDias === Infinity ? "∞" : Math.round(duraDias)} dias) · consumo/semana ${n(consumoSemana)}`,
+            `- ${ing.name} (${ing.unit}): comprar ~${n(sugestao)} · estoque ${n(estoque)} (dura ~${duraDias === Infinity ? "∞" : Math.round(duraDias)} dias) · ${base}`,
           );
         } else if (duraDias > 21) {
           estoqueAlto.push(
-            `- ${ing.name} (${ing.unit}): estoque ${n(estoque)} dura ~${Math.round(duraDias)} dias · consumo/semana ${n(consumoSemana)}`,
+            `- ${ing.name} (${ing.unit}): estoque ${n(estoque)} dura ~${Math.round(duraDias)} dias · ${base}`,
           );
         }
       } else if (estoque < min) {
-        // Sem consumo registrado, mas abaixo do mínimo → sugere repor até o mínimo.
         comprar.push(
-          `- ${ing.name} (${ing.unit}): comprar ~${n(Math.max(min - estoque, 0))} · estoque atual ${n(estoque)} · abaixo do mínimo (${n(min)}) · sem consumo registrado`,
+          `- ${ing.name} (${ing.unit}): comprar ~${n(Math.max(min - estoque, 0))} · estoque ${n(estoque)} · abaixo do mínimo (${n(min)}) · sem movimento registrado`,
         );
       }
     }
 
     if (comprar.length === 0 && estoqueAlto.length === 0) {
       return {
-        text: "Ainda não há saídas de estoque suficientes pra calcular o consumo. Registre as saídas (o que sai do estoque no dia a dia) que a IA passa a montar a lista de compras pelo seu movimento.",
+        text: "Ainda não há movimento suficiente (compras ou saídas) pra estimar o consumo. Registre as entradas/saídas de estoque que a IA passa a montar a lista pelo seu ritmo.",
       };
     }
 
     const linhas: string[] = [];
     linhas.push(
-      `Cobertura alvo: ~${COBERTURA_DIAS} dias (1 semana com folga). "comprar ~X" já é o que falta pra durar esse período.`,
+      `Ritmo estimado pelo movimento dos últimos ${JANELA_DIAS} dias (o maior entre o que sai e o que você compra por semana). Cobertura alvo: ~${COBERTURA_DIAS} dias (1 semana com folga). "comprar ~X" já é o que falta pra durar esse período.`,
     );
-    linhas.push("\nCOMPRA SUGERIDA (pelo consumo — durar ~1 semana):");
+    linhas.push("\nCOMPRA SUGERIDA (durar ~1 semana pelo seu ritmo):");
     linhas.push(comprar.length ? comprar.join("\n") : "(nenhum)");
-    linhas.push("\nESTOQUE ALTO vs consumo (dinheiro parado — NÃO precisa comprar):");
+    linhas.push("\nESTOQUE ALTO vs ritmo (dinheiro parado — NÃO precisa comprar):");
     linhas.push(estoqueAlto.length ? estoqueAlto.slice(0, 40).join("\n") : "(nenhum)");
 
     const text = await generatePurchaseAnalysis(linhas.join("\n"));
