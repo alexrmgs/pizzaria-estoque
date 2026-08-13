@@ -14,6 +14,8 @@ import { EditMovementDialog } from "./edit-movement-dialog";
 import { DeleteMovementButton } from "./delete-movement-button";
 import { NotasEntradaPanel } from "../notas/notas-list";
 
+export const maxDuration = 60;
+
 type Movement = {
   id: string;
   type: "ENTRADA" | "SAIDA";

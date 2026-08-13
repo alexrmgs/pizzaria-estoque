@@ -1,6 +1,8 @@
 import { requirePermission } from "@/lib/dal";
 import { NotasEntradaPanel } from "./notas-list";
 
+export const maxDuration = 60;
+
 export default async function NotasPage() {
   await requirePermission("canManageEstoque");
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { parseNfeXml } from "@/lib/nfe";
+import { extrairCupom } from "@/lib/ai-cupom";
 import {
   focusConfigured,
   listarRecebidas,
@@ -229,6 +230,47 @@ export async function sincronizarRecebidas(): Promise<SyncRecebidasResult> {
 export async function criarNotaManual(): Promise<{ id?: string; error?: string }> {
   const user = await requirePermission("canManageEstoque");
   const nota = await prisma.notaFiscal.create({ data: { userId: user.id } });
+  revalidatePath("/notas");
+  return { id: nota.id };
+}
+
+export async function criarNotaDaFoto(input: {
+  base64: string;
+  mediaType: "image/jpeg" | "image/png" | "image/webp";
+}): Promise<{ id?: string; error?: string }> {
+  const user = await requirePermission("canManageEstoque");
+
+  let cupom;
+  try {
+    cupom = await extrairCupom(input.base64, input.mediaType);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não consegui ler o cupom." };
+  }
+  if (cupom.items.length === 0) {
+    return { error: "Não encontrei itens no cupom. Tente uma foto mais nítida e reta." };
+  }
+
+  const ingredients = await prisma.ingredient.findMany({ select: { id: true, name: true } });
+  const nota = await prisma.notaFiscal.create({
+    data: {
+      numero: cupom.numero,
+      fornecedor: cupom.fornecedor,
+      emissao: cupom.emissao ? new Date(`${cupom.emissao}T00:00:00Z`) : null,
+      total: cupom.total,
+      userId: user.id,
+      items: {
+        create: cupom.items.map((it) => ({
+          description: it.description,
+          unit: it.unit,
+          quantity: it.quantity,
+          unitValue: it.unitValue,
+          total: it.total,
+          ingredientId: matchIngredient(it.description, ingredients),
+          fator: it.quantity, // qtd no estoque começa igual à do cupom
+        })),
+      },
+    },
+  });
   revalidatePath("/notas");
   return { id: nota.id };
 }
