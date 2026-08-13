@@ -21,12 +21,16 @@ export function PuxarRecebidas() {
     }
     const novas = r.novas ?? 0;
     const semXml = r.semXml ?? 0;
-    if (novas === 0 && semXml === 0) {
+    const manifestadas = r.manifestadas ?? 0;
+    if (novas === 0 && semXml === 0 && manifestadas === 0) {
       toast.info("Nenhuma nota nova. A Focus busca na SEFAZ de tempos em tempos.");
     } else {
-      toast.success(
-        `${novas} nota(s) importada(s)` + (semXml > 0 ? ` · ${semXml} sem XML ainda` : "") + " ✅",
-      );
+      const partes: string[] = [];
+      if (novas > 0) partes.push(`${novas} com itens`);
+      if (semXml > 0) partes.push(`${semXml} só resumo`);
+      if (manifestadas > 0)
+        partes.push(`${manifestadas} pediram ciência (puxe de novo em alguns min pra vir os itens)`);
+      toast.success(partes.join(" · ") + " ✅");
     }
     router.refresh();
   }

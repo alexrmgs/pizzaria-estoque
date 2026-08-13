@@ -4,8 +4,12 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { parseNfeXml } from "@/lib/nfe";
-import { getAppSettings } from "@/lib/settings";
-import { focusConfigured, listarRecebidas, baixarXmlRecebida } from "@/lib/focusnfe";
+import {
+  focusConfigured,
+  listarRecebidas,
+  baixarXmlRecebida,
+  manifestarCiencia,
+} from "@/lib/focusnfe";
 
 function weightedAveragePrice(
   currentStock: number,
@@ -105,13 +109,15 @@ export type SyncRecebidasResult = {
   error?: string;
   novas?: number;
   semXml?: number;
+  manifestadas?: number;
   configurado?: boolean;
 };
 
 /**
- * Puxa da Focus NFe as notas emitidas contra o CNPJ (compras). Cada nota nova
- * vira uma NotaFiscal em CONFERINDO — com os itens quando o XML completo está
- * disponível, ou só o cabeçalho quando ainda não (aí precisa dar ciência).
+ * Puxa da Focus NFe as notas emitidas contra o CNPJ (compras). Quando o XML
+ * completo existe, cria/completa a NotaFiscal com os itens; quando a nota veio
+ * só como resumo, manifesta CIÊNCIA (libera o XML completo) e a próxima puxada
+ * traz os itens. Reprocessa sempre (versao=0) pra completar as antigas.
  */
 export async function sincronizarRecebidas(): Promise<SyncRecebidasResult> {
   const user = await requirePermission("canManageEstoque");
@@ -119,14 +125,13 @@ export async function sincronizarRecebidas(): Promise<SyncRecebidasResult> {
     return { configurado: false, error: "Integração Focus NFe não configurada." };
   }
 
-  const settings = await getAppSettings();
-  let versao = settings.focusUltimaVersao ?? 0;
   const ingredients = await prisma.ingredient.findMany({ select: { id: true, name: true } });
 
   let novas = 0;
   let semXml = 0;
+  let manifestadas = 0;
   try {
-    // Pagina até acabar (até 100 por vez); teto de 20 páginas por segurança.
+    let versao = 0;
     for (let page = 0; page < 20; page++) {
       const { notas, maxVersion } = await listarRecebidas(versao);
       if (notas.length === 0) break;
@@ -134,8 +139,13 @@ export async function sincronizarRecebidas(): Promise<SyncRecebidasResult> {
       for (const nota of notas) {
         const chave = nota.chave_nfe;
         if (!chave) continue;
-        const existe = await prisma.notaFiscal.findFirst({ where: { chave } });
-        if (existe) continue;
+
+        const existe = await prisma.notaFiscal.findFirst({
+          where: { chave },
+          select: { id: true, status: true, _count: { select: { items: true } } },
+        });
+        // Já resolvida (lançada ou já com itens) → não mexe.
+        if (existe && (existe.status === "LANCADA" || existe._count.items > 0)) continue;
 
         const emissao = nota.data_emissao ? new Date(nota.data_emissao) : null;
         const total = nota.valor_total ? Number(nota.valor_total) : 0;
@@ -144,60 +154,70 @@ export async function sincronizarRecebidas(): Promise<SyncRecebidasResult> {
           try {
             const xml = await baixarXmlRecebida(chave);
             const parsed = parseNfeXml(xml);
-            await prisma.notaFiscal.create({
-              data: {
-                numero: parsed.numero,
-                fornecedor: parsed.fornecedor ?? nota.nome_emitente ?? null,
-                chave,
-                emissao: parsed.emissao ? new Date(`${parsed.emissao}T00:00:00Z`) : emissao,
-                total: parsed.total || total,
-                userId: user.id,
-                items: {
-                  create: parsed.items.map((it) => ({
-                    description: it.description,
-                    unit: it.unit,
-                    quantity: it.quantity,
-                    unitValue: it.unitValue,
-                    total: it.total,
-                    ingredientId: matchIngredient(it.description, ingredients),
-                  })),
-                },
-              },
-            });
+            const dados = {
+              numero: parsed.numero,
+              fornecedor: parsed.fornecedor ?? nota.nome_emitente ?? null,
+              chave,
+              emissao: parsed.emissao ? new Date(`${parsed.emissao}T00:00:00Z`) : emissao,
+              total: parsed.total || total,
+              userId: user.id,
+            };
+            const itemsData = parsed.items.map((it) => ({
+              description: it.description,
+              unit: it.unit,
+              quantity: it.quantity,
+              unitValue: it.unitValue,
+              total: it.total,
+              ingredientId: matchIngredient(it.description, ingredients),
+            }));
+
+            if (existe) {
+              // Completa a nota que estava só com cabeçalho.
+              await prisma.$transaction([
+                prisma.notaFiscalItem.deleteMany({ where: { notaId: existe.id } }),
+                prisma.notaFiscal.update({
+                  where: { id: existe.id },
+                  data: { ...dados, items: { create: itemsData } },
+                }),
+              ]);
+            } else {
+              await prisma.notaFiscal.create({ data: { ...dados, items: { create: itemsData } } });
+            }
             novas++;
             continue;
           } catch {
-            // se o XML falhar, cai no cadastro só de cabeçalho abaixo
+            // se o XML falhar, cai no cadastro/manifestação abaixo
           }
         }
 
-        // Sem XML completo: guarda só o cabeçalho pra referência.
-        await prisma.notaFiscal.create({
-          data: {
-            fornecedor: nota.nome_emitente ?? null,
-            chave,
-            emissao,
-            total,
-            userId: user.id,
-          },
-        });
-        semXml++;
+        // Só resumo: cria o cabeçalho (se novo) e manifesta ciência pra liberar
+        // o XML completo na próxima puxada.
+        if (!existe) {
+          await prisma.notaFiscal.create({
+            data: { fornecedor: nota.nome_emitente ?? null, chave, emissao, total, userId: user.id },
+          });
+          semXml++;
+        }
+        const jaManifestada = !!nota.manifestacao_destinatario;
+        if (!jaManifestada) {
+          try {
+            if (await manifestarCiencia(chave)) manifestadas++;
+          } catch {
+            /* ignora */
+          }
+        }
       }
 
       if (maxVersion <= versao) break;
       versao = maxVersion;
     }
-
-    await prisma.appSettings.update({
-      where: { id: "settings" },
-      data: { focusUltimaVersao: versao },
-    });
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Falha ao consultar a Focus NFe." };
   }
 
   revalidatePath("/notas");
-  return { novas, semXml, configurado: true };
+  revalidatePath("/movimentacoes");
+  return { novas, semXml, manifestadas, configurado: true };
 }
 
 export async function criarNotaManual(): Promise<{ id?: string; error?: string }> {

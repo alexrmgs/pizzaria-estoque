@@ -22,6 +22,7 @@ export type NotaRecebida = {
   data_emissao?: string;
   situacao?: string;
   nfe_completa?: boolean;
+  manifestacao_destinatario?: string | null;
   versao?: number;
 };
 
@@ -44,6 +45,22 @@ export async function listarRecebidas(
   const maxHeader = res.headers.get("x-max-version");
   const maxVersion = maxHeader ? parseInt(maxHeader, 10) || versao : versao;
   return { notas: Array.isArray(notas) ? notas : [], maxVersion };
+}
+
+/**
+ * Manifesta ciência da operação numa nota recebida — libera o download do XML
+ * completo (com os itens) das notas que vieram só como resumo. Best-effort:
+ * se já foi manifestada, a Focus responde erro e a gente ignora.
+ */
+export async function manifestarCiencia(chave: string): Promise<boolean> {
+  const url = `${BASE}/v2/nfes_recebidas/${encodeURIComponent(chave)}/manifesto`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Authorization: authHeader(), "Content-Type": "application/json" },
+    body: JSON.stringify({ tipo: "ciencia" }),
+    cache: "no-store",
+  });
+  return res.ok;
 }
 
 /** Baixa o XML completo (nfeProc) de uma nota recebida pela chave. */
