@@ -4,7 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { generatePurchaseAnalysis } from "@/lib/ai-analysis";
 
-const n = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+const n = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+
+// Quantos dias o estoque deve cobrir na "compra inteligente" (1 semana + folga).
+const COBERTURA_DIAS = 8;
 
 export async function analisarCompras(): Promise<{ text?: string; error?: string }> {
   await requirePermission("canManageEstoque");
@@ -23,78 +26,74 @@ export async function analisarCompras(): Promise<{ text?: string; error?: string
           unit: true,
           currentStock: true,
           minStock: true,
-          idealStock: true,
           isProduced: true,
         },
       }),
       prisma.stockMovement.findMany({
-        where: { createdAt: { gte: ha30 } },
-        select: { ingredientId: true, type: true, quantity: true, createdAt: true },
+        where: { type: "SAIDA", createdAt: { gte: ha30 } },
+        select: { ingredientId: true, quantity: true, createdAt: true },
       }),
     ]);
 
-    // Consumo (saídas) e compras (entradas) por ingrediente, 7 e 30 dias.
-    type Agg = { saida7: number; saida30: number; entrada7: number; entrada30: number };
-    const agg = new Map<string, Agg>();
+    // Consumo (saídas) por ingrediente em 7 e 30 dias.
+    const saida7 = new Map<string, number>();
+    const saida30 = new Map<string, number>();
     for (const m of movs) {
-      const a = agg.get(m.ingredientId) ?? { saida7: 0, saida30: 0, entrada7: 0, entrada30: 0 };
       const q = Number(m.quantity);
-      const dentro7 = m.createdAt >= ha7;
-      if (m.type === "SAIDA") {
-        a.saida30 += q;
-        if (dentro7) a.saida7 += q;
-      } else {
-        a.entrada30 += q;
-        if (dentro7) a.entrada7 += q;
-      }
-      agg.set(m.ingredientId, a);
+      saida30.set(m.ingredientId, (saida30.get(m.ingredientId) ?? 0) + q);
+      if (m.createdAt >= ha7) saida7.set(m.ingredientId, (saida7.get(m.ingredientId) ?? 0) + q);
     }
 
-    const faltando: string[] = [];
-    const comConsumo: string[] = [];
+    const comprar: string[] = [];
+    const estoqueAlto: string[] = [];
 
     for (const ing of ingredientes) {
       if (ing.isProduced) continue; // produzido é fabricado, não comprado
-      const a = agg.get(ing.id);
       const estoque = Number(ing.currentStock);
       const min = Number(ing.minStock);
-      const ideal = ing.idealStock !== null ? Number(ing.idealStock) : null;
-      const alvo = ideal !== null && ideal > min ? ideal : min;
-      const falta = Math.max(alvo - estoque, 0);
-      const temMov = a && (a.saida30 > 0 || a.entrada30 > 0);
+      const s7 = saida7.get(ing.id) ?? 0;
+      const s30 = saida30.get(ing.id) ?? 0;
 
-      // Está faltando (abaixo do mínimo/ideal) → sempre entra na lista de compra.
-      if (falta > 0) {
-        const abaixoMin = estoque < min;
-        faltando.push(
-          `- ${ing.name} (${ing.unit}): estoque ${n(estoque)}` +
-            (abaixoMin ? " [ABAIXO DO MÍNIMO]" : "") +
-            ` · mín ${n(min)}${ideal !== null ? ` · ideal ${n(ideal)}` : ""}` +
-            ` · falta ~${n(falta)} pro ${ideal !== null && ideal > min ? "ideal" : "mínimo"}` +
-            ` · consumo 7d ${n(a?.saida7 ?? 0)} / 30d ${n(a?.saida30 ?? 0)}`,
-        );
-      } else if (temMov) {
-        // Estoque ok, mas mostra consumo x estoque pra IA achar dinheiro parado.
-        comConsumo.push(
-          `- ${ing.name} (${ing.unit}): estoque ${n(estoque)} · consumo 7d ${n(a?.saida7 ?? 0)} / 30d ${n(a?.saida30 ?? 0)}` +
-            ((a?.entrada30 ?? 0) > 0 ? ` · comprado 30d ${n(a?.entrada30 ?? 0)}` : ""),
+      // Consumo semanal estimado: usa a média dos 30 dias (mais estável); se só
+      // tem dado recente, usa os 7 dias.
+      const consumoSemana = s30 > 0 ? (s30 * 7) / 30 : s7;
+      const diaria = consumoSemana / 7;
+      const duraDias = diaria > 0 ? estoque / diaria : Infinity;
+
+      if (consumoSemana > 0) {
+        const alvo = diaria * COBERTURA_DIAS;
+        const sugestao = Math.max(0, alvo - estoque);
+        if (sugestao > 0.001) {
+          comprar.push(
+            `- ${ing.name} (${ing.unit}): comprar ~${n(sugestao)} · estoque atual ${n(estoque)} (dura ~${duraDias === Infinity ? "∞" : Math.round(duraDias)} dias) · consumo/semana ${n(consumoSemana)}`,
+          );
+        } else if (duraDias > 21) {
+          estoqueAlto.push(
+            `- ${ing.name} (${ing.unit}): estoque ${n(estoque)} dura ~${Math.round(duraDias)} dias · consumo/semana ${n(consumoSemana)}`,
+          );
+        }
+      } else if (estoque < min) {
+        // Sem consumo registrado, mas abaixo do mínimo → sugere repor até o mínimo.
+        comprar.push(
+          `- ${ing.name} (${ing.unit}): comprar ~${n(Math.max(min - estoque, 0))} · estoque atual ${n(estoque)} · abaixo do mínimo (${n(min)}) · sem consumo registrado`,
         );
       }
     }
 
-    if (faltando.length === 0 && comConsumo.length === 0) {
+    if (comprar.length === 0 && estoqueAlto.length === 0) {
       return {
-        text: "Nenhum insumo abaixo do estoque e sem movimentação pra analisar. Cadastre estoque mínimo/ideal nos ingredientes e registre as saídas que a IA passa a sugerir compras.",
+        text: "Ainda não há saídas de estoque suficientes pra calcular o consumo. Registre as saídas (o que sai do estoque no dia a dia) que a IA passa a montar a lista de compras pelo seu movimento.",
       };
     }
 
     const linhas: string[] = [];
     linhas.push(
-      "ITENS FALTANDO (abaixo do mínimo/ideal — precisam de compra; a quantidade sugerida é pelo menos o que falta):",
+      `Cobertura alvo: ~${COBERTURA_DIAS} dias (1 semana com folga). "comprar ~X" já é o que falta pra durar esse período.`,
     );
-    linhas.push(faltando.length ? faltando.join("\n") : "(nenhum)");
-    linhas.push("\nITENS COM ESTOQUE OK (pra checar se há compra em excesso / dinheiro parado):");
-    linhas.push(comConsumo.length ? comConsumo.slice(0, 60).join("\n") : "(nenhum)");
+    linhas.push("\nCOMPRA SUGERIDA (pelo consumo — durar ~1 semana):");
+    linhas.push(comprar.length ? comprar.join("\n") : "(nenhum)");
+    linhas.push("\nESTOQUE ALTO vs consumo (dinheiro parado — NÃO precisa comprar):");
+    linhas.push(estoqueAlto.length ? estoqueAlto.slice(0, 40).join("\n") : "(nenhum)");
 
     const text = await generatePurchaseAnalysis(linhas.join("\n"));
     return { text };

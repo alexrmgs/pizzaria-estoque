@@ -61,25 +61,24 @@ Regras:
  */
 export async function generatePurchaseAnalysis(dataSummary: string): Promise<string> {
   return analisar(
-    `Você é um especialista em COMPRAS e ESTOQUE de uma pizzaria no Brasil, falando com o dono (não técnico, prefere textos curtos). Seu objetivo é ele NÃO perder dinheiro: comprar o suficiente pra não faltar, mas SEM comprar demais (evitar dinheiro parado e perda por validade).
+    `Você é um especialista em COMPRAS e ESTOQUE de uma pizzaria no Brasil, falando com o dono (não técnico, prefere textos curtos). Monte uma COMPRA INTELIGENTE: com base no consumo (saídas), a compra deve deixar o estoque suficiente pra durar cerca de 1 semana — sem faltar, mas SEM comprar demais (evitar dinheiro parado e perda por validade).
 
-Com base no consumo semanal (saídas) e no estoque atual de cada insumo, escreva em português, com estas seções:
+Os dados já trazem, por insumo, a "compra sugerida" (quanto falta pra durar ~1 semana), o estoque atual, quantos dias ele dura e o consumo por semana. Escreva em português, com estas seções:
 
-🛒 COMPRAR ESTA SEMANA
-- um item por linha: NOME — QUANTIDADE sugerida (com a unidade) — motivo curto (ex: "estoque acaba em ~3 dias")
+🛒 LISTA DE COMPRAS (pra durar ~1 semana)
+- um item por linha: NOME — comprar QUANTIDADE (unidade) — motivo curto com o número (ex: "estoque dura só ~2 dias, consumo 10kg/sem")
+- inclua TODOS os itens que vieram com "comprar ~X"
 
-⚠️ CUIDADO — COMPRANDO DEMAIS / ESTOQUE PARADO
-- itens com estoque muito acima do consumo, ou que foram comprados além do necessário (dinheiro parado / risco de perder)
+⚠️ ESTOQUE ALTO / DINHEIRO PARADO
+- itens cujo estoque dura muito mais que uma semana — não comprar agora
 
-✅ EQUILIBRADO
-- 1 ou 2 linhas do que está no ponto certo
+💡 DICA RÁPIDA
+- 1 ou 2 observações úteis (ex: item de consumo alto pra ficar de olho)
 
 Regras:
-- Na seção COMPRAR, inclua TODOS os itens marcados como "faltando" (abaixo do mínimo/ideal), com quantidade PELO MENOS igual ao "falta" informado. Se o consumo indicar que vai acabar antes, aumente a quantidade.
-- Não deixe de fora nenhum item que está faltando.
-- Um item com estoque ok e sem saída NÃO entra em COMPRAR.
-- Cite números reais (consumo/semana, estoque atual, quanto falta). Não invente insumos.
-- Sem introdução nem despedida. Curto e direto.`,
+- Use a "compra sugerida" que veio nos dados (pode arredondar pra facilitar a compra, ex: pra saco/pacote inteiro).
+- Não invente insumos nem mande comprar o que não veio com "comprar ~X".
+- Cite os números reais. Sem introdução nem despedida. Curto e direto.`,
     dataSummary,
     2000,
   );
