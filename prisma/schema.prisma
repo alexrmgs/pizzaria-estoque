@@ -314,6 +314,10 @@ model Store {
   longitude    Decimal  @db.Decimal(10, 7)
   radiusMeters Int      @default(150)
   saiposToken  String?
+  // Método usado na Precificação: "MARKUP" (custo / (1 - %fixo - %variável))
+  // ou "MARGEM" (custo / (1 - %variável - margem de contribuição desejada)).
+  pricingMethod       String   @default("MARKUP")
+  targetMarginPercent Decimal? @db.Decimal(5, 2)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

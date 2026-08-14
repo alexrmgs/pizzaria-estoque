@@ -135,3 +135,31 @@ export async function updateRecipeCurrentPrice(recipeId: string, price: number |
   await prisma.recipe.update({ where: { id: recipeId }, data: { currentPrice: price } });
   revalidatePath("/precificacao");
 }
+
+export async function updatePricingMethod(input: {
+  storeId: string;
+  method: "MARKUP" | "MARGEM";
+  targetMarginPercent: number | null;
+}): Promise<{ error?: string }> {
+  await requirePermission("canViewRelatorios");
+  if (!input.storeId) return { error: "Selecione uma loja." };
+  if (input.method === "MARGEM") {
+    if (
+      input.targetMarginPercent === null ||
+      !Number.isFinite(input.targetMarginPercent) ||
+      input.targetMarginPercent <= 0 ||
+      input.targetMarginPercent >= 100
+    ) {
+      return { error: "Informe uma margem de contribuição desejada entre 0 e 100%." };
+    }
+  }
+  await prisma.store.update({
+    where: { id: input.storeId },
+    data: {
+      pricingMethod: input.method,
+      targetMarginPercent: input.method === "MARGEM" ? input.targetMarginPercent : input.targetMarginPercent,
+    },
+  });
+  revalidatePath("/precificacao");
+  return {};
+}

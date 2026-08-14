@@ -19,9 +19,10 @@ import { FixedCostEditableCells } from "./fixed-cost-editable-cells";
 import { VariableCostPercentageInput } from "./variable-cost-percentage-input";
 import { RecipePriceInput } from "./recipe-price-input";
 import { recipeItemCost, RECIPE_TYPE_LABELS } from "@/lib/recipe-cost";
-import { computeSuggestedPrice } from "@/lib/pricing";
+import { computeSuggestedPrice, computeSuggestedPriceByMargin } from "@/lib/pricing";
 import { AiAnalysisPanel } from "@/components/ai-analysis-panel";
 import { analisarPrecificacao } from "./ai-actions";
+import { PricingMethodForm } from "./pricing-method-form";
 import type { RecipeType } from "@/lib/generated/prisma/client";
 
 const UNIT_YIELD_TYPES: RecipeType[] = ["PIZZA", "BEIRUTE", "ESFIHA"];
@@ -47,6 +48,11 @@ export default async function PrecificacaoPage({
   const stores = await prisma.store.findMany({ orderBy: { name: "asc" } });
   const storeIdParam = typeof params.storeId === "string" && params.storeId ? params.storeId : undefined;
   const selectedStoreId = storeIdParam ?? stores[0]?.id ?? "";
+  const selectedStore = stores.find((s) => s.id === selectedStoreId) ?? null;
+  const pricingMethod: "MARKUP" | "MARGEM" =
+    selectedStore?.pricingMethod === "MARGEM" ? "MARGEM" : "MARKUP";
+  const targetMarginPercent =
+    selectedStore?.targetMarginPercent != null ? Number(selectedStore.targetMarginPercent) : null;
   const activeTab =
     params.tab === "custos-variaveis" || params.tab === "preco-final" ? params.tab : "custos-fixos";
 
@@ -117,7 +123,18 @@ export default async function PrecificacaoPage({
       0,
     );
     const costPerUnit = recipe.yieldUnits && recipe.yieldUnits > 0 ? totalCost / recipe.yieldUnits : null;
-    const suggestedPrice = costPerUnit !== null ? computeSuggestedPrice(costPerUnit, totalMarkupPercent) : null;
+
+    // As duas formas de precificar, sempre calculadas — a loja escolhe qual
+    // vale como referência (pricingMethod), mas as duas ficam visíveis pra
+    // comparar.
+    const suggestedPriceMarkup =
+      costPerUnit !== null ? computeSuggestedPrice(costPerUnit, totalMarkupPercent) : null;
+    const suggestedPriceMargem =
+      costPerUnit !== null
+        ? computeSuggestedPriceByMargin(costPerUnit, totalVariablePercent, targetMarginPercent)
+        : null;
+    const suggestedPrice = pricingMethod === "MARGEM" ? suggestedPriceMargem : suggestedPriceMarkup;
+
     const currentPrice = recipe.currentPrice !== null ? Number(recipe.currentPrice) : null;
     const adjustmentPercent =
       suggestedPrice !== null && currentPrice !== null && currentPrice > 0
@@ -143,6 +160,8 @@ export default async function PrecificacaoPage({
       type: recipe.type,
       costPerUnit,
       suggestedPrice,
+      suggestedPriceMarkup,
+      suggestedPriceMargem,
       currentPrice,
       adjustmentPercent,
       contribMargin,
@@ -281,6 +300,11 @@ export default async function PrecificacaoPage({
         </TabsContent>
 
         <TabsContent value="preco-final" className="flex flex-col gap-6 pt-4">
+          <PricingMethodForm
+            storeId={selectedStoreId}
+            method={pricingMethod}
+            targetMarginPercent={targetMarginPercent}
+          />
           <AiAnalysisPanel
             action={analisarPrecificacao.bind(null, selectedStoreId)}
             title="Análise de preços com IA"
@@ -396,8 +420,17 @@ export default async function PrecificacaoPage({
                     <TableCell className="text-neutral-500">{RECIPE_TYPE_LABELS[row.type]}</TableCell>
                     <TableCell className="font-medium">{row.name}</TableCell>
                     <TableCell>{row.costPerUnit !== null ? currency(row.costPerUnit) : "—"}</TableCell>
-                    <TableCell className="font-semibold text-primary">
-                      {row.suggestedPrice !== null ? currency(row.suggestedPrice) : "—"}
+                    <TableCell>
+                      <p className="font-semibold text-primary">
+                        {row.suggestedPrice !== null ? currency(row.suggestedPrice) : "—"}
+                      </p>
+                      <p className="text-xs text-neutral-400">
+                        {pricingMethod === "MARGEM" ? (
+                          <>markup: {row.suggestedPriceMarkup !== null ? currency(row.suggestedPriceMarkup) : "—"}</>
+                        ) : (
+                          <>margem: {row.suggestedPriceMargem !== null ? currency(row.suggestedPriceMargem) : "—"}</>
+                        )}
+                      </p>
                     </TableCell>
                     <TableCell>
                       <RecipePriceInput recipeId={row.id} initialPrice={row.currentPrice} />
