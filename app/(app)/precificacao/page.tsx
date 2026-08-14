@@ -123,6 +123,20 @@ export default async function PrecificacaoPage({
       suggestedPrice !== null && currentPrice !== null && currentPrice > 0
         ? ((suggestedPrice - currentPrice) / currentPrice) * 100
         : null;
+
+    // Margem de contribuição = preço − custo do produto − custos variáveis (%
+    // sobre o preço, ex: taxa de máquina/ifood). Não desconta o custo fixo —
+    // é o que sobra pra pagar o fixo e ainda ter lucro. Usa o preço praticado
+    // hoje; se ainda não cadastrou preço, usa o sugerido como referência.
+    const priceForMargin = currentPrice ?? suggestedPrice;
+    const usaPrecoSugerido = currentPrice === null && suggestedPrice !== null;
+    const contribMargin =
+      priceForMargin !== null && costPerUnit !== null
+        ? priceForMargin - costPerUnit - priceForMargin * (totalVariablePercent / 100)
+        : null;
+    const contribMarginPercent =
+      contribMargin !== null && priceForMargin! > 0 ? (contribMargin / priceForMargin!) * 100 : null;
+
     return {
       id: recipe.id,
       name: recipe.name,
@@ -131,8 +145,19 @@ export default async function PrecificacaoPage({
       suggestedPrice,
       currentPrice,
       adjustmentPercent,
+      contribMargin,
+      contribMarginPercent,
+      usaPrecoSugerido,
     };
   });
+
+  const validMargins = priceRows.filter((r) => r.contribMarginPercent !== null);
+  const avgContribMarginPercent =
+    validMargins.length > 0
+      ? validMargins.reduce((s, r) => s + r.contribMarginPercent!, 0) / validMargins.length
+      : null;
+  // Referência pra saber se a margem média cobre o custo fixo (%).
+  const fixedCostPercentOrZero = fixedCostPercent ?? 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -308,6 +333,28 @@ export default async function PrecificacaoPage({
                 </p>
               </CardContent>
             </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-neutral-500">💰 Margem de contribuição média</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p
+                  className={
+                    "text-lg font-semibold " +
+                    (avgContribMarginPercent !== null && avgContribMarginPercent < fixedCostPercentOrZero
+                      ? "text-destructive"
+                      : "text-emerald-600")
+                  }
+                >
+                  {avgContribMarginPercent !== null
+                    ? `${avgContribMarginPercent.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`
+                    : "—"}
+                </p>
+                <p className="text-xs text-neutral-500">
+                  sobra depois do custo do produto e dos custos variáveis, pra pagar o fixo e lucrar
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
           {(fixedCostPercent === null || totalMarkupPercent === null) && (
@@ -333,12 +380,13 @@ export default async function PrecificacaoPage({
                   <TableHead>Preço sugerido</TableHead>
                   <TableHead>Seu preço hoje</TableHead>
                   <TableHead>Ajuste necessário</TableHead>
+                  <TableHead>Margem de contribuição</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {priceRows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-neutral-500">
+                    <TableCell colSpan={7} className="text-center text-neutral-500">
                       Nenhuma pizza, esfiha ou beirute cadastrada.
                     </TableCell>
                   </TableRow>
@@ -363,6 +411,29 @@ export default async function PrecificacaoPage({
                         </span>
                       ) : (
                         <span className="text-emerald-600">✓ dentro da margem</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {row.contribMargin === null ? (
+                        "—"
+                      ) : (
+                        <div>
+                          <span
+                            className={
+                              "font-semibold " +
+                              (row.contribMargin >= 0 ? "text-emerald-600" : "text-destructive")
+                            }
+                          >
+                            {currency(row.contribMargin)} (
+                            {row.contribMarginPercent!.toLocaleString("pt-BR", {
+                              maximumFractionDigits: 1,
+                            })}
+                            %)
+                          </span>
+                          {row.usaPrecoSugerido && (
+                            <p className="text-xs text-neutral-400">sobre o preço sugerido</p>
+                          )}
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>
