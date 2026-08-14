@@ -11,8 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { pluggyConfigured, getAccounts, getTransactions } from "@/lib/pluggy";
 import { PayableDialog } from "./payable-dialog";
 import { MarcarPagaButton, ReabrirButton, ExcluirButton } from "./payable-buttons";
+
+export const maxDuration = 60;
 
 const currency = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -82,6 +85,41 @@ export default async function CaixaPage({
   const totalPendente = pendentes.reduce((s, p) => s + Number(p.amount), 0);
   const vencidas = pendentes.filter((p) => p.dueDate < hoje);
   const totalVencidas = vencidas.reduce((s, p) => s + Number(p.amount), 0);
+
+  // Movimento REAL do banco (extrato Pluggy) no mês — só contas bancárias
+  // (cartão de crédito fica de fora). É o dinheiro de verdade que entrou/saiu.
+  // Obs: inclui transferência entre suas contas (pode contar 2x) e o
+  // faturamento do cartão cai dias depois — por isso fica ao lado do gerencial.
+  const monthStartISO = monthStart.toISOString().slice(0, 10);
+  const monthEndISO = monthEnd.toISOString().slice(0, 10);
+  const monthsBack =
+    Math.max(0, (now.getUTCFullYear() - ano) * 12 + (now.getUTCMonth() + 1 - mes)) + 1;
+  let bancoEntradas = 0;
+  let bancoSaidas = 0;
+  let bancoDisponivel = false;
+  let bancoErro = false;
+  if (pluggyConfigured()) {
+    try {
+      const conns = await prisma.bankConnection.findMany();
+      for (const conn of conns) {
+        const accounts = await getAccounts(conn.itemId);
+        for (const acc of accounts) {
+          if (acc.type === "CREDIT") continue;
+          const txs = await getTransactions(acc.id, monthsBack);
+          for (const t of txs) {
+            const d = t.date.slice(0, 10);
+            if (d < monthStartISO || d > monthEndISO) continue;
+            if (t.amount >= 0) bancoEntradas += t.amount;
+            else bancoSaidas += Math.abs(t.amount);
+          }
+          bancoDisponivel = true;
+        }
+      }
+    } catch {
+      bancoErro = true;
+    }
+  }
+  const bancoSaldo = bancoEntradas - bancoSaidas;
 
   // Saídas do mês por categoria (pro fluxo de caixa).
   const porCategoria = new Map<string, number>();
@@ -155,6 +193,47 @@ export default async function CaixaPage({
               </CardContent>
             </Card>
           </div>
+
+          {(bancoDisponivel || bancoErro) && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Movimento real do banco</CardTitle>
+                <p className="text-xs text-neutral-500">
+                  Dinheiro que de fato entrou/saiu nas contas (extrato Open Finance). Inclui
+                  transferência entre suas contas e o cartão cai dias depois — use como conferência.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {bancoErro ? (
+                  <p className="text-sm text-neutral-500">
+                    Não consegui ler o extrato do banco agora. Tente atualizar em Bancos.
+                  </p>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div>
+                      <p className="text-xs text-neutral-500">Entradas</p>
+                      <p className="text-xl font-bold text-emerald-600">{currency(bancoEntradas)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-500">Saídas</p>
+                      <p className="text-xl font-bold text-red-600">{currency(bancoSaidas)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-500">Saldo do movimento</p>
+                      <p
+                        className={
+                          "text-xl font-bold " +
+                          (bancoSaldo >= 0 ? "text-emerald-600" : "text-red-600")
+                        }
+                      >
+                        {currency(bancoSaldo)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
