@@ -128,6 +128,7 @@ export async function excluirMoedas(id: string): Promise<{ error?: string }> {
 const mesSchema = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/, "Mês inválido."),
   saldoInicial: z.coerce.number().default(0),
+  saldoAnterior: z.coerce.number().optional(),
   ini05: z.coerce.number().int().min(0).default(0),
   ini10: z.coerce.number().int().min(0).default(0),
   ini25: z.coerce.number().int().min(0).default(0),
@@ -140,6 +141,7 @@ const mesSchema = z.object({
 export async function salvarMes(input: {
   month: string;
   saldoInicial: number;
+  saldoAnterior?: number;
   ini05: number;
   ini10: number;
   ini25: number;
@@ -157,6 +159,7 @@ export async function salvarMes(input: {
     create: {
       month: d.month,
       saldoInicial: d.saldoInicial,
+      saldoAnterior: d.saldoAnterior ?? null,
       ini05: d.ini05,
       ini10: d.ini10,
       ini25: d.ini25,
@@ -167,6 +170,7 @@ export async function salvarMes(input: {
     },
     update: {
       saldoInicial: d.saldoInicial,
+      saldoAnterior: d.saldoAnterior ?? null,
       ini05: d.ini05,
       ini10: d.ini10,
       ini25: d.ini25,

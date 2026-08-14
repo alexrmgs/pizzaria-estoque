@@ -58,14 +58,13 @@ export default async function CaixaDinheiroPage({
   const saldoInicial = Number(config?.saldoInicial ?? 0);
   const entradas = entries.filter((e) => e.direction === "ENTRADA");
   const saidas = entries.filter((e) => e.direction === "SAIDA");
-  const totalEntradas = entradas.reduce((s, e) => s + Number(e.amount), 0);
+  const cedulaEntradas = entradas.reduce((s, e) => s + Number(e.amount), 0);
   const totalPagamentos = saidas
     .filter((e) => e.tipo === "PAGAMENTO")
     .reduce((s, e) => s + Number(e.amount), 0);
-  const totalFundo = saidas
+  const cedulaFundo = saidas
     .filter((e) => e.tipo === "FUNDO")
     .reduce((s, e) => s + Number(e.amount), 0);
-  const saldoAtual = saldoInicial + totalEntradas - totalPagamentos - totalFundo;
 
   // Controle de moedas: qtd atual por denominação = inicial + entradas − saídas.
   const coinStats = COINS.map((c) => {
@@ -81,16 +80,33 @@ export default async function CaixaDinheiroPage({
   });
   const totalMoedas = coinStats.reduce((s, c) => s + c.total, 0);
 
-  // Conferência de virada (opcional): sistema × contagem física.
+  // O valor das moedas entra no caixa: entrada de moeda soma nas Entradas, saída
+  // de moeda (usada pra montar o fundo) soma no Fundo de Caixa — igual planilha.
+  const coinValor = (m: (typeof coins)[number]) =>
+    COINS.reduce((s, c) => s + (m[c.q] as number) * c.value, 0);
+  const coinEntradasRs = coins
+    .filter((m) => m.direction === "ENTRADA")
+    .reduce((s, m) => s + coinValor(m), 0);
+  const coinSaidasRs = coins
+    .filter((m) => m.direction === "SAIDA")
+    .reduce((s, m) => s + coinValor(m), 0);
+
+  const totalEntradas = cedulaEntradas + coinEntradasRs;
+  const totalFundo = cedulaFundo + coinSaidasRs;
+  const saldoAtual = saldoInicial + totalEntradas - totalPagamentos - totalFundo;
+
+  // Conferência de virada (opcional): contagem física × saldo do mês anterior.
   const cedulasContadas = config?.cedulasContadas != null ? Number(config.cedulasContadas) : null;
   const moedasContadas = config?.moedasContadas != null ? Number(config.moedasContadas) : null;
+  const saldoAnterior = config?.saldoAnterior != null ? Number(config.saldoAnterior) : null;
   const temConferencia = cedulasContadas != null || moedasContadas != null;
   const totalContado = (cedulasContadas ?? 0) + (moedasContadas ?? 0);
-  const divergencia = totalContado - saldoAtual;
+  const divergencia = saldoAnterior != null ? totalContado - saldoAnterior : null;
 
   const configForm = {
     month: monthKey,
     saldoInicial,
+    saldoAnterior,
     ini05: Number(config?.ini05 ?? 0),
     ini10: Number(config?.ini10 ?? 0),
     ini25: Number(config?.ini25 ?? 0),
@@ -138,6 +154,9 @@ export default async function CaixaDinheiroPage({
           </CardHeader>
           <CardContent>
             <p className="text-xl font-bold text-emerald-600">{currency(totalEntradas)}</p>
+            {coinEntradasRs > 0 && (
+              <p className="text-xs text-neutral-400">inclui {currency(coinEntradasRs)} em moedas</p>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -154,6 +173,9 @@ export default async function CaixaDinheiroPage({
           </CardHeader>
           <CardContent>
             <p className="text-xl font-bold text-amber-600">{currency(totalFundo)}</p>
+            {coinSaidasRs > 0 && (
+              <p className="text-xs text-neutral-400">inclui {currency(coinSaidasRs)} em moedas</p>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -187,7 +209,7 @@ export default async function CaixaDinheiroPage({
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold uppercase text-neutral-500">Entradas</h2>
                 <span className="text-sm font-bold text-emerald-600">
-                  {currency(totalEntradas)}
+                  {currency(cedulaEntradas)}
                 </span>
               </div>
               <EntradaForm hoje={hojeISO} />
@@ -231,7 +253,7 @@ export default async function CaixaDinheiroPage({
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold uppercase text-neutral-500">Saídas</h2>
                 <span className="text-sm font-bold text-red-600">
-                  {currency(totalPagamentos + totalFundo)}
+                  {currency(totalPagamentos + cedulaFundo)}
                 </span>
               </div>
               <SaidaForm hoje={hojeISO} />
@@ -392,8 +414,8 @@ export default async function CaixaDinheiroPage({
             <CardHeader>
               <CardTitle className="text-base">Conferência de virada de mês</CardTitle>
               <p className="text-xs text-neutral-500">
-                Conte o dinheiro físico (cédulas + moedas) e compare com o saldo do sistema. Informe
-                a contagem no botão <b>Configurar mês</b>.
+                Conte o dinheiro físico (cédulas + moedas) no início do mês e compare com o saldo
+                final do mês anterior. Informe os valores no botão <b>Configurar mês</b>.
               </p>
             </CardHeader>
             <CardContent>
@@ -402,7 +424,13 @@ export default async function CaixaDinheiroPage({
                   Ainda não informou a contagem física deste mês.
                 </p>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                  <div>
+                    <p className="text-xs text-neutral-500">Saldo final mês anterior</p>
+                    <p className="text-lg font-bold">
+                      {saldoAnterior != null ? currency(saldoAnterior) : "—"}
+                    </p>
+                  </div>
                   <div>
                     <p className="text-xs text-neutral-500">Cédulas contadas</p>
                     <p className="text-lg font-bold">{currency(cedulasContadas ?? 0)}</p>
@@ -416,24 +444,24 @@ export default async function CaixaDinheiroPage({
                     <p className="text-lg font-bold">{currency(totalContado)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-neutral-500">
-                      Diferença (contado − sistema {currency(saldoAtual)})
-                    </p>
-                    <p
-                      className={
-                        "text-lg font-bold " +
-                        (Math.abs(divergencia) < 0.01
-                          ? "text-emerald-600"
-                          : "text-red-600")
-                      }
-                    >
-                      {currency(divergencia)}
-                      {Math.abs(divergencia) >= 0.01 && (
-                        <Badge variant="destructive" className="ml-2 align-middle">
-                          divergência
-                        </Badge>
-                      )}
-                    </p>
+                    <p className="text-xs text-neutral-500">Diferença (contado − anterior)</p>
+                    {divergencia == null ? (
+                      <p className="text-lg font-bold text-neutral-400">—</p>
+                    ) : (
+                      <p
+                        className={
+                          "text-lg font-bold " +
+                          (Math.abs(divergencia) < 0.01 ? "text-emerald-600" : "text-red-600")
+                        }
+                      >
+                        {currency(divergencia)}
+                        {Math.abs(divergencia) >= 0.01 && (
+                          <Badge variant="destructive" className="ml-2 align-middle">
+                            divergência
+                          </Badge>
+                        )}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

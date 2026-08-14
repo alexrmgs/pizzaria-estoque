@@ -620,6 +620,7 @@ model CashMonth {
   id              String   @id @default(cuid())
   month           String   @unique // YYYY-MM
   saldoInicial    Decimal  @default(0) @db.Decimal(10, 2)
+  saldoAnterior   Decimal? @db.Decimal(10, 2)
   ini05           Int      @default(0)
   ini10           Int      @default(0)
   ini25           Int      @default(0)

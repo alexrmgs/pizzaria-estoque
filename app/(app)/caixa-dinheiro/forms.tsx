@@ -217,6 +217,7 @@ export function MoedaForm({ hoje }: { hoje: string }) {
 type ConfigForm = {
   month: string;
   saldoInicial: number;
+  saldoAnterior: number | null;
   ini05: number;
   ini10: number;
   ini25: number;
@@ -232,6 +233,7 @@ export function MesDialog({ config }: { config: ConfigForm }) {
   const [saving, setSaving] = useState(false);
   const [f, setF] = useState({
     saldoInicial: String(config.saldoInicial),
+    saldoAnterior: config.saldoAnterior != null ? String(config.saldoAnterior) : "",
     ini05: String(config.ini05),
     ini10: String(config.ini10),
     ini25: String(config.ini25),
@@ -248,6 +250,7 @@ export function MesDialog({ config }: { config: ConfigForm }) {
     const result = await salvarMes({
       month: config.month,
       saldoInicial: Number(f.saldoInicial) || 0,
+      saldoAnterior: f.saldoAnterior === "" ? undefined : Number(f.saldoAnterior),
       ini05: Number(f.ini05) || 0,
       ini10: Number(f.ini10) || 0,
       ini25: Number(f.ini25) || 0,
@@ -304,8 +307,17 @@ export function MesDialog({ config }: { config: ConfigForm }) {
           <div className="border-t pt-3">
             <Label className="text-sm font-semibold">Virada de mês (opcional)</Label>
             <p className="mb-2 text-xs text-neutral-500">
-              Contagem física do dinheiro pra conferir a diferença.
+              Contagem física do dinheiro pra conferir a diferença com o mês anterior.
             </p>
+            <div className="mb-3 flex flex-col gap-1">
+              <span className="text-xs text-neutral-500">Saldo final do mês anterior (R$)</span>
+              <Input
+                type="number"
+                step="0.01"
+                value={f.saldoAnterior}
+                onChange={(e) => setF((p) => ({ ...p, saldoAnterior: e.target.value }))}
+              />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-neutral-500">Cédulas contadas (R$)</span>
