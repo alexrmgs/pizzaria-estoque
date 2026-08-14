@@ -13,16 +13,19 @@ export function computeSuggestedPrice(unitCost: number, totalMarkupPercent: numb
 }
 
 /**
- * Preço sugerido pelo método da "margem de contribuição desejada": desconsidera
- * custo fixo e custos variáveis cadastrados — é só o custo do produto e a %
- * de margem que você quer ganhar em cima dele. Preço = custo / (1 - %margem).
+ * Preço sugerido pelo método da "margem de contribuição desejada": o custo
+ * fixo fica de fora do preço (é coberto pelo volume vendido, não item a
+ * item), mas o custo variável entra — senão a % que a loja pede não bate com
+ * a margem de contribuição de verdade (que já é, por definição, o que sobra
+ * depois de tirar o variável). Preço = custo / (1 - %variável - %margem).
  */
 export function computeSuggestedPriceByMargin(
   unitCost: number,
+  variablePercent: number,
   targetMarginPercent: number | null,
 ): number | null {
   if (targetMarginPercent === null) return null;
-  const divisor = 1 - targetMarginPercent / 100;
+  const divisor = 1 - (variablePercent + targetMarginPercent) / 100;
   if (divisor <= 0) return null;
   return unitCost / divisor;
 }
