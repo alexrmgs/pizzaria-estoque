@@ -130,9 +130,7 @@ export default async function PrecificacaoPage({
     const suggestedPriceMarkup =
       costPerUnit !== null ? computeSuggestedPrice(costPerUnit, totalMarkupPercent) : null;
     const suggestedPriceMargem =
-      costPerUnit !== null
-        ? computeSuggestedPriceByMargin(costPerUnit, totalVariablePercent, targetMarginPercent)
-        : null;
+      costPerUnit !== null ? computeSuggestedPriceByMargin(costPerUnit, targetMarginPercent) : null;
     const suggestedPrice = pricingMethod === "MARGEM" ? suggestedPriceMargem : suggestedPriceMarkup;
 
     const currentPrice = recipe.currentPrice !== null ? Number(recipe.currentPrice) : null;
@@ -369,7 +367,7 @@ export default async function PrecificacaoPage({
                       : "—"}
                   </p>
                   <p className="text-xs text-neutral-500">
-                    custo fixo não entra no preço — precisa ser coberto pelo volume vendido
+                    custo fixo e variável não entram no preço — só o custo do produto + margem
                   </p>
                 </CardContent>
               </Card>
@@ -420,10 +418,10 @@ export default async function PrecificacaoPage({
                   Defina a margem de contribuição desejada no card acima pra calcular o preço sugerido.
                 </p>
               )}
-              {targetMarginPercent !== null && totalVariablePercent + targetMarginPercent >= 100 && (
+              {targetMarginPercent !== null && targetMarginPercent >= 100 && (
                 <p className="text-sm text-destructive">
-                  Custos variáveis + margem desejada passou de 100% — não dá pra calcular um preço
-                  sugerido assim. Revise os percentuais.
+                  A margem desejada não pode ser 100% ou mais — não dá pra calcular um preço sugerido
+                  assim.
                 </p>
               )}
             </>

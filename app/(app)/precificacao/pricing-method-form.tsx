@@ -41,10 +41,7 @@ export function PricingMethodForm({
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm text-neutral-500">Método de precificação</CardTitle>
-        <p className="text-xs text-neutral-400">
-          Escolha qual preço sugerido vale como referência (o outro fica mostrado do lado, pra
-          comparar).
-        </p>
+        <p className="text-xs text-neutral-400">Escolha como calcular o preço sugerido.</p>
       </CardHeader>
       <CardContent className="flex flex-wrap items-center gap-4">
         <label className="flex cursor-pointer items-center gap-2 text-sm">
@@ -57,7 +54,7 @@ export function PricingMethodForm({
               salvar("MARKUP");
             }}
           />
-          Markup (custo fixo + variável embutidos)
+          Markup (custo fixo + variável embutidos no preço)
         </label>
         <label className="flex cursor-pointer items-center gap-2 text-sm">
           <input
@@ -69,7 +66,7 @@ export function PricingMethodForm({
               salvar("MARGEM");
             }}
           />
-          Margem de contribuição desejada
+          Margem desejada (ignora custo fixo e variável)
         </label>
         {metodo === "MARGEM" && (
           <div className="flex items-center gap-2">
