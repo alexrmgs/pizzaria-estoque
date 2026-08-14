@@ -18,6 +18,16 @@ const storeSchema = z.object({
     .transform((v) => v.replace(/^Bearer\s+/i, "").trim())
     .transform((v) => (v.length > 0 ? v : null))
     .nullable(),
+  pluggyClientId: z
+    .string()
+    .trim()
+    .transform((v) => (v.length > 0 ? v : null))
+    .nullable(),
+  pluggyClientSecret: z
+    .string()
+    .trim()
+    .transform((v) => (v.length > 0 ? v : null))
+    .nullable(),
 });
 
 export type StoreFormState = { error?: string } | undefined;
@@ -30,6 +40,8 @@ function parseStoreForm(formData: FormData) {
     longitude: formData.get("longitude"),
     radiusMeters: formData.get("radiusMeters"),
     saiposToken: formData.get("saiposToken") ?? "",
+    pluggyClientId: formData.get("pluggyClientId") ?? "",
+    pluggyClientSecret: formData.get("pluggyClientSecret") ?? "",
   });
 }
 

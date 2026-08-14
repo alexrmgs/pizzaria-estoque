@@ -318,6 +318,11 @@ model Store {
   // ou "MARGEM" (custo / (1 - %variável - margem de contribuição desejada)).
   pricingMethod       String   @default("MARKUP")
   targetMarginPercent Decimal? @db.Decimal(5, 2)
+  // Open Finance (Pluggy) próprio dessa loja — o responsável de lá faz o
+  // cadastro Meu Pluggy dele e conecta o banco dele com essas credenciais.
+  // Se vazio, cai pras variáveis de ambiente globais (compatibilidade).
+  pluggyClientId     String?
+  pluggyClientSecret String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

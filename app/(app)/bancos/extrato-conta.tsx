@@ -26,10 +26,12 @@ function daysAgoISO(days: number) {
 
 export function ExtratoConta({
   accountId,
+  storeId,
   sincronizando,
   nome,
 }: {
   accountId: string;
+  storeId: string;
   sincronizando?: boolean;
   nome: string;
 }) {
@@ -50,7 +52,7 @@ export function ExtratoConta({
     if (abrindo && txs === null && !loading) {
       setLoading(true);
       setErro(undefined);
-      const r = await buscarExtrato(accountId);
+      const r = await buscarExtrato(accountId, storeId);
       setLoading(false);
       if (r.error) setErro(r.error);
       else setTxs(r.transactions ?? []);

@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { pluggyConfigured, getAccounts, getTransactions } from "@/lib/pluggy";
+import { resolvePluggyCreds, getAccounts, getTransactions } from "@/lib/pluggy";
 import { PayableDialog } from "./payable-dialog";
 import { MarcarPagaButton, ReabrirButton, ExcluirButton } from "./payable-buttons";
 
@@ -52,7 +52,7 @@ export default async function CaixaPage({
   // pra registrar faturamento. Então as entradas do fluxo contam só a Eusébio.
   const stores = await prisma.store.findMany({
     orderBy: { name: "asc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, pluggyClientId: true, pluggyClientSecret: true },
   });
   const eusebio = stores.find((s) =>
     s.name
@@ -98,14 +98,17 @@ export default async function CaixaPage({
   let bancoSaidas = 0;
   let bancoDisponivel = false;
   let bancoErro = false;
-  if (pluggyConfigured()) {
+  const pluggyCreds = resolvePluggyCreds(eusebio);
+  if (pluggyCreds) {
     try {
-      const conns = await prisma.bankConnection.findMany();
+      const conns = eusebio
+        ? await prisma.bankConnection.findMany({ where: { storeId: eusebio.id } })
+        : [];
       for (const conn of conns) {
-        const accounts = await getAccounts(conn.itemId);
+        const accounts = await getAccounts(pluggyCreds, conn.itemId);
         for (const acc of accounts) {
           if (acc.type === "CREDIT") continue;
-          const txs = await getTransactions(acc.id, monthsBack);
+          const txs = await getTransactions(pluggyCreds, acc.id, monthsBack);
           for (const t of txs) {
             const d = t.date.slice(0, 10);
             if (d < monthStartISO || d > monthEndISO) continue;

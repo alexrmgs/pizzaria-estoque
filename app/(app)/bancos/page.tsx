@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
-  pluggyConfigured,
+  resolvePluggyCreds,
   getAccounts,
   getItem,
   type PluggyAccount,
@@ -17,6 +19,9 @@ export const maxDuration = 60;
 const currency = (v: number, code = "BRL") =>
   v.toLocaleString("pt-BR", { style: "currency", currency: code || "BRL" });
 
+const selectClassName =
+  "h-9 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
 type Conta = {
   connectionId: string;
   bankName: string;
@@ -25,52 +30,67 @@ type Conta = {
   error?: string;
 };
 
-export default async function BancosPage() {
+export default async function BancosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   await requirePermission("canViewRelatorios");
+  const params = await searchParams;
 
-  const configured = pluggyConfigured();
-  const connections = configured
-    ? await prisma.bankConnection.findMany({ orderBy: { createdAt: "asc" } })
+  const stores = await prisma.store.findMany({ orderBy: { name: "asc" } });
+  const storeIdParam = typeof params.storeId === "string" && params.storeId ? params.storeId : undefined;
+  const selectedStoreId = storeIdParam ?? stores[0]?.id ?? "";
+  const selectedStore = stores.find((s) => s.id === selectedStoreId) ?? null;
+
+  const configured = !!resolvePluggyCreds(selectedStore);
+  const usaPadrao = configured && !selectedStore?.pluggyClientId;
+  const connections = configured && selectedStoreId
+    ? await prisma.bankConnection.findMany({ where: { storeId: selectedStoreId }, orderBy: { createdAt: "asc" } })
     : [];
+
+  const creds = resolvePluggyCreds(selectedStore);
 
   // Busca contas e extrato de cada conexão (ao vivo na Pluggy).
   const contas: Conta[] = [];
-  for (const conn of connections) {
-    try {
-      // Status do item: se ainda não terminou de atualizar, o extrato pode
-      // não ter chegado (a Pluggy puxa o histórico depois do saldo).
-      let sincronizando = false;
+  if (creds) {
+    for (const conn of connections) {
       try {
-        const item = await getItem(conn.itemId);
-        sincronizando = !["UPDATED", "OUTDATED"].includes(item.status);
-      } catch {
-        // ignora
-      }
-      const accounts = await getAccounts(conn.itemId);
-      for (const account of accounts) {
+        // Status do item: se ainda não terminou de atualizar, o extrato pode
+        // não ter chegado (a Pluggy puxa o histórico depois do saldo).
+        let sincronizando = false;
+        try {
+          const item = await getItem(creds, conn.itemId);
+          sincronizando = !["UPDATED", "OUTDATED"].includes(item.status);
+        } catch {
+          // ignora
+        }
+        const accounts = await getAccounts(creds, conn.itemId);
+        for (const account of accounts) {
+          contas.push({
+            connectionId: conn.id,
+            bankName: conn.name ?? "Banco",
+            account,
+            sincronizando,
+          });
+        }
+      } catch (e) {
         contas.push({
           connectionId: conn.id,
           bankName: conn.name ?? "Banco",
-          account,
-          sincronizando,
+          account: {
+            id: conn.id,
+            type: "",
+            subtype: null,
+            name: "—",
+            marketingName: null,
+            number: null,
+            balance: 0,
+            currencyCode: "BRL",
+          },
+          error: e instanceof Error ? e.message : "Falha ao consultar o banco.",
         });
       }
-    } catch (e) {
-      contas.push({
-        connectionId: conn.id,
-        bankName: conn.name ?? "Banco",
-        account: {
-          id: conn.id,
-          type: "",
-          subtype: null,
-          name: "—",
-          marketingName: null,
-          number: null,
-          balance: 0,
-          currencyCode: "BRL",
-        },
-        error: e instanceof Error ? e.message : "Falha ao consultar o banco.",
-      });
     }
   }
 
@@ -94,34 +114,62 @@ export default async function BancosPage() {
         <div>
           <h1 className="text-2xl font-semibold uppercase">Bancos</h1>
           <p className="text-sm text-neutral-500">
-            Conecte suas contas (Open Finance) e veja saldo e extrato automático.
+            Conecte as contas de cada loja (Open Finance) e veja saldo e extrato automático.
           </p>
         </div>
-        {configured && (
+        {configured && selectedStoreId && (
           <div className="flex gap-2">
-            {connections.length > 0 && <AtualizarButton />}
-            <ConnectButton />
+            {connections.length > 0 && <AtualizarButton storeId={selectedStoreId} />}
+            <ConnectButton storeId={selectedStoreId} />
           </div>
         )}
       </div>
+
+      <form className="flex flex-wrap items-end gap-3 rounded-lg border bg-white p-4">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-neutral-500" htmlFor="storeId">
+            Loja
+          </label>
+          <select id="storeId" name="storeId" defaultValue={selectedStoreId} className={selectClassName}>
+            {stores.map((store) => (
+              <option key={store.id} value={store.id}>
+                {store.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <Button type="submit" size="sm">
+          Trocar loja
+        </Button>
+      </form>
 
       {!configured && (
         <Card>
           <CardContent className="py-6">
             <p className="text-sm text-neutral-600">
-              A integração Open Finance ainda não está configurada. Falta cadastrar as chaves da
-              Pluggy (PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET).
+              Essa loja ainda não tem Open Finance configurado. Cadastre o Client ID/Secret da Pluggy
+              dessa loja em{" "}
+              <Link href="/lojas" className="underline">
+                Lojas
+              </Link>{" "}
+              (o responsável de lá pode criar uma conta grátis em pluggy.ai/meu-pluggy e conectar o
+              banco dele).
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {usaPadrao && (
+        <p className="text-xs text-neutral-400">
+          Essa loja está usando a integração Open Finance padrão (sem Client ID próprio cadastrado).
+        </p>
       )}
 
       {configured && connections.length === 0 && (
         <Card>
           <CardContent className="py-6">
             <p className="text-sm text-neutral-600">
-              Nenhum banco conectado ainda. Clique em <b>Conectar banco</b> pra começar (no modo
-              teste dá pra usar o banco de sandbox da Pluggy).
+              Nenhum banco conectado ainda pra essa loja. Clique em <b>Conectar banco</b> pra começar.
             </p>
           </CardContent>
         </Card>
@@ -209,6 +257,7 @@ export default async function BancosPage() {
                 {!c.error && (
                 <ExtratoConta
                   accountId={c.account.id}
+                  storeId={selectedStoreId}
                   sincronizando={c.sincronizando}
                   nome={`${c.bankName} ${c.account.marketingName || c.account.name}`}
                 />
@@ -252,6 +301,7 @@ export default async function BancosPage() {
               {!c.error && (
                 <ExtratoConta
                   accountId={c.account.id}
+                  storeId={selectedStoreId}
                   sincronizando={c.sincronizando}
                   nome={`${c.bankName} ${c.account.marketingName || c.account.name}`}
                 />

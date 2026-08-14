@@ -15,7 +15,7 @@ const PluggyConnect = dynamic(
   { ssr: false },
 );
 
-export function ConnectButton() {
+export function ConnectButton({ storeId }: { storeId: string }) {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -23,7 +23,7 @@ export function ConnectButton() {
 
   async function abrir() {
     setLoading(true);
-    const result = await novoConnectToken();
+    const result = await novoConnectToken(storeId);
     setLoading(false);
     if (result.error || !result.token) {
       toast.error(result.error ?? "Não foi possível iniciar.");
@@ -36,7 +36,7 @@ export function ConnectButton() {
   async function handleSuccess(itemData: { item: { id: string } }) {
     const itemId = itemData?.item?.id;
     if (!itemId) return;
-    const result = await salvarConexao(itemId);
+    const result = await salvarConexao(itemId, storeId);
     setOpen(false);
     if (result.error) {
       toast.error(result.error);

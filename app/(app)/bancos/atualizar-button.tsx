@@ -7,13 +7,13 @@ import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { atualizarTudo } from "./actions";
 
-export function AtualizarButton() {
+export function AtualizarButton({ storeId }: { storeId: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   async function atualizar() {
     setLoading(true);
-    const r = await atualizarTudo();
+    const r = await atualizarTudo(storeId);
     setLoading(false);
     if (r.error) {
       toast.error(r.error);

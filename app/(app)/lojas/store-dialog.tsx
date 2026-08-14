@@ -23,6 +23,8 @@ type Store = {
   longitude: string;
   radiusMeters: number;
   saiposToken: string | null;
+  pluggyClientId: string | null;
+  pluggyClientSecret: string | null;
 };
 
 export function StoreDialog({ store }: { store?: Store }) {
@@ -157,6 +159,30 @@ export function StoreDialog({ store }: { store?: Store }) {
             />
             <p className="text-xs text-muted-foreground">
               Com o token, dá pra puxar o faturamento dessa loja automático no Financeiro.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 border-t pt-4">
+            <Label htmlFor="pluggyClientId">Client ID da Pluggy dessa loja (opcional)</Label>
+            <Input
+              id="pluggyClientId"
+              name="pluggyClientId"
+              defaultValue={store?.pluggyClientId ?? ""}
+              placeholder="Ex: 3f2e1a..."
+            />
+            <Label htmlFor="pluggyClientSecret">Client Secret da Pluggy dessa loja</Label>
+            <Input
+              id="pluggyClientSecret"
+              name="pluggyClientSecret"
+              defaultValue={store?.pluggyClientSecret ?? ""}
+              placeholder="Cole aqui o Client Secret"
+            />
+            <p className="text-xs text-muted-foreground">
+              O responsável dessa loja cria uma conta grátis em{" "}
+              <a href="https://www.pluggy.ai/meu-pluggy" target="_blank" rel="noreferrer" className="underline">
+                pluggy.ai/meu-pluggy
+              </a>{" "}
+              e pega o Client ID/Secret dele. Sem isso, essa loja usa a integração padrão (Eusébio).
             </p>
           </div>
 

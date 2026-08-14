@@ -59,6 +59,11 @@ export default async function LojasPage() {
                       SaiPos
                     </span>
                   )}
+                  {store.pluggyClientId && (
+                    <span className="ml-2 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+                      Pluggy
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell className="text-neutral-500">{store.address ?? "—"}</TableCell>
                 <TableCell>{store.radiusMeters} m</TableCell>
@@ -74,6 +79,8 @@ export default async function LojasPage() {
                         longitude: store.longitude.toString(),
                         radiusMeters: store.radiusMeters,
                         saiposToken: store.saiposToken,
+                        pluggyClientId: store.pluggyClientId,
+                        pluggyClientSecret: store.pluggyClientSecret,
                       }}
                     />
                     <DeleteStoreButton id={store.id} name={store.name} />
