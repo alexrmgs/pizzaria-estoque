@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { COINS } from "./coins";
 import { EntradaForm, SaidaForm, MoedaForm, MesDialog, ExcluirLinha } from "./forms";
+import { ExtratoExport } from "./extrato-export";
 
 const currency = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -103,6 +104,51 @@ export default async function CaixaDinheiroPage({
   const totalContado = (cedulasContadas ?? 0) + (moedasContadas ?? 0);
   const divergencia = saldoAnterior != null ? totalContado - saldoAnterior : null;
 
+  // Extrato bancário: todos os movimentos em ordem, com saldo corrido a partir
+  // do saldo inicial (moedas entram como crédito/débito também).
+  const movs = [
+    ...entradas.map((e) => ({
+      date: e.date,
+      createdAt: e.createdAt,
+      descricao: e.description,
+      tipo: "Entrada",
+      valor: Number(e.amount),
+    })),
+    ...saidas.map((e) => ({
+      date: e.date,
+      createdAt: e.createdAt,
+      descricao: e.description,
+      tipo: e.tipo === "FUNDO" ? "Fundo de caixa" : "Pagamento",
+      valor: -Number(e.amount),
+    })),
+    ...coins.map((m) => ({
+      date: m.date,
+      createdAt: m.createdAt,
+      descricao: m.direction === "ENTRADA" ? "Entrada de moedas" : "Saída de moedas (fundo)",
+      tipo: "Moedas",
+      valor: (m.direction === "ENTRADA" ? 1 : -1) * coinValor(m),
+    })),
+  ].sort((a, b) => a.date.getTime() - b.date.getTime() || a.createdAt.getTime() - b.createdAt.getTime());
+
+  const extratoRows: {
+    data: string;
+    descricao: string;
+    tipo: string;
+    valor: number;
+    saldo: number;
+  }[] = [];
+  let saldoCorrido = saldoInicial;
+  for (const m of movs) {
+    saldoCorrido += m.valor;
+    extratoRows.push({
+      data: brDate(m.date),
+      descricao: m.descricao,
+      tipo: m.tipo,
+      valor: m.valor,
+      saldo: saldoCorrido,
+    });
+  }
+
   const configForm = {
     month: monthKey,
     saldoInicial,
@@ -125,7 +171,16 @@ export default async function CaixaDinheiroPage({
             Controle do dinheiro em espécie (cédulas e moedas) — igual sua planilha.
           </p>
         </div>
-        <MesDialog config={configForm} />
+        <div className="flex gap-2">
+          <ExtratoExport
+            rows={extratoRows}
+            saldoInicial={saldoInicial}
+            saldoFinal={saldoAtual}
+            mesLabel={mesLabel}
+            monthKey={monthKey}
+          />
+          <MesDialog config={configForm} />
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
