@@ -587,3 +587,63 @@ model Payment {
 
   @@index([employeeId])
 }
+
+enum CashDirection {
+  ENTRADA
+  SAIDA
+}
+
+enum CashSaidaTipo {
+  PAGAMENTO
+  FUNDO
+}
+
+// Lançamento do caixa de dinheiro em espécie (cédulas). ENTRADA = fechamento do
+// dia (venda em dinheiro); SAIDA = pagamento em dinheiro ou retirada pra fundo
+// de caixa. Espelha as tabelas ENTRADAS/SAÍDAS da planilha de controle.
+model CashEntry {
+  id          String         @id @default(cuid())
+  date        DateTime       @db.Date
+  description String
+  direction   CashDirection
+  tipo        CashSaidaTipo?
+  amount      Decimal        @db.Decimal(10, 2)
+  userId      String?
+  createdAt   DateTime       @default(now())
+
+  @@index([date])
+}
+
+// Configuração/fechamento do mês do caixa de dinheiro: saldo inicial, estoque
+// inicial de cada moeda e a conferência física da virada de mês.
+model CashMonth {
+  id              String   @id @default(cuid())
+  month           String   @unique // YYYY-MM
+  saldoInicial    Decimal  @default(0) @db.Decimal(10, 2)
+  ini05           Int      @default(0)
+  ini10           Int      @default(0)
+  ini25           Int      @default(0)
+  ini50           Int      @default(0)
+  ini100          Int      @default(0)
+  cedulasContadas Decimal? @db.Decimal(10, 2)
+  moedasContadas  Decimal? @db.Decimal(10, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Movimentação diária de moedas: quantidade de cada denominação que entrou ou
+// saiu do estoque de moedas (usado pra montar o fundo de caixa).
+model CoinMovement {
+  id        String        @id @default(cuid())
+  date      DateTime      @db.Date
+  direction CashDirection
+  q05       Int           @default(0)
+  q10       Int           @default(0)
+  q25       Int           @default(0)
+  q50       Int           @default(0)
+  q100      Int           @default(0)
+  note      String?
+  createdAt DateTime      @default(now())
+
+  @@index([date])
+}

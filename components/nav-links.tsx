@@ -119,6 +119,7 @@ export function NavLinks({ permissions }: { permissions: Permissions }) {
   const financeiroItems: NavItem[] = permissions.canViewRelatorios
     ? [
         { href: "/caixa", label: "Financeiro" },
+        { href: "/caixa-dinheiro", label: "Caixa de Dinheiro" },
         { href: "/financeiro", label: "Faturamento" },
         { href: "/precificacao", label: "Precificação" },
         { href: "/bancos", label: "Bancos" },
