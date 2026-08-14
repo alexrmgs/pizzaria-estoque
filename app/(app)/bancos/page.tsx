@@ -134,7 +134,14 @@ export default async function BancosPage() {
               <CardTitle className="text-sm text-neutral-500">Saldo em conta</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-emerald-600">{currency(saldoEmConta)}</p>
+              <p
+                className={
+                  "text-2xl font-bold " +
+                  (saldoEmConta < 0 ? "text-red-600" : "text-emerald-600")
+                }
+              >
+                {currency(saldoEmConta)}
+              </p>
               <p className="text-xs text-neutral-400">dinheiro disponível nas contas</p>
             </CardContent>
           </Card>
@@ -181,7 +188,12 @@ export default async function BancosPage() {
                       {c.error ? (
                         <span className="text-red-600">{c.error}</span>
                       ) : (
-                        <span className="font-semibold text-neutral-700">
+                        <span
+                          className={
+                            "font-semibold " +
+                            (c.account.balance < 0 ? "text-red-600" : "text-neutral-700")
+                          }
+                        >
                           Saldo: {currency(c.account.balance, c.account.currencyCode)}
                         </span>
                       )}
