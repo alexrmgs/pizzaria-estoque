@@ -160,8 +160,6 @@ export default async function PrecificacaoPage({
       type: recipe.type,
       costPerUnit,
       suggestedPrice,
-      suggestedPriceMarkup,
-      suggestedPriceMargem,
       currentPrice,
       adjustmentPercent,
       contribMargin,
@@ -345,18 +343,37 @@ export default async function PrecificacaoPage({
                 <p className="text-lg font-semibold">{totalVariablePercent.toLocaleString("pt-BR")}%</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm text-neutral-500">📊 Markup total</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-lg font-semibold text-primary">
-                  {totalMarkupPercent !== null
-                    ? `${totalMarkupPercent.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`
-                    : "—"}
-                </p>
-              </CardContent>
-            </Card>
+            {pricingMethod === "MARKUP" ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm text-neutral-500">📊 Markup total</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-lg font-semibold text-primary">
+                    {totalMarkupPercent !== null
+                      ? `${totalMarkupPercent.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`
+                      : "—"}
+                  </p>
+                  <p className="text-xs text-neutral-500">custo fixo + variáveis embutidos no preço</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm text-neutral-500">🎯 Margem desejada</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-lg font-semibold text-primary">
+                    {targetMarginPercent !== null
+                      ? `${targetMarginPercent.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`
+                      : "—"}
+                  </p>
+                  <p className="text-xs text-neutral-500">
+                    custo fixo não entra no preço — precisa ser coberto pelo volume vendido
+                  </p>
+                </CardContent>
+              </Card>
+            )}
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm text-neutral-500">💰 Margem de contribuição média</CardTitle>
@@ -381,17 +398,35 @@ export default async function PrecificacaoPage({
             </Card>
           </div>
 
-          {(fixedCostPercent === null || totalMarkupPercent === null) && (
-            <p className="text-sm text-neutral-500">
-              Cadastre os custos fixos e garanta que a loja tenha faturamento lançado em algum mês
-              fechado (antes do mês atual) pra calcular o preço sugerido.
-            </p>
-          )}
-          {totalMarkupPercent !== null && totalMarkupPercent >= 100 && (
-            <p className="text-sm text-destructive">
-              A soma dos custos passou de 100% — não dá pra calcular um preço sugerido assim. Revise os
-              percentuais cadastrados.
-            </p>
+          {pricingMethod === "MARKUP" ? (
+            <>
+              {(fixedCostPercent === null || totalMarkupPercent === null) && (
+                <p className="text-sm text-neutral-500">
+                  Cadastre os custos fixos e garanta que a loja tenha faturamento lançado em algum mês
+                  fechado (antes do mês atual) pra calcular o preço sugerido.
+                </p>
+              )}
+              {totalMarkupPercent !== null && totalMarkupPercent >= 100 && (
+                <p className="text-sm text-destructive">
+                  A soma dos custos passou de 100% — não dá pra calcular um preço sugerido assim. Revise
+                  os percentuais cadastrados.
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              {targetMarginPercent === null && (
+                <p className="text-sm text-neutral-500">
+                  Defina a margem de contribuição desejada no card acima pra calcular o preço sugerido.
+                </p>
+              )}
+              {targetMarginPercent !== null && totalVariablePercent + targetMarginPercent >= 100 && (
+                <p className="text-sm text-destructive">
+                  Custos variáveis + margem desejada passou de 100% — não dá pra calcular um preço
+                  sugerido assim. Revise os percentuais.
+                </p>
+              )}
+            </>
           )}
 
           <div className="rounded-lg border bg-white">
@@ -401,7 +436,9 @@ export default async function PrecificacaoPage({
                   <TableHead>Tipo</TableHead>
                   <TableHead>Receita</TableHead>
                   <TableHead>Custo unitário</TableHead>
-                  <TableHead>Preço sugerido</TableHead>
+                  <TableHead>
+                    Preço sugerido ({pricingMethod === "MARKUP" ? "markup" : "margem"})
+                  </TableHead>
                   <TableHead>Seu preço hoje</TableHead>
                   <TableHead>Ajuste necessário</TableHead>
                   <TableHead>Margem de contribuição</TableHead>
@@ -420,17 +457,8 @@ export default async function PrecificacaoPage({
                     <TableCell className="text-neutral-500">{RECIPE_TYPE_LABELS[row.type]}</TableCell>
                     <TableCell className="font-medium">{row.name}</TableCell>
                     <TableCell>{row.costPerUnit !== null ? currency(row.costPerUnit) : "—"}</TableCell>
-                    <TableCell>
-                      <p className="font-semibold text-primary">
-                        {row.suggestedPrice !== null ? currency(row.suggestedPrice) : "—"}
-                      </p>
-                      <p className="text-xs text-neutral-400">
-                        {pricingMethod === "MARGEM" ? (
-                          <>markup: {row.suggestedPriceMarkup !== null ? currency(row.suggestedPriceMarkup) : "—"}</>
-                        ) : (
-                          <>margem: {row.suggestedPriceMargem !== null ? currency(row.suggestedPriceMargem) : "—"}</>
-                        )}
-                      </p>
+                    <TableCell className="font-semibold text-primary">
+                      {row.suggestedPrice !== null ? currency(row.suggestedPrice) : "—"}
                     </TableCell>
                     <TableCell>
                       <RecipePriceInput recipeId={row.id} initialPrice={row.currentPrice} />
