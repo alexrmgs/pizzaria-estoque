@@ -5,7 +5,11 @@ const PUBLIC_PATHS = ["/login"];
 
 export const proxy = auth((req) => {
   const { pathname } = req.nextUrl;
-  const isLoggedIn = !!req.auth;
+  // Sessão de antes da empresa (companyId) existir no login conta como
+  // deslogada — força passar pelo /login de novo, que gera um token novo já
+  // com companyId. Sem isso, sessão antiga quebra toda query com
+  // "companyId: undefined" em vez de simplesmente pedir login de novo.
+  const isLoggedIn = !!req.auth?.user?.companyId;
   const isPublicPath = PUBLIC_PATHS.includes(pathname);
 
   if (!isLoggedIn && !isPublicPath) {
