@@ -402,6 +402,7 @@ export function StoreDashboard({
                       <ChannelBadge channel={c} />
                     </TableHead>
                   ))}
+                  <TableHead>Total</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -418,6 +419,7 @@ export function StoreDashboard({
                           </TableCell>
                         );
                       })}
+                      <TableCell className="font-semibold">{currency(monthTotal)}</TableCell>
                     </TableRow>
                   );
                 })}
@@ -431,6 +433,7 @@ export function StoreDashboard({
                       </TableCell>
                     );
                   })}
+                  <TableCell className="font-semibold text-primary">{currency(store.totalAmount)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
