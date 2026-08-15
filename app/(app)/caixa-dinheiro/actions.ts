@@ -30,6 +30,7 @@ export async function salvarEntrada(input: {
       direction: "ENTRADA",
       amount: parsed.data.amount,
       userId: user.id,
+      companyId: user.companyId,
     },
   });
   revalidatePath("/caixa-dinheiro");
@@ -57,6 +58,7 @@ export async function salvarSaida(input: {
       tipo: parsed.data.tipo,
       amount: parsed.data.amount,
       userId: user.id,
+      companyId: user.companyId,
     },
   });
   revalidatePath("/caixa-dinheiro");
@@ -64,8 +66,8 @@ export async function salvarSaida(input: {
 }
 
 export async function excluirEntrada(id: string): Promise<{ error?: string }> {
-  await requirePermission("canViewRelatorios");
-  await prisma.cashEntry.delete({ where: { id } });
+  const user = await requirePermission("canViewRelatorios");
+  await prisma.cashEntry.deleteMany({ where: { id, companyId: user.companyId } });
   revalidatePath("/caixa-dinheiro");
   return {};
 }
@@ -93,7 +95,7 @@ export async function salvarMoedas(input: {
   q100: number;
   note?: string;
 }): Promise<{ error?: string }> {
-  await requirePermission("canViewRelatorios");
+  const user = await requirePermission("canViewRelatorios");
   const parsed = moedaSchema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   const d = parsed.data;
@@ -110,6 +112,7 @@ export async function salvarMoedas(input: {
       q50: d.q50,
       q100: d.q100,
       note: d.note || null,
+      companyId: user.companyId,
     },
   });
   revalidatePath("/caixa-dinheiro");
@@ -117,8 +120,8 @@ export async function salvarMoedas(input: {
 }
 
 export async function excluirMoedas(id: string): Promise<{ error?: string }> {
-  await requirePermission("canViewRelatorios");
-  await prisma.coinMovement.delete({ where: { id } });
+  const user = await requirePermission("canViewRelatorios");
+  await prisma.coinMovement.deleteMany({ where: { id, companyId: user.companyId } });
   revalidatePath("/caixa-dinheiro");
   return {};
 }
@@ -150,13 +153,14 @@ export async function salvarMes(input: {
   cedulasContadas?: number;
   moedasContadas?: number;
 }): Promise<{ error?: string }> {
-  await requirePermission("canViewRelatorios");
+  const user = await requirePermission("canViewRelatorios");
   const parsed = mesSchema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   const d = parsed.data;
   await prisma.cashMonth.upsert({
-    where: { month: d.month },
+    where: { companyId_month: { companyId: user.companyId, month: d.month } },
     create: {
+      companyId: user.companyId,
       month: d.month,
       saldoInicial: d.saldoInicial,
       saldoAnterior: d.saldoAnterior ?? null,

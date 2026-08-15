@@ -27,7 +27,7 @@ export async function createUser(
   _prevState: UserFormState,
   formData: FormData,
 ): Promise<UserFormState> {
-  await requirePermission("canManageUsuarios");
+  const currentUser = await requirePermission("canManageUsuarios");
 
   const parsed = userSchema.safeParse({
     name: formData.get("name"),
@@ -39,6 +39,11 @@ export async function createUser(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
+
+  const role = await prisma.role.findFirst({
+    where: { id: parsed.data.roleId, companyId: currentUser.companyId },
+  });
+  if (!role) return { error: "Cargo inválido." };
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
   const whatsappPhone = parsed.data.whatsappPhone
@@ -53,6 +58,7 @@ export async function createUser(
         passwordHash,
         roleId: parsed.data.roleId,
         whatsappPhone,
+        companyId: currentUser.companyId,
       },
     });
   } catch {
@@ -69,7 +75,15 @@ export async function updateUserRole(id: string, roleId: string) {
     throw new Error("Você não pode alterar seu próprio cargo.");
   }
 
-  await prisma.user.update({ where: { id }, data: { roleId } });
+  const role = await prisma.role.findFirst({
+    where: { id: roleId, companyId: currentUser.companyId },
+  });
+  if (!role) throw new Error("Cargo inválido.");
+
+  await prisma.user.updateMany({
+    where: { id, companyId: currentUser.companyId },
+    data: { roleId },
+  });
   revalidatePath("/usuarios");
 }
 
@@ -106,6 +120,11 @@ export async function updateUser(
     return { error: "Você não pode alterar seu próprio cargo." };
   }
 
+  const role = await prisma.role.findFirst({
+    where: { id: parsed.data.roleId, companyId: currentUser.companyId },
+  });
+  if (!role) return { error: "Cargo inválido." };
+
   const passwordHash = parsed.data.password
     ? await bcrypt.hash(parsed.data.password, 10)
     : undefined;
@@ -114,8 +133,8 @@ export async function updateUser(
     : null;
 
   try {
-    await prisma.user.update({
-      where: { id },
+    const result = await prisma.user.updateMany({
+      where: { id, companyId: currentUser.companyId },
       data: {
         name: parsed.data.name,
         email: parsed.data.email,
@@ -124,6 +143,7 @@ export async function updateUser(
         ...(passwordHash ? { passwordHash } : {}),
       },
     });
+    if (result.count === 0) return { error: "Usuário não encontrado." };
   } catch {
     return { error: "Já existe um usuário com esse e-mail ou WhatsApp." };
   }
@@ -139,7 +159,8 @@ export async function deleteUser(id: string) {
   }
 
   try {
-    await prisma.user.delete({ where: { id } });
+    const result = await prisma.user.deleteMany({ where: { id, companyId: currentUser.companyId } });
+    if (result.count === 0) throw new Error("not found");
   } catch {
     throw new Error(
       "Esse usuário já tem lançamentos vinculados (movimentações, pagamentos, vales) ou está ligado a um cadastro de funcionário, e não pode ser excluído.",

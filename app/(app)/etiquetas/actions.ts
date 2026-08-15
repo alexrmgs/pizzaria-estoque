@@ -9,7 +9,7 @@ export async function enfileirarEtiqueta(
   pedido: string,
   volumes: number,
 ): Promise<{ error?: string }> {
-  await requireEtiquetasAccess();
+  const user = await requireEtiquetasAccess();
 
   const pedidoLimpo = pedido.trim();
   if (!pedidoLimpo) return { error: "Informe o número do pedido." };
@@ -18,7 +18,7 @@ export async function enfileirarEtiqueta(
     return { error: "A quantidade de volumes deve ser de 1 a 50." };
   }
 
-  const settings = await getAppSettings();
+  const settings = await getAppSettings(user.companyId);
 
   await prisma.printJob.create({
     data: {
@@ -39,7 +39,7 @@ export async function imprimirPedidoAuto(input: {
   cliente?: string;
   impresso?: boolean;
 }): Promise<{ error?: string; proximo?: number }> {
-  await requireEtiquetasAccess();
+  const user = await requireEtiquetasAccess();
 
   const numero = Math.round(input.numero);
   if (!Number.isFinite(numero) || numero < 1) return { error: "Número do pedido inválido." };
@@ -48,7 +48,7 @@ export async function imprimirPedidoAuto(input: {
     return { error: "A quantidade de volumes deve ser de 1 a 50." };
   }
 
-  const settings = await getAppSettings();
+  const settings = await getAppSettings(user.companyId);
   // Marca só ESSE número como impresso (some só ele da fila; os outros ficam).
   const impressos = new Set((settings.etiquetaImpressos as unknown as number[]) ?? []);
   impressos.add(numero);
@@ -65,7 +65,7 @@ export async function imprimirPedidoAuto(input: {
       },
     }),
     prisma.appSettings.update({
-      where: { id: "settings" },
+      where: { companyId: user.companyId },
       data: { etiquetaImpressos: [...impressos].sort((a, b) => a - b) },
     }),
   ]);
@@ -100,7 +100,7 @@ export async function reimprimirVolume(input: {
   cliente?: string;
   impresso?: boolean;
 }): Promise<{ error?: string }> {
-  await requireEtiquetasAccess();
+  const user = await requireEtiquetasAccess();
 
   const pedidoLimpo = input.pedido.trim();
   if (!pedidoLimpo) return { error: "Informe o número do pedido." };
@@ -113,7 +113,7 @@ export async function reimprimirVolume(input: {
     return { error: `O volume deve ser de 1 a ${total}.` };
   }
 
-  const settings = await getAppSettings();
+  const settings = await getAppSettings(user.companyId);
   await prisma.printJob.create({
     data: {
       pedido: pedidoLimpo,
@@ -131,12 +131,13 @@ export async function reimprimirVolume(input: {
 }
 
 export async function ajustarProximoNumero(numero: number): Promise<{ error?: string }> {
-  await requireEtiquetasAccess();
+  const user = await requireEtiquetasAccess();
   const n = Math.round(numero);
   if (!Number.isFinite(n) || n < 1 || n > 9_999_999) return { error: "Número inválido." };
   // Ajustar/resetar começa um ciclo novo — limpa os impressos.
+  await getAppSettings(user.companyId); // garante que a linha existe antes do update
   await prisma.appSettings.update({
-    where: { id: "settings" },
+    where: { companyId: user.companyId },
     data: { etiquetaProximoNumero: n, etiquetaImpressos: [] },
   });
   revalidatePath("/etiquetas");
@@ -153,7 +154,7 @@ export async function enfileirarProducao(input: {
   peso: string;
   impresso?: boolean;
 }): Promise<{ error?: string }> {
-  await requireProducaoAccess();
+  const user = await requireProducaoAccess();
 
   const produtoLimpo = input.produto.trim();
   if (!produtoLimpo) return { error: "Informe o produto." };
@@ -171,7 +172,7 @@ export async function enfileirarProducao(input: {
   const validadeData = new Date(producaoData);
   validadeData.setUTCDate(validadeData.getUTCDate() + dias);
 
-  const settings = await getAppSettings();
+  const settings = await getAppSettings(user.companyId);
   await prisma.printJob.create({
     data: {
       tipo: "PRODUCAO",
@@ -193,11 +194,11 @@ export async function enfileirarProducao(input: {
 }
 
 export async function reimprimirEtiqueta(id: string): Promise<{ error?: string }> {
-  await requireImpressaoAccess();
+  const user = await requireImpressaoAccess();
   const job = await prisma.printJob.findUnique({ where: { id } });
   if (!job) return { error: "Etiqueta não encontrada." };
 
-  const settings = await getAppSettings();
+  const settings = await getAppSettings(user.companyId);
   await prisma.printJob.create({
     data: {
       tipo: job.tipo,

@@ -35,7 +35,7 @@ export async function createRole(
   _prevState: RoleFormState,
   formData: FormData,
 ): Promise<RoleFormState> {
-  await requirePermission("canManageUsuarios");
+  const currentUser = await requirePermission("canManageUsuarios");
 
   const parsed = parseRoleForm(formData);
   if (!parsed.success) {
@@ -43,7 +43,7 @@ export async function createRole(
   }
 
   try {
-    await prisma.role.create({ data: parsed.data });
+    await prisma.role.create({ data: { ...parsed.data, companyId: currentUser.companyId } });
   } catch {
     return { error: "Já existe um cargo com esse nome." };
   }
@@ -69,7 +69,11 @@ export async function updateRole(
   }
 
   try {
-    await prisma.role.update({ where: { id }, data: parsed.data });
+    const result = await prisma.role.updateMany({
+      where: { id, companyId: currentUser.companyId },
+      data: parsed.data,
+    });
+    if (result.count === 0) return { error: "Cargo não encontrado." };
   } catch {
     return { error: "Já existe um cargo com esse nome." };
   }
@@ -85,11 +89,13 @@ export async function deleteRole(id: string) {
     throw new Error("Você não pode excluir o cargo que você mesmo usa.");
   }
 
-  const usersWithRole = await prisma.user.count({ where: { roleId: id } });
+  const usersWithRole = await prisma.user.count({
+    where: { roleId: id, companyId: currentUser.companyId },
+  });
   if (usersWithRole > 0) {
     throw new Error("Existem usuários com esse cargo. Mude o cargo deles antes de excluir.");
   }
 
-  await prisma.role.delete({ where: { id } });
+  await prisma.role.deleteMany({ where: { id, companyId: currentUser.companyId } });
   revalidatePath("/cargos");
 }

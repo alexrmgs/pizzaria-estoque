@@ -12,9 +12,10 @@ import { StoreDialog } from "./store-dialog";
 import { DeleteStoreButton } from "./delete-store-button";
 
 export default async function LojasPage() {
-  await requirePermission("canManageFuncionarios");
+  const currentUser = await requirePermission("canManageFuncionarios");
 
   const stores = await prisma.store.findMany({
+    where: { companyId: currentUser.companyId },
     orderBy: { name: "asc" },
     include: { _count: { select: { employees: true } } },
   });

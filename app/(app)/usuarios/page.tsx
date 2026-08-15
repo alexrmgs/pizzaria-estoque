@@ -15,8 +15,12 @@ import { DeleteUserButton } from "./delete-user-button";
 export default async function UsuariosPage() {
   const currentUser = await requirePermission("canManageUsuarios");
   const [users, roles] = await Promise.all([
-    prisma.user.findMany({ orderBy: { createdAt: "asc" }, include: { role: true } }),
-    prisma.role.findMany({ orderBy: { name: "asc" } }),
+    prisma.user.findMany({
+      where: { companyId: currentUser.companyId },
+      orderBy: { createdAt: "asc" },
+      include: { role: true },
+    }),
+    prisma.role.findMany({ where: { companyId: currentUser.companyId }, orderBy: { name: "asc" } }),
   ]);
 
   return (

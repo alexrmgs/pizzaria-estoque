@@ -17,7 +17,7 @@ export async function updateSettings(
   _prevState: SettingsFormState,
   formData: FormData,
 ): Promise<SettingsFormState> {
-  await requirePermission("canManageFuncionarios");
+  const user = await requirePermission("canManageFuncionarios");
 
   const parsed = settingsSchema.safeParse({
     overtimeMode: formData.get("overtimeMode"),
@@ -29,9 +29,9 @@ export async function updateSettings(
   }
 
   await prisma.appSettings.upsert({
-    where: { id: "settings" },
+    where: { companyId: user.companyId },
     update: parsed.data,
-    create: { id: "settings", ...parsed.data },
+    create: { companyId: user.companyId, ...parsed.data },
   });
 
   revalidatePath("/configuracoes");
@@ -42,7 +42,7 @@ export async function updateLabelSize(
   heightMm: number,
   tipo: "pedido" | "producao" = "pedido",
 ): Promise<{ error?: string }> {
-  await requirePermission("canManageEstoque");
+  const user = await requirePermission("canManageEstoque");
   const w = Math.round(widthMm);
   const h = Math.round(heightMm);
   if (!Number.isFinite(w) || !Number.isFinite(h) || w < 20 || w > 200 || h < 20 || h > 200) {
@@ -53,9 +53,9 @@ export async function updateLabelSize(
       ? { labelProducaoWidthMm: w, labelProducaoHeightMm: h }
       : { labelWidthMm: w, labelHeightMm: h };
   await prisma.appSettings.upsert({
-    where: { id: "settings" },
+    where: { companyId: user.companyId },
     update: data,
-    create: { id: "settings", ...data },
+    create: { companyId: user.companyId, ...data },
   });
   revalidatePath("/configuracoes");
   revalidatePath("/etiquetas");
@@ -70,10 +70,10 @@ export async function updateLabelEmpresa(input: {
   cep: string;
   cidade: string;
 }): Promise<{ error?: string }> {
-  await requirePermission("canManageEstoque");
+  const user = await requirePermission("canManageEstoque");
   const clean = (v: string) => v.trim().slice(0, 120) || null;
   await prisma.appSettings.upsert({
-    where: { id: "settings" },
+    where: { companyId: user.companyId },
     update: {
       labelEmpresa: clean(input.empresa),
       labelCnpj: clean(input.cnpj),
@@ -82,7 +82,7 @@ export async function updateLabelEmpresa(input: {
       labelCidade: clean(input.cidade),
     },
     create: {
-      id: "settings",
+      companyId: user.companyId,
       labelEmpresa: clean(input.empresa),
       labelCnpj: clean(input.cnpj),
       labelEndereco: clean(input.endereco),
@@ -96,12 +96,12 @@ export async function updateLabelEmpresa(input: {
 }
 
 export async function updatePontoMode(mode: "CELULAR" | "FACIAL"): Promise<{ error?: string }> {
-  await requirePermission("canManageFuncionarios");
+  const user = await requirePermission("canManageFuncionarios");
   if (mode !== "CELULAR" && mode !== "FACIAL") return { error: "Opção inválida." };
   await prisma.appSettings.upsert({
-    where: { id: "settings" },
+    where: { companyId: user.companyId },
     update: { pontoMode: mode },
-    create: { id: "settings", pontoMode: mode },
+    create: { companyId: user.companyId, pontoMode: mode },
   });
   revalidatePath("/configuracoes");
   revalidatePath("/meu-ponto");
@@ -133,7 +133,7 @@ export async function updateCltDeductions(
   _prevState: CltDeductionsFormState,
   formData: FormData,
 ): Promise<CltDeductionsFormState> {
-  await requirePermission("canManageFuncionarios");
+  const user = await requirePermission("canManageFuncionarios");
 
   const parsed = cltDeductionsSchema.safeParse({
     inssUpTo: formData.getAll("inssUpTo"),
@@ -158,7 +158,7 @@ export async function updateCltDeductions(
   }
 
   await prisma.appSettings.upsert({
-    where: { id: "settings" },
+    where: { companyId: user.companyId },
     update: {
       inssBrackets,
       irrfBrackets,
@@ -166,7 +166,7 @@ export async function updateCltDeductions(
       valeTransporteRate: parsed.data.valeTransporteRate,
     },
     create: {
-      id: "settings",
+      companyId: user.companyId,
       inssBrackets,
       irrfBrackets,
       irrfDependentDeduction: parsed.data.irrfDependentDeduction,
@@ -191,7 +191,7 @@ export async function updateAttendanceScoreSettings(
   _prevState: AttendanceScoreFormState,
   formData: FormData,
 ): Promise<AttendanceScoreFormState> {
-  await requirePermission("canManageFuncionarios");
+  const user = await requirePermission("canManageFuncionarios");
 
   const parsed = attendanceScoreSchema.safeParse({
     latePenaltyPoints: formData.get("latePenaltyPoints"),
@@ -220,14 +220,14 @@ export async function updateAttendanceScoreSettings(
   }));
 
   await prisma.appSettings.upsert({
-    where: { id: "settings" },
+    where: { companyId: user.companyId },
     update: {
       latePenaltyPoints: parsed.data.latePenaltyPoints,
       attendanceBonusTiers,
       attendanceStreakTiers,
     },
     create: {
-      id: "settings",
+      companyId: user.companyId,
       latePenaltyPoints: parsed.data.latePenaltyPoints,
       attendanceBonusTiers,
       attendanceStreakTiers,

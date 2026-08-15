@@ -59,11 +59,11 @@ export async function registerFacialPonto(
   descriptor: number[],
   photo?: string,
 ): Promise<FacialPontoResult> {
-  await requireUser();
+  const totemUser = await requireUser();
   try {
     if (!isDescriptor(descriptor)) return { status: "error", message: "Leitura do rosto inválida." };
 
-    const settings = await getAppSettings();
+    const settings = await getAppSettings(totemUser.companyId);
     if (settings.pontoMode === "CELULAR") {
       return {
         status: "error",

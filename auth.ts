@@ -24,7 +24,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
-        const user = await prisma.user.findUnique({ where: { email }, include: { role: true } });
+        const user = await prisma.user.findUnique({
+          where: { email },
+          include: { role: true, company: true },
+        });
         if (!user) return null;
 
         const valid = await bcrypt.compare(password, user.passwordHash);
@@ -34,6 +37,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           id: user.id,
           name: user.name,
           email: user.email,
+          companyId: user.companyId,
+          companyName: user.company.name,
           role: {
             id: user.role.id,
             name: user.role.name,
@@ -53,6 +58,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     jwt: async ({ token, user }) => {
       if (user) {
         token.role = user.role;
+        token.companyId = user.companyId;
+        token.companyName = user.companyName;
       }
       return token;
     },
@@ -60,6 +67,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.sub as string;
         session.user.role = token.role as RolePermissions;
+        session.user.companyId = token.companyId as string;
+        session.user.companyName = token.companyName as string;
       }
       return session;
     },

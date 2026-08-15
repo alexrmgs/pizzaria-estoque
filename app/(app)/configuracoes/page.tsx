@@ -94,7 +94,9 @@ export default async function ConfiguracoesPage() {
     : [];
 
   const settings =
-    role.canManageFuncionarios || role.canManageEstoque ? await getAppSettings() : null;
+    role.canManageFuncionarios || role.canManageEstoque
+      ? await getAppSettings(user.companyId)
+      : null;
 
   const tabs = [
     { value: "estoque", label: "Estoque", visible: role.canManageEstoque },

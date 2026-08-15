@@ -49,14 +49,14 @@ export async function createStore(
   _prevState: StoreFormState,
   formData: FormData,
 ): Promise<StoreFormState> {
-  await requirePermission("canManageFuncionarios");
+  const user = await requirePermission("canManageFuncionarios");
 
   const parsed = parseStoreForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  await prisma.store.create({ data: parsed.data });
+  await prisma.store.create({ data: { ...parsed.data, companyId: user.companyId } });
   revalidatePath("/lojas");
 }
 
@@ -65,21 +65,26 @@ export async function updateStore(
   _prevState: StoreFormState,
   formData: FormData,
 ): Promise<StoreFormState> {
-  await requirePermission("canManageFuncionarios");
+  const user = await requirePermission("canManageFuncionarios");
 
   const parsed = parseStoreForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  await prisma.store.update({ where: { id }, data: parsed.data });
+  const result = await prisma.store.updateMany({
+    where: { id, companyId: user.companyId },
+    data: parsed.data,
+  });
+  if (result.count === 0) return { error: "Loja não encontrada." };
   revalidatePath("/lojas");
 }
 
 export async function deleteStore(id: string) {
-  await requirePermission("canManageFuncionarios");
+  const user = await requirePermission("canManageFuncionarios");
   try {
-    await prisma.store.delete({ where: { id } });
+    const result = await prisma.store.deleteMany({ where: { id, companyId: user.companyId } });
+    if (result.count === 0) throw new Error("not found");
   } catch {
     throw new Error("Existem funcionários vinculados a essa loja. Mude o vínculo deles antes de excluir.");
   }

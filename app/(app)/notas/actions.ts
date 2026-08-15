@@ -378,6 +378,7 @@ export async function lancarNota(
             status: "PENDENTE",
             note: "Gerada pela nota fiscal de entrada",
             userId: user.id,
+            companyId: user.companyId,
           },
         });
         payableId = payable.id;

@@ -42,10 +42,13 @@ export default async function PrecificacaoPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  await requirePermission("canViewRelatorios");
+  const currentUser = await requirePermission("canViewRelatorios");
   const params = await searchParams;
 
-  const stores = await prisma.store.findMany({ orderBy: { name: "asc" } });
+  const stores = await prisma.store.findMany({
+    where: { companyId: currentUser.companyId },
+    orderBy: { name: "asc" },
+  });
   const storeIdParam = typeof params.storeId === "string" && params.storeId ? params.storeId : undefined;
   const selectedStoreId = storeIdParam ?? stores[0]?.id ?? "";
   const selectedStore = stores.find((s) => s.id === selectedStoreId) ?? null;

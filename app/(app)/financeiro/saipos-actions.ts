@@ -44,8 +44,8 @@ export async function sincronizarSaipos(input: {
     return { error: "Período muito longo. Puxe no máximo 1 ano por vez." };
   }
 
-  const store = await prisma.store.findUnique({
-    where: { id: parsed.data.storeId },
+  const store = await prisma.store.findFirst({
+    where: { id: parsed.data.storeId, companyId: user.companyId },
     select: { saiposToken: true },
   });
   if (!store?.saiposToken) {

@@ -76,8 +76,8 @@ export default async function MeuPontoPage() {
   }
 
   const [preview, settings] = await Promise.all([
-    computePaymentPreview(employee.id, periodStart, periodEnd),
-    getAppSettings(),
+    computePaymentPreview(employee.id, periodStart, periodEnd, user.companyId),
+    getAppSettings(user.companyId),
   ]);
   const streakTiers = (settings.attendanceStreakTiers as unknown as AttendanceStreakTier[])
     .slice()

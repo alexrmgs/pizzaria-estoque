@@ -22,10 +22,12 @@ export function MobileSidebar({
   permissions,
   userName,
   roleName,
+  isSuperAdmin,
 }: {
   permissions: Permissions;
   userName: string;
   roleName: string;
+  isSuperAdmin?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -86,7 +88,7 @@ export function MobileSidebar({
               </Button>
             </div>
 
-            <NavLinks permissions={permissions} />
+            <NavLinks permissions={permissions} isSuperAdmin={isSuperAdmin} />
 
             <div className="mt-auto flex items-center justify-between gap-2 border-t border-sidebar-border pt-4">
               <div className="text-sm">

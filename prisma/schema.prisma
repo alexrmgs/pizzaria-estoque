@@ -42,7 +42,9 @@ enum Unit {
 
 model Role {
   id                    String   @id @default(cuid())
-  name                  String   @unique
+  companyId             String
+  company               Company  @relation(fields: [companyId], references: [id])
+  name                  String
   canManageEstoque      Boolean  @default(false)
   canManageReceitas     Boolean  @default(false)
   canManageUsuarios     Boolean  @default(false)
@@ -53,10 +55,14 @@ model Role {
   createdAt             DateTime @default(now())
 
   users User[]
+
+  @@unique([companyId, name])
 }
 
 model User {
   id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id])
   name         String
   email        String   @unique
   passwordHash String
@@ -76,6 +82,22 @@ model User {
   variableCostRates VariableCostRate[]
 
   @@index([roleId])
+  @@index([companyId])
+}
+
+// Empresa (tenant) — o nível acima de Loja. Cada empresa é um cliente
+// isolado do sistema (dados e login separados); uma empresa pode ter 1+
+// lojas. Hoje só User/Role/Store/AppSettings são por empresa — o resto
+// (estoque, receitas, notas, caixa etc) ainda é global, migração gradual.
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  stores   Store[]
+  users    User[]
+  roles    Role[]
+  settings AppSettings?
 }
 
 /**
@@ -146,7 +168,9 @@ model PrintJob {
 }
 
 model AppSettings {
-  id                  String       @id @default("settings")
+  id                  String       @id @default(cuid())
+  companyId           String       @unique
+  company             Company      @relation(fields: [companyId], references: [id])
   pontoMode           PontoMode    @default(CELULAR)
   overtimeMode        OvertimeMode @default(HORA_EXTRA)
   dailyExpectedHours  Decimal      @default(8) @db.Decimal(4, 2)
@@ -308,6 +332,8 @@ model RecipeIngredient {
 
 model Store {
   id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id])
   name         String
   address      String?
   latitude     Decimal  @db.Decimal(10, 7)
@@ -330,6 +356,8 @@ model Store {
   revenues          Revenue[]
   fixedCosts        FixedCost[]
   variableCostRates VariableCostRate[]
+
+  @@index([companyId])
 }
 
 model Holiday {
@@ -391,6 +419,7 @@ model NotaFiscalItem {
 // Quando paga, guarda a data do pagamento pra entrar no fluxo de caixa.
 model Payable {
   id          String        @id @default(cuid())
+  companyId   String
   description String
   category    String
   amount      Decimal       @db.Decimal(10, 2)
@@ -404,6 +433,7 @@ model Payable {
   updatedAt   DateTime      @updatedAt
 
   @@index([status, dueDate])
+  @@index([companyId])
 }
 
 // Conexão bancária via Pluggy (Open Finance). Guarda só o itemId retornado
@@ -612,6 +642,7 @@ enum CashSaidaTipo {
 // de caixa. Espelha as tabelas ENTRADAS/SAÍDAS da planilha de controle.
 model CashEntry {
   id          String         @id @default(cuid())
+  companyId   String
   date        DateTime       @db.Date
   description String
   direction   CashDirection
@@ -620,14 +651,15 @@ model CashEntry {
   userId      String?
   createdAt   DateTime       @default(now())
 
-  @@index([date])
+  @@index([companyId, date])
 }
 
 // Configuração/fechamento do mês do caixa de dinheiro: saldo inicial, estoque
 // inicial de cada moeda e a conferência física da virada de mês.
 model CashMonth {
   id              String   @id @default(cuid())
-  month           String   @unique // YYYY-MM
+  companyId       String
+  month           String   // YYYY-MM
   saldoInicial    Decimal  @default(0) @db.Decimal(10, 2)
   saldoAnterior   Decimal? @db.Decimal(10, 2)
   ini05           Int      @default(0)
@@ -639,12 +671,15 @@ model CashMonth {
   moedasContadas  Decimal? @db.Decimal(10, 2)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  @@unique([companyId, month])
 }
 
 // Movimentação diária de moedas: quantidade de cada denominação que entrou ou
 // saiu do estoque de moedas (usado pra montar o fundo de caixa).
 model CoinMovement {
   id        String        @id @default(cuid())
+  companyId String
   date      DateTime      @db.Date
   direction CashDirection
   q05       Int           @default(0)
@@ -655,5 +690,5 @@ model CoinMovement {
   note      String?
   createdAt DateTime      @default(now())
 
-  @@index([date])
+  @@index([companyId, date])
 }

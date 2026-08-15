@@ -48,3 +48,22 @@ export async function requireImpressaoAccess() {
   }
   return user;
 }
+
+// E-mails que podem gerenciar OUTRAS empresas (criar empresa nova, etc).
+// Isso não dá pra ser uma permissão normal (canX): permissão vive no Role,
+// que agora é por empresa — não existe um "canManageEmpresas" dentro de uma
+// empresa que faça sentido pra criar empresas por cima dela.
+const SUPER_ADMIN_EMAILS = ["alex.rmgs@gmail.com"];
+
+export function isSuperAdminEmail(email: string | null | undefined): boolean {
+  return SUPER_ADMIN_EMAILS.includes(email ?? "");
+}
+
+/** Acesso à tela de Empresas (multi-tenant) — só o super admin. */
+export async function requireSuperAdmin() {
+  const user = await requireUser();
+  if (!isSuperAdminEmail(user.email)) {
+    redirect("/meu-ponto");
+  }
+  return user;
+}

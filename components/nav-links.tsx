@@ -66,7 +66,13 @@ function NavGroup({ title, items }: { title: string; items: NavItem[] }) {
   );
 }
 
-export function NavLinks({ permissions }: { permissions: Permissions }) {
+export function NavLinks({
+  permissions,
+  isSuperAdmin,
+}: {
+  permissions: Permissions;
+  isSuperAdmin?: boolean;
+}) {
   const hasManage =
     permissions.canManageEstoque ||
     permissions.canManageReceitas ||
@@ -143,6 +149,11 @@ export function NavLinks({ permissions }: { permissions: Permissions }) {
       {hasAdminAccess && (
         <div className="flex flex-col gap-1 border-t border-sidebar-border pt-2">
           <NavLink href="/configuracoes" label="Configurações" />
+        </div>
+      )}
+      {isSuperAdmin && (
+        <div className="flex flex-col gap-1 border-t border-sidebar-border pt-2">
+          <NavLink href="/empresas" label="Empresas" />
         </div>
       )}
     </nav>

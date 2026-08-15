@@ -17,8 +17,8 @@ export default async function ImprimirEtiquetasPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  await requireImpressaoAccess();
-  const [params, settings] = await Promise.all([searchParams, getAppSettings()]);
+  const user = await requireImpressaoAccess();
+  const [params, settings] = await Promise.all([searchParams, getAppSettings(user.companyId)]);
 
   const larguraMm = settings.labelWidthMm;
   const alturaMm = settings.labelHeightMm;

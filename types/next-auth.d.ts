@@ -15,12 +15,16 @@ export interface RolePermissions {
 declare module "next-auth" {
   interface User {
     role: RolePermissions;
+    companyId: string;
+    companyName: string;
   }
 
   interface Session {
     user: {
       id: string;
       role: RolePermissions;
+      companyId: string;
+      companyName: string;
     } & DefaultSession["user"];
   }
 }
@@ -28,5 +32,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     role?: RolePermissions;
+    companyId?: string;
+    companyName?: string;
   }
 }

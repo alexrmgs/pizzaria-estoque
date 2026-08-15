@@ -27,7 +27,7 @@ export default async function CaixaPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  await requirePermission("canViewRelatorios");
+  const currentUser = await requirePermission("canViewRelatorios");
   const params = await searchParams;
 
   const now = new Date();
@@ -51,6 +51,7 @@ export default async function CaixaPage({
   // O financeiro (caixa/contas) é só da FB Eusébio — as outras lojas servem só
   // pra registrar faturamento. Então as entradas do fluxo contam só a Eusébio.
   const stores = await prisma.store.findMany({
+    where: { companyId: currentUser.companyId },
     orderBy: { name: "asc" },
     select: { id: true, name: true, pluggyClientId: true, pluggyClientSecret: true },
   });
@@ -63,9 +64,16 @@ export default async function CaixaPage({
   );
 
   const [pendentes, pagasMes, revenueAgg] = await Promise.all([
-    prisma.payable.findMany({ where: { status: "PENDENTE" }, orderBy: { dueDate: "asc" } }),
     prisma.payable.findMany({
-      where: { status: "PAGA", paidDate: { gte: monthStart, lte: monthEnd } },
+      where: { status: "PENDENTE", companyId: currentUser.companyId },
+      orderBy: { dueDate: "asc" },
+    }),
+    prisma.payable.findMany({
+      where: {
+        status: "PAGA",
+        paidDate: { gte: monthStart, lte: monthEnd },
+        companyId: currentUser.companyId,
+      },
       orderBy: { paidDate: "desc" },
     }),
     prisma.revenue.aggregate({

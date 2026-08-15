@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
 
-export async function getAppSettings() {
+export async function getAppSettings(companyId: string) {
   return prisma.appSettings.upsert({
-    where: { id: "settings" },
+    where: { companyId },
     update: {},
-    create: { id: "settings" },
+    create: { companyId },
   });
 }

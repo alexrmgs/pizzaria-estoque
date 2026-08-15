@@ -13,7 +13,7 @@ import { generateBusinessAnalysis } from "@/lib/ai-analysis";
 const brl = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export async function analisarFinanceiro(): Promise<{ text?: string; error?: string }> {
-  await requirePermission("canViewRelatorios");
+  const user = await requirePermission("canViewRelatorios");
 
   try {
     const now = new Date();
@@ -22,9 +22,13 @@ export async function analisarFinanceiro(): Promise<{ text?: string; error?: str
     const to = new Date(Date.UTC(year, 11, 31, 23, 59, 59));
 
     const [stores, revenues] = await Promise.all([
-      prisma.store.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+      prisma.store.findMany({
+        where: { companyId: user.companyId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
       prisma.revenue.findMany({
-        where: { date: { gte: from, lte: to } },
+        where: { date: { gte: from, lte: to }, store: { companyId: user.companyId } },
         include: { store: { select: { name: true } } },
       }),
     ]);

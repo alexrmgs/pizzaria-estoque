@@ -54,6 +54,7 @@ export async function criarConta(
       status: jaPaga ? "PAGA" : "PENDENTE",
       paidDate,
       userId: user.id,
+      companyId: user.companyId,
     },
   });
   revalidatePath("/caixa");
@@ -65,12 +66,12 @@ export async function editarConta(
   _prev: PayableFormState,
   formData: FormData,
 ): Promise<PayableFormState> {
-  await requirePermission("canViewRelatorios");
+  const user = await requirePermission("canViewRelatorios");
   const parsed = parse(formData);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
 
-  await prisma.payable.update({
-    where: { id },
+  const result = await prisma.payable.updateMany({
+    where: { id, companyId: user.companyId },
     data: {
       description: parsed.data.description,
       category: parsed.data.category,
@@ -80,6 +81,7 @@ export async function editarConta(
       note: parsed.data.note || null,
     },
   });
+  if (result.count === 0) return { error: "Conta não encontrada." };
   revalidatePath("/caixa");
   return {};
 }
@@ -104,6 +106,7 @@ export async function lancarBoleto(input: {
       status: "PENDENTE",
       note: "Lançado por leitura de boleto",
       userId: user.id,
+      companyId: user.companyId,
     },
   });
   revalidatePath("/caixa");
@@ -111,13 +114,13 @@ export async function lancarBoleto(input: {
 }
 
 export async function marcarPaga(id: string, dataISO?: string): Promise<{ error?: string }> {
-  await requirePermission("canViewRelatorios");
+  const user = await requirePermission("canViewRelatorios");
   const paidDate =
     dataISO && /^\d{4}-\d{2}-\d{2}$/.test(dataISO)
       ? new Date(`${dataISO}T00:00:00Z`)
       : new Date();
-  await prisma.payable.update({
-    where: { id },
+  await prisma.payable.updateMany({
+    where: { id, companyId: user.companyId },
     data: { status: "PAGA", paidDate },
   });
   revalidatePath("/caixa");
@@ -125,9 +128,9 @@ export async function marcarPaga(id: string, dataISO?: string): Promise<{ error?
 }
 
 export async function reabrirConta(id: string): Promise<{ error?: string }> {
-  await requirePermission("canViewRelatorios");
-  await prisma.payable.update({
-    where: { id },
+  const user = await requirePermission("canViewRelatorios");
+  await prisma.payable.updateMany({
+    where: { id, companyId: user.companyId },
     data: { status: "PENDENTE", paidDate: null },
   });
   revalidatePath("/caixa");
@@ -135,8 +138,8 @@ export async function reabrirConta(id: string): Promise<{ error?: string }> {
 }
 
 export async function excluirConta(id: string): Promise<{ error?: string }> {
-  await requirePermission("canViewRelatorios");
-  await prisma.payable.delete({ where: { id } });
+  const user = await requirePermission("canViewRelatorios");
+  await prisma.payable.deleteMany({ where: { id, companyId: user.companyId } });
   revalidatePath("/caixa");
   return {};
 }

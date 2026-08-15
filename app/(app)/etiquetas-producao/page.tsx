@@ -28,7 +28,7 @@ function formatDate(date: Date | null) {
 }
 
 export default async function EtiquetasProducaoPage() {
-  await requireProducaoAccess();
+  const user = await requireProducaoAccess();
 
   const [jobs, produtos, funcionarios, settings] = await Promise.all([
     prisma.printJob.findMany({
@@ -46,7 +46,7 @@ export default async function EtiquetasProducaoPage() {
       orderBy: { name: "asc" },
       select: { name: true },
     }),
-    getAppSettings(),
+    getAppSettings(user.companyId),
   ]);
 
   return (

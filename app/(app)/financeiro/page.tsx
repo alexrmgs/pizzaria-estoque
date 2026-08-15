@@ -77,7 +77,7 @@ export default async function FinanceiroPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  await requirePermission("canViewRelatorios");
+  const currentUser = await requirePermission("canViewRelatorios");
 
   const params = await searchParams;
   const tabParam = typeof params.tab === "string" ? params.tab : undefined;
@@ -98,15 +98,20 @@ export default async function FinanceiroPage({
   const storeIdParam = typeof params.storeId === "string" && params.storeId ? params.storeId : undefined;
 
   const [stores, periodRevenues, yearRevenues, prevYearAgg, allRevenues] = await Promise.all([
-    prisma.store.findMany({ orderBy: { name: "asc" } }),
+    prisma.store.findMany({ where: { companyId: currentUser.companyId }, orderBy: { name: "asc" } }),
     prisma.revenue.findMany({
-      where: { date: { gte: from, lte: to }, ...(storeIdParam ? { storeId: storeIdParam } : {}) },
+      where: {
+        date: { gte: from, lte: to },
+        store: { companyId: currentUser.companyId },
+        ...(storeIdParam ? { storeId: storeIdParam } : {}),
+      },
       orderBy: { date: "desc" },
       include: { store: { select: { name: true } } },
     }),
     prisma.revenue.findMany({
       where: {
         date: { gte: new Date(`${year}-01-01T00:00:00Z`), lte: new Date(`${year}-12-31T23:59:59Z`) },
+        store: { companyId: currentUser.companyId },
       },
       include: { store: { select: { name: true } } },
     }),
@@ -118,12 +123,14 @@ export default async function FinanceiroPage({
           gte: new Date(`${year - 1}-01-01T00:00:00Z`),
           lte: new Date(`${year - 1}-12-31T23:59:59Z`),
         },
+        store: { companyId: currentUser.companyId },
       },
       _sum: { amount: true, orderCount: true },
     }),
     // Todo o histórico (todos os anos) — pra evolução anual e ranking geral
     // da rede, sem ficar preso ao ano selecionado no dashboard.
     prisma.revenue.findMany({
+      where: { store: { companyId: currentUser.companyId } },
       select: { date: true, storeId: true, amount: true, orderCount: true },
     }),
   ]);

@@ -25,7 +25,7 @@ function formatDateTime(date: Date) {
 }
 
 export default async function EtiquetasPage() {
-  await requireEtiquetasAccess();
+  const user = await requireEtiquetasAccess();
 
   const [jobs, settings] = await Promise.all([
     prisma.printJob.findMany({
@@ -33,7 +33,7 @@ export default async function EtiquetasPage() {
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
-    getAppSettings(),
+    getAppSettings(user.companyId),
   ]);
 
   // Fila = próximos 20 números a partir do início, pulando os já impressos.

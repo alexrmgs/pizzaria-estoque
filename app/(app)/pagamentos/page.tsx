@@ -28,7 +28,7 @@ const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export default async function PagamentosPage() {
-  await requirePermission("canManageFuncionarios");
+  const currentUser = await requirePermission("canManageFuncionarios");
 
   const now = new Date();
   const brazilToday = todayInBrazil(now);
@@ -62,7 +62,7 @@ export default async function PagamentosPage() {
         orderBy: { periodStart: "desc" },
         include: { employee: { select: { name: true } } },
       }),
-      getAppSettings(),
+      getAppSettings(currentUser.companyId),
     ]);
 
   const pendingAdiantamentoByEmployee = new Map<string, number>();
@@ -89,7 +89,12 @@ export default async function PagamentosPage() {
       if (employee.hireDate && employee.hireDate > periodStart) {
         periodStart = new Date(employee.hireDate);
       }
-      const preview = await computePaymentPreview(employee.id, periodStart, inProgressEnd);
+      const preview = await computePaymentPreview(
+        employee.id,
+        periodStart,
+        inProgressEnd,
+        currentUser.companyId,
+      );
       return [employee.id, preview] as const;
     }),
   );

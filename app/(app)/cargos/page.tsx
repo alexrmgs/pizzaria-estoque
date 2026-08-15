@@ -13,9 +13,10 @@ import { RoleDialog } from "./role-dialog";
 import { DeleteRoleButton } from "./delete-role-button";
 
 export default async function CargosPage() {
-  await requirePermission("canManageUsuarios");
+  const currentUser = await requirePermission("canManageUsuarios");
 
   const roles = await prisma.role.findMany({
+    where: { companyId: currentUser.companyId },
     orderBy: { createdAt: "asc" },
     include: { _count: { select: { users: true } } },
   });

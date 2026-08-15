@@ -58,6 +58,7 @@ export async function computePaymentPreview(
   employeeId: string,
   periodStart: Date,
   periodEnd: Date,
+  companyId: string,
 ): Promise<PaymentPreview> {
   // Janela estendida (6 dias pra cada lado) porque a semana de DSR de uma
   // falta perto da borda do período pode cair fora do período em si.
@@ -68,7 +69,7 @@ export async function computePaymentPreview(
 
   const [employee, settings, timeEntries, adjustments, advances, dayOffs, holidays] = await Promise.all([
     prisma.employee.findUniqueOrThrow({ where: { id: employeeId } }),
-    getAppSettings(),
+    getAppSettings(companyId),
     prisma.timeEntry.findMany({
       where: { employeeId, date: { gte: periodStart, lte: periodEnd }, clockOut: { not: null } },
     }),

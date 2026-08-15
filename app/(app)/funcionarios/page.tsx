@@ -26,7 +26,7 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 const FALTA_PENALTY = 15;
 
 export default async function FuncionariosPage() {
-  await requirePermission("canManageFuncionarios");
+  const currentUser = await requirePermission("canManageFuncionarios");
 
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -35,11 +35,16 @@ export default async function FuncionariosPage() {
   const [employees, users, stores, settings, rankingEmployees] = await Promise.all([
     prisma.employee.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] }),
     prisma.user.findMany({
+      where: { companyId: currentUser.companyId },
       orderBy: { name: "asc" },
       select: { id: true, name: true, email: true, employee: { select: { id: true } } },
     }),
-    prisma.store.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    getAppSettings(),
+    prisma.store.findMany({
+      where: { companyId: currentUser.companyId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    getAppSettings(currentUser.companyId),
     prisma.employee.findMany({
       where: { active: true },
       select: {

@@ -24,7 +24,7 @@ export default async function CaixaDinheiroPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  await requirePermission("canViewRelatorios");
+  const currentUser = await requirePermission("canViewRelatorios");
   const params = await searchParams;
 
   const now = new Date();
@@ -45,13 +45,15 @@ export default async function CaixaDinheiroPage({
   const hojeISO = now.toISOString().slice(0, 10);
 
   const [config, entries, coins] = await Promise.all([
-    prisma.cashMonth.findUnique({ where: { month: monthKey } }),
+    prisma.cashMonth.findUnique({
+      where: { companyId_month: { companyId: currentUser.companyId, month: monthKey } },
+    }),
     prisma.cashEntry.findMany({
-      where: { date: { gte: monthStart, lte: monthEnd } },
+      where: { date: { gte: monthStart, lte: monthEnd }, companyId: currentUser.companyId },
       orderBy: { date: "asc" },
     }),
     prisma.coinMovement.findMany({
-      where: { date: { gte: monthStart, lte: monthEnd } },
+      where: { date: { gte: monthStart, lte: monthEnd }, companyId: currentUser.companyId },
       orderBy: { date: "asc" },
     }),
   ]);

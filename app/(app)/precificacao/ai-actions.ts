@@ -11,10 +11,13 @@ const UNIT_YIELD_TYPES: RecipeType[] = ["PIZZA", "BEIRUTE", "ESFIHA"];
 const brl = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export async function analisarPrecificacao(storeId: string): Promise<{ text?: string; error?: string }> {
-  await requirePermission("canViewRelatorios");
+  const user = await requirePermission("canViewRelatorios");
 
   try {
-    const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
+    const store = await prisma.store.findFirst({
+      where: { id: storeId, companyId: user.companyId },
+      select: { name: true },
+    });
     if (!store) return { error: "Loja não encontrada." };
 
     const [fixedCosts, variableCosts, recipes] = await Promise.all([

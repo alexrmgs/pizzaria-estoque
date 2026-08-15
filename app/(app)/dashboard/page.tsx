@@ -80,10 +80,17 @@ export default async function DashboardPage({
       prisma.revenue.findMany({
         // O estoque/CMV aqui é só da FB Eusébio — faturamento de outras
         // lojas não entra nessa conta pra não distorcer o CMV.
-        where: { date: { gte: from, lte: to }, store: { name: "FB EUSEBIO" } },
+        where: {
+          date: { gte: from, lte: to },
+          store: { name: "FB EUSEBIO", companyId: user.companyId },
+        },
         orderBy: { date: "desc" },
       }),
-      prisma.store.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+      prisma.store.findMany({
+        where: { companyId: user.companyId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
     ]);
 
     const custoSaidas = saidas.reduce(

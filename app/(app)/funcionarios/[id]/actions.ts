@@ -258,7 +258,7 @@ export async function getPaymentPreview(
   periodStartStr: string,
   periodEndStr: string,
 ): Promise<PaymentPreview | { error: string }> {
-  await requirePermission("canManageFuncionarios");
+  const user = await requirePermission("canManageFuncionarios");
 
   const periodStart = new Date(`${periodStartStr}T00:00:00Z`);
   const periodEnd = new Date(`${periodEndStr}T00:00:00Z`);
@@ -266,7 +266,7 @@ export async function getPaymentPreview(
     return { error: "O período final deve ser depois do inicial." };
   }
 
-  return computePaymentPreview(employeeId, periodStart, periodEnd);
+  return computePaymentPreview(employeeId, periodStart, periodEnd, user.companyId);
 }
 
 const closePaymentSchema = z.object({
@@ -322,7 +322,7 @@ export async function closePayment(
   const [preview, employee, settings] = await Promise.all([
     getPaymentPreview(employeeId, parsed.data.periodStart, parsed.data.periodEnd),
     prisma.employee.findUniqueOrThrow({ where: { id: employeeId } }),
-    getAppSettings(),
+    getAppSettings(user.companyId),
   ]);
   if ("error" in preview) {
     return { error: preview.error };

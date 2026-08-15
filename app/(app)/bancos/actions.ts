@@ -12,9 +12,9 @@ import {
   type PluggyTransaction,
 } from "@/lib/pluggy";
 
-async function credsOuFalha(storeId: string) {
-  const store = await prisma.store.findUnique({
-    where: { id: storeId },
+async function credsOuFalha(storeId: string, companyId: string) {
+  const store = await prisma.store.findFirst({
+    where: { id: storeId, companyId },
     select: { pluggyClientId: true, pluggyClientSecret: true },
   });
   const creds = resolvePluggyCreds(store);
@@ -23,9 +23,9 @@ async function credsOuFalha(storeId: string) {
 }
 
 export async function novoConnectToken(storeId: string): Promise<{ token?: string; error?: string }> {
-  await requirePermission("canViewRelatorios");
+  const user = await requirePermission("canViewRelatorios");
   try {
-    const creds = await credsOuFalha(storeId);
+    const creds = await credsOuFalha(storeId, user.companyId);
     const token = await createConnectToken(creds);
     return { token };
   } catch (e) {
@@ -34,13 +34,13 @@ export async function novoConnectToken(storeId: string): Promise<{ token?: strin
 }
 
 export async function salvarConexao(itemId: string, storeId: string): Promise<{ error?: string }> {
-  await requirePermission("canViewRelatorios");
+  const user = await requirePermission("canViewRelatorios");
   if (!itemId?.trim()) return { error: "Conexão inválida." };
   if (!storeId?.trim()) return { error: "Selecione uma loja." };
 
   let name: string | null = null;
   try {
-    const creds = await credsOuFalha(storeId);
+    const creds = await credsOuFalha(storeId, user.companyId);
     const item = await getItem(creds, itemId);
     name = item.connector?.name ?? null;
   } catch {
@@ -63,9 +63,9 @@ export async function buscarExtrato(
   accountId: string,
   storeId: string,
 ): Promise<{ transactions?: PluggyTransaction[]; error?: string }> {
-  await requirePermission("canViewRelatorios");
+  const user = await requirePermission("canViewRelatorios");
   try {
-    const creds = await credsOuFalha(storeId);
+    const creds = await credsOuFalha(storeId, user.companyId);
     const transactions = await getTransactions(creds, accountId);
     return { transactions };
   } catch (e) {
@@ -76,8 +76,8 @@ export async function buscarExtrato(
 // Força a atualização de todas as contas conectadas dessa loja na Pluggy
 // (busca as movimentações novas no banco). Os dados novos levam alguns instantes.
 export async function atualizarTudo(storeId: string): Promise<{ error?: string; qtd?: number }> {
-  await requirePermission("canViewRelatorios");
-  const creds = await credsOuFalha(storeId);
+  const user = await requirePermission("canViewRelatorios");
+  const creds = await credsOuFalha(storeId, user.companyId);
   const conns = await prisma.bankConnection.findMany({ where: { storeId }, select: { itemId: true } });
   let qtd = 0;
   for (const c of conns) {
@@ -92,7 +92,14 @@ export async function atualizarTudo(storeId: string): Promise<{ error?: string; 
 }
 
 export async function removerConexao(id: string): Promise<{ error?: string }> {
-  await requirePermission("canViewRelatorios");
+  const user = await requirePermission("canViewRelatorios");
+  const conn = await prisma.bankConnection.findUnique({ where: { id }, select: { storeId: true } });
+  if (!conn?.storeId) return { error: "Conexão não encontrada." };
+  const store = await prisma.store.findFirst({
+    where: { id: conn.storeId, companyId: user.companyId },
+    select: { id: true },
+  });
+  if (!store) return { error: "Conexão não encontrada." };
   await prisma.bankConnection.delete({ where: { id } });
   revalidatePath("/bancos");
   return {};

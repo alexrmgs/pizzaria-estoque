@@ -35,7 +35,7 @@ export default async function FuncionarioDetalhePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePermission("canManageFuncionarios");
+  const currentUser = await requirePermission("canManageFuncionarios");
   const { id } = await params;
 
   const employee = await prisma.employee.findUnique({ where: { id } });
@@ -52,10 +52,15 @@ export default async function FuncionarioDetalhePage({
     }),
     prisma.payment.findMany({ where: { employeeId: id }, orderBy: { periodStart: "desc" } }),
     prisma.user.findMany({
+      where: { companyId: currentUser.companyId },
       orderBy: { name: "asc" },
       select: { id: true, name: true, email: true, employee: { select: { id: true } } },
     }),
-    prisma.store.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.store.findMany({
+      where: { companyId: currentUser.companyId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
 
   const availableUsers = users
@@ -79,8 +84,8 @@ export default async function FuncionarioDetalhePage({
   }
 
   const [hoursPreview, settings] = await Promise.all([
-    computePaymentPreview(id, periodStart, periodEnd),
-    getAppSettings(),
+    computePaymentPreview(id, periodStart, periodEnd, currentUser.companyId),
+    getAppSettings(currentUser.companyId),
   ]);
   const excessHours = hoursPreview.overtimeHours + hoursPreview.bankedHours;
   const regularHours = hoursPreview.totalHours - excessHours;

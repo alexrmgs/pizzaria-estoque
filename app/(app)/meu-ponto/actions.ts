@@ -6,8 +6,8 @@ import { requireUser } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import { distanceMeters } from "@/lib/geo";
 
-async function ensureCelularPonto() {
-  const settings = await getAppSettings();
+async function ensureCelularPonto(companyId: string) {
+  const settings = await getAppSettings(companyId);
   if (settings.pontoMode === "FACIAL") {
     throw new Error(
       "O ponto agora é por reconhecimento facial, no aparelho da loja. Fale com o gerente se precisar bater pelo celular.",
@@ -64,7 +64,8 @@ function checkLocation(
 }
 
 export async function clockIn(coords: Coords) {
-  await ensureCelularPonto();
+  const user = await requireUser();
+  await ensureCelularPonto(user.companyId);
   const employee = await getOwnEmployee();
 
   const openEntry = await prisma.timeEntry.findFirst({
@@ -119,7 +120,8 @@ export async function clockIn(coords: Coords) {
 }
 
 export async function clockOut(coords: Coords) {
-  await ensureCelularPonto();
+  const user = await requireUser();
+  await ensureCelularPonto(user.companyId);
   const employee = await getOwnEmployee();
 
   const openEntry = await prisma.timeEntry.findFirst({
