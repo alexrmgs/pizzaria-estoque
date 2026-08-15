@@ -17,6 +17,7 @@ import {
 import { IngredientDialog } from "./ingredient-dialog";
 import { DeleteIngredientButton } from "./delete-ingredient-button";
 import { ExcludeProducedFromCmvButton } from "./exclude-produced-from-cmv-button";
+import { RecalcularEstoqueAceitavelButton } from "./recalcular-estoque-aceitavel-button";
 import type { Prisma } from "@/lib/generated/prisma/client";
 
 const currency = (value: number) =>
@@ -177,6 +178,7 @@ export default async function EstoquePage({
             <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/categorias" />}>
               Categorias
             </Button>
+            <RecalcularEstoqueAceitavelButton />
             <IngredientDialog categories={categories} />
           </div>
         )}

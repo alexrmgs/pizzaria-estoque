@@ -202,6 +202,50 @@ export async function excludeProducedFromCmv(): Promise<{ count: number }> {
   return { count: result.count };
 }
 
+/**
+ * Recalcula o "estoque aceitável" de todos os ingredientes com base no
+ * consumo médio semanal real: soma a saída dos últimos 90 dias, divide pelo
+ * tempo coberto (mesma conta usada na página do ingrediente) e aplica uma
+ * folga de 20% em cima. Ingrediente sem saída registrada nos últimos 90 dias
+ * fica de fora (não dá pra estimar consumo sem histórico).
+ */
+export async function recalcularEstoqueAceitavel(): Promise<{ atualizados: number; semHistorico: number }> {
+  await requirePermission("canManageEstoque");
+
+  const janelaInicio = new Date();
+  janelaInicio.setDate(janelaInicio.getDate() - 90);
+
+  const ingredients = await prisma.ingredient.findMany({ select: { id: true } });
+
+  let atualizados = 0;
+  let semHistorico = 0;
+
+  for (const { id } of ingredients) {
+    const saidas = await prisma.stockMovement.findMany({
+      where: { ingredientId: id, type: "SAIDA", createdAt: { gte: janelaInicio } },
+      orderBy: { createdAt: "asc" },
+      select: { quantity: true, createdAt: true },
+    });
+    if (saidas.length === 0) {
+      semHistorico += 1;
+      continue;
+    }
+    const totalSaida = saidas.reduce((sum, m) => sum + Number(m.quantity), 0);
+    const diasCobertos = Math.max(1, (Date.now() - saidas[0].createdAt.getTime()) / 86_400_000);
+    const mediaSemanal = totalSaida / (diasCobertos / 7);
+    const novoIdeal = Math.round(mediaSemanal * 1.2 * 1000) / 1000;
+
+    await prisma.ingredient.update({ where: { id }, data: { idealStock: novoIdeal } });
+    atualizados += 1;
+  }
+
+  revalidatePath("/estoque");
+  revalidatePath("/lista-compras");
+  revalidatePath("/producao");
+
+  return { atualizados, semHistorico };
+}
+
 export async function deleteIngredient(id: string) {
   await requirePermission("canManageEstoque");
 
