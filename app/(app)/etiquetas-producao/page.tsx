@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireProducaoAccess } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -10,36 +12,32 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ProducaoForm } from "../etiquetas/producao-form";
-import { ReimprimirButton } from "../etiquetas/reimprimir-button";
-
-function formatDateTime(date: Date) {
-  return date.toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { LoteForm } from "../lotes/lote-form";
+import { LoteRowActions } from "../lotes/lote-row-actions";
 
 function formatDate(date: Date | null) {
   if (!date) return "—";
   return date.toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
+function statusValidade(expiresAt: Date | null): "vencido" | "perto" | "ok" | null {
+  if (!expiresAt) return null;
+  const hoje = new Date();
+  hoje.setUTCHours(0, 0, 0, 0);
+  const dias = Math.round((expiresAt.getTime() - hoje.getTime()) / 86_400_000);
+  if (dias < 0) return "vencido";
+  if (dias <= 1) return "perto";
+  return "ok";
+}
+
 export default async function EtiquetasProducaoPage() {
   const user = await requireProducaoAccess();
 
-  const [jobs, produtos, funcionarios, settings] = await Promise.all([
-    prisma.printJob.findMany({
-      where: { tipo: "PRODUCAO" },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    }),
+  const [ingredientsRaw, funcionarios, settings, labelsRaw] = await Promise.all([
     prisma.ingredient.findMany({
       where: { isProduced: true },
       orderBy: { name: "asc" },
-      select: { name: true },
+      select: { id: true, name: true, unit: true },
     }),
     prisma.employee.findMany({
       where: { active: true },
@@ -47,28 +45,50 @@ export default async function EtiquetasProducaoPage() {
       select: { name: true },
     }),
     getAppSettings(user.companyId),
+    prisma.stockLabel.findMany({
+      orderBy: [{ status: "asc" }, { expiresAt: "asc" }],
+      take: 50,
+      include: { ingredient: { select: { name: true, unit: true } } },
+    }),
   ]);
+
+  const labels = labelsRaw.map((l) => ({
+    id: l.id,
+    ingredientName: l.ingredient.name,
+    unit: l.ingredient.unit,
+    quantity: Number(l.quantity),
+    producedAt: l.producedAt,
+    expiresAt: l.expiresAt,
+    status: l.status,
+  }));
+
+  const empresa = {
+    nome: settings.labelEmpresa ?? "",
+    cnpj: settings.labelCnpj ?? "",
+    endereco: settings.labelEndereco ?? "",
+    cep: settings.labelCep ?? "",
+    cidade: settings.labelCidade ?? "",
+  };
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold uppercase">Etiquetas — Produção</h1>
-        <p className="text-sm text-neutral-500">
-          Etiqueta pra identificar produções da cozinha (massa, molho, recheio…) com produto, data de
-          produção e validade.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold uppercase">Etiquetas — Produção</h1>
+          <p className="text-sm text-neutral-500">
+            Cada etiqueta impressa aqui vira entrada no estoque (produto, peso, validade) e leva um
+            QR code. Escaneie na saída pra dar baixa automaticamente.
+          </p>
+        </div>
+        <Button variant="outline" nativeButton={false} render={<Link href="/lotes/scan" />}>
+          Escanear QR (dar baixa)
+        </Button>
       </div>
 
-      <ProducaoForm
-        produtos={produtos.map((p) => p.name)}
+      <LoteForm
+        ingredients={ingredientsRaw}
         responsaveis={funcionarios.map((f) => f.name)}
-        empresa={{
-          nome: settings.labelEmpresa ?? "",
-          cnpj: settings.labelCnpj ?? "",
-          endereco: settings.labelEndereco ?? "",
-          cep: settings.labelCep ?? "",
-          cidade: settings.labelCidade ?? "",
-        }}
+        empresa={empresa}
         widthMm={settings.labelProducaoWidthMm}
         heightMm={settings.labelProducaoHeightMm}
       />
@@ -81,49 +101,66 @@ export default async function EtiquetasProducaoPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Produto</TableHead>
-              <TableHead>Produção</TableHead>
+              <TableHead>Peso</TableHead>
+              <TableHead>Fabricação</TableHead>
               <TableHead>Validade</TableHead>
-              <TableHead>Cópias</TableHead>
-              <TableHead>Enviado</TableHead>
               <TableHead>Situação</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {jobs.length === 0 && (
+            {labels.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-neutral-500">
-                  Nenhuma etiqueta enviada ainda.
+                <TableCell colSpan={6} className="text-center text-neutral-500">
+                  Nenhuma etiqueta registrada ainda.
                 </TableCell>
               </TableRow>
             )}
-            {jobs.map((job) => (
-              <TableRow key={job.id}>
-                <TableCell className="font-medium">{job.produto}</TableCell>
-                <TableCell className="text-neutral-500">{formatDate(job.producaoData)}</TableCell>
-                <TableCell>{formatDate(job.validadeData)}</TableCell>
-                <TableCell className="text-neutral-500">{job.copias}</TableCell>
-                <TableCell className="text-neutral-500">{formatDateTime(job.createdAt)}</TableCell>
-                <TableCell>
-                  {job.status === "IMPRESSO" ? (
-                    <Badge variant="secondary">Impresso</Badge>
-                  ) : (
-                    <Badge className="bg-amber-100 text-amber-800">Na fila</Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <ReimprimirButton id={job.id} />
-                </TableCell>
-              </TableRow>
-            ))}
+            {labels.map((l) => {
+              const validade = statusValidade(l.expiresAt);
+              return (
+                <TableRow key={l.id}>
+                  <TableCell className="font-medium">{l.ingredientName}</TableCell>
+                  <TableCell className="text-neutral-500">
+                    {l.quantity} {l.unit}
+                  </TableCell>
+                  <TableCell className="text-neutral-500">{formatDate(l.producedAt)}</TableCell>
+                  <TableCell>
+                    <span
+                      className={
+                        validade === "vencido"
+                          ? "font-semibold text-destructive"
+                          : validade === "perto"
+                            ? "font-semibold text-amber-600"
+                            : ""
+                      }
+                    >
+                      {formatDate(l.expiresAt)}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {l.status === "BAIXADO" ? (
+                      <Badge variant="secondary">Baixado</Badge>
+                    ) : validade === "vencido" ? (
+                      <Badge variant="destructive">Vencido</Badge>
+                    ) : (
+                      <Badge className="bg-emerald-100 text-emerald-800">Em estoque</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <LoteRowActions
+                      lote={l}
+                      empresa={empresa}
+                      widthMm={settings.labelProducaoWidthMm}
+                      heightMm={settings.labelProducaoHeightMm}
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
-
-      <p className="max-w-lg text-xs text-neutral-400">
-        As etiquetas saem sozinhas na impressora quando o computador da loja estiver configurado. O
-        tamanho é definido em Configurações → Estoque.
-      </p>
     </div>
   );
 }

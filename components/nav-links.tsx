@@ -106,7 +106,7 @@ export function NavLinks({
           { href: "/movimentacoes", label: "Movimentações" },
           { href: "/etiquetas", label: "Etiquetas (Pedidos)" },
           { href: "/etiquetas-producao", label: "Etiquetas (Produção)" },
-          { href: "/lotes", label: "Lotes (Validade / QR)" },
+          { href: "/lotes/scan", label: "Escanear QR (baixa)" },
         ]
       : []),
     ...(permissions.canManageReceitas ? [{ href: "/receitas", label: "Receitas" }] : []),
