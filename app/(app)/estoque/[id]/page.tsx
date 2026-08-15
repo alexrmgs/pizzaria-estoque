@@ -18,13 +18,20 @@ const currency = (value: number) =>
 
 const HISTORY_LIMIT = 200;
 
+function isValidDate(s: string | undefined): s is string {
+  return !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
 export default async function IngredientHistoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   await requirePermission("canManageEstoque");
   const { id } = await params;
+  const { from, to } = await searchParams;
 
   const ingredient = await prisma.ingredient.findUnique({
     where: { id },
@@ -32,12 +39,26 @@ export default async function IngredientHistoryPage({
   });
   if (!ingredient) notFound();
 
+  const hasRange = isValidDate(from) && isValidDate(to);
+  const rangeStart = hasRange ? new Date(`${from}T00:00:00`) : null;
+  const rangeEnd = hasRange ? new Date(`${to}T23:59:59.999`) : null;
+
   const movements = await prisma.stockMovement.findMany({
-    where: { ingredientId: id },
+    where: {
+      ingredientId: id,
+      ...(hasRange ? { createdAt: { gte: rangeStart!, lte: rangeEnd! } } : {}),
+    },
     orderBy: { createdAt: "desc" },
-    take: HISTORY_LIMIT,
+    take: hasRange ? undefined : HISTORY_LIMIT,
     include: { user: { select: { name: true } } },
   });
+
+  const consumoPeriodo = hasRange
+    ? movements.filter((m) => m.type === "SAIDA").reduce((sum, m) => sum + Number(m.quantity), 0)
+    : null;
+  const entradaPeriodo = hasRange
+    ? movements.filter((m) => m.type === "ENTRADA").reduce((sum, m) => sum + Number(m.quantity), 0)
+    : null;
 
   const current = Number(ingredient.currentStock);
   const min = Number(ingredient.minStock);
@@ -102,7 +123,75 @@ export default async function IngredientHistoryPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Histórico de movimentações</CardTitle>
+          <CardTitle className="text-lg">Consumo por período</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form method="get" className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="from" className="text-xs text-neutral-500">De</label>
+              <input
+                id="from"
+                name="from"
+                type="date"
+                defaultValue={from}
+                className="h-10 rounded-md border border-input bg-transparent px-3 text-sm"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="to" className="text-xs text-neutral-500">Até</label>
+              <input
+                id="to"
+                name="to"
+                type="date"
+                defaultValue={to}
+                className="h-10 rounded-md border border-input bg-transparent px-3 text-sm"
+              />
+            </div>
+            <button
+              type="submit"
+              className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+            >
+              Filtrar
+            </button>
+            {hasRange && (
+              <Link href={`/estoque/${id}`} className="text-sm text-neutral-500 hover:underline">
+                Limpar filtro
+              </Link>
+            )}
+          </form>
+
+          {hasRange && (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Card>
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-sm text-neutral-500">Consumo (saída) no período</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-semibold text-destructive">
+                    {consumoPeriodo} {ingredient.unit}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-sm text-neutral-500">Entrada no período</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-semibold">
+                    {entradaPeriodo} {ingredient.unit}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">
+            Histórico de movimentações{hasRange ? ` — ${from} a ${to}` : ""}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="rounded-lg border">
@@ -151,7 +240,7 @@ export default async function IngredientHistoryPage({
               </TableBody>
             </Table>
           </div>
-          {movements.length === HISTORY_LIMIT && (
+          {!hasRange && movements.length === HISTORY_LIMIT && (
             <p className="mt-2 text-xs text-neutral-500">
               Mostrando as {HISTORY_LIMIT} movimentações mais recentes.
             </p>
