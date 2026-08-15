@@ -53,6 +53,8 @@ export function SaiposSync({ stores }: { stores: { id: string; name: string }[] 
 
   const anoAtual = new Date().getFullYear();
   const [ano, setAno] = useState(String(anoAtual - 1));
+  const TODAS = "TODAS";
+  const [anoStoreId, setAnoStoreId] = useState(TODAS);
 
   async function puxarPeriodo(
     alvoStoreId: string,
@@ -108,6 +110,7 @@ export function SaiposSync({ stores }: { stores: { id: string; name: string }[] 
   // chamadas, então um pedaço que falhar (mesmo após os retries do fetch) não
   // aborta a varredura inteira: pula pro próximo e reporta no final.
   async function puxarAnoTodasLojas() {
+    const lojasAlvo = anoStoreId === TODAS ? stores : stores.filter((s) => s.id === anoStoreId);
     setLoading(true);
     const yStart = `${ano}-01-01`;
     const yEnd = `${ano}-12-31`;
@@ -115,13 +118,13 @@ export function SaiposSync({ stores }: { stores: { id: string; name: string }[] 
     let pedidosGeral = 0;
     const falhas: string[] = [];
     try {
-      for (let s = 0; s < stores.length; s++) {
-        const loja = stores[s];
+      for (let s = 0; s < lojasAlvo.length; s++) {
+        const loja = lojasAlvo[s];
         const ranges = chunkRanges(yStart, yEnd, CHUNK_DAYS);
         for (let i = 0; i < ranges.length; i++) {
           const [rStart, rEnd] = ranges[i];
           setProgresso(
-            `Loja ${s + 1}/${stores.length} (${loja.name}): pedaço ${i + 1}/${ranges.length} (${currency(totalGeral)} até agora)`,
+            `Loja ${s + 1}/${lojasAlvo.length} (${loja.name}): pedaço ${i + 1}/${ranges.length} (${currency(totalGeral)} até agora)`,
           );
           const result = await sincronizarSaipos({ storeId: loja.id, start: rStart, end: rEnd });
           if (result.error) {
@@ -139,7 +142,7 @@ export function SaiposSync({ stores }: { stores: { id: string; name: string }[] 
         console.warn("Pedaços que falharam na varredura SaiPos:", falhas);
       } else {
         toast.success(
-          `Varredura de ${ano} concluída: ${stores.length} loja(s), ${pedidosGeral} pedido(s), ${currency(totalGeral)} ✅`,
+          `Varredura de ${ano} concluída: ${lojasAlvo.length} loja(s), ${pedidosGeral} pedido(s), ${currency(totalGeral)} ✅`,
         );
       }
       router.refresh();
@@ -214,12 +217,27 @@ export function SaiposSync({ stores }: { stores: { id: string; name: string }[] 
 
         {stores.length > 1 && (
           <div className="mt-4 border-t pt-4">
-            <p className="text-sm font-semibold">Varredura: ano inteiro, todas as lojas</p>
+            <p className="text-sm font-semibold">Varredura: ano inteiro</p>
             <p className="mb-3 text-xs text-neutral-500">
-              Puxa o ano inteiro de {stores.length} loja(s) uma atrás da outra. A API da SaiPos é
-              lenta — pode levar mais de 1 hora no total. Deixe a aba aberta até terminar.
+              Puxa o ano inteiro da loja escolhida (ou de todas, uma atrás da outra). A API da
+              SaiPos é lenta — pode levar mais de 1 hora no total. Deixe a aba aberta até terminar.
             </p>
             <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs">Loja</Label>
+                <select
+                  value={anoStoreId}
+                  onChange={(e) => setAnoStoreId(e.target.value)}
+                  className="h-10 rounded-md border border-input bg-transparent px-3 text-sm"
+                >
+                  <option value={TODAS}>Todas as lojas</option>
+                  {stores.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="flex flex-col gap-1">
                 <Label className="text-xs">Ano</Label>
                 <Input
@@ -231,7 +249,11 @@ export function SaiposSync({ stores }: { stores: { id: string; name: string }[] 
               </div>
               <Button onClick={puxarAnoTodasLojas} disabled={loading} variant="secondary" className="h-10">
                 <Download className="mr-1 size-4" />
-                {loading ? "Varrendo…" : `Puxar ${ano} de todas`}
+                {loading
+                  ? "Varrendo…"
+                  : anoStoreId === TODAS
+                    ? `Puxar ${ano} de todas`
+                    : `Puxar ${ano}`}
               </Button>
             </div>
           </div>
