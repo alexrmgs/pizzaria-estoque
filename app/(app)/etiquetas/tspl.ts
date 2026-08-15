@@ -83,7 +83,9 @@ export function buildPedidoTspl(input: {
   return linhas.join("\r\n");
 }
 
-/** Etiqueta de produção (produto, temperatura, validade, responsável, empresa). */
+/** Etiqueta de produção (produto, temperatura, validade, responsável, empresa).
+ * Se `qrContent` vier preenchido, reserva uma coluna à direita pro QR code
+ * (lote de estoque) e encolhe a área de texto pra não sobrepor. */
 export function buildProducaoTspl(input: {
   produto: string;
   temperatura: string;
@@ -97,11 +99,16 @@ export function buildProducaoTspl(input: {
   copias: number;
   widthMm: number;
   heightMm: number;
+  qrContent?: string;
 }): string {
   const wd = Math.round(input.widthMm * DPMM);
   const hd = Math.round(input.heightMm * DPMM);
   const margem = Math.round(2 * DPMM);
-  const disp = wd - 2 * margem;
+
+  // Coluna do QR: quadrado do tamanho da altura útil da etiqueta (até 30mm).
+  const qrAreaMm = input.qrContent ? Math.min(30, input.heightMm - 4) : 0;
+  const qrAreaDots = Math.round(qrAreaMm * DPMM);
+  const disp = wd - 2 * margem - (input.qrContent ? qrAreaDots + margem : 0);
 
   const produto = limpar(input.produto) || "PRODUTO";
   const escProduto = escalaQueCabe(produto, disp, 3);
@@ -128,7 +135,7 @@ export function buildProducaoTspl(input: {
     y += 20;
   }
 
-  // Rodapé com a empresa, ancorado embaixo.
+  // Rodapé com a empresa, ancorado embaixo (mesma largura reduzida do texto).
   const rod: string[] = [];
   if (input.empresaNome) rod.push(limpar(input.empresaNome));
   const cnpjCidade = [input.empresaCnpj ? `CNPJ ${input.empresaCnpj}` : "", limpar(input.empresaCidade)]
@@ -141,6 +148,14 @@ export function buildProducaoTspl(input: {
       linhas.push(`TEXT ${margem},${yRod},"1",0,1,1,"${l}"`);
     }
     yRod += 14;
+  }
+
+  if (input.qrContent) {
+    const qrX = wd - qrAreaDots - margem;
+    const qrY = margem;
+    // ECC M, célula 6 dots (~0,75mm/módulo) — dá margem de leitura sem
+    // exigir uma etiqueta enorme. Ajustável se o QR sair pequeno demais.
+    linhas.push(`QRCODE ${qrX},${qrY},M,6,A,0,"${input.qrContent}"`);
   }
 
   const copias = Math.max(1, Math.min(input.copias, 50));

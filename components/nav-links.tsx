@@ -91,6 +91,7 @@ export function NavLinks({
         {permissions.canPrintProducao && (
           <NavLink href="/etiquetas-producao" label="Etiquetas — Produção" />
         )}
+        {permissions.canPrintProducao && <NavLink href="/lotes/scan" label="Escanear QR (baixa)" />}
       </nav>
     );
   }
@@ -105,6 +106,7 @@ export function NavLinks({
           { href: "/movimentacoes", label: "Movimentações" },
           { href: "/etiquetas", label: "Etiquetas (Pedidos)" },
           { href: "/etiquetas-producao", label: "Etiquetas (Produção)" },
+          { href: "/lotes", label: "Lotes (Validade / QR)" },
         ]
       : []),
     ...(permissions.canManageReceitas ? [{ href: "/receitas", label: "Receitas" }] : []),

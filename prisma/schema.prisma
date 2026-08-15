@@ -80,6 +80,8 @@ model User {
   whatsappPendingMovements WhatsappPendingMovement[]
   fixedCosts        FixedCost[]
   variableCostRates VariableCostRate[]
+  stockLabelsCreated  StockLabel[] @relation("StockLabelCreatedBy")
+  stockLabelsConsumed StockLabel[] @relation("StockLabelConsumedBy")
 
   @@index([roleId])
   @@index([companyId])
@@ -227,8 +229,38 @@ model Ingredient {
   movements        StockMovement[]
   recipeIngredients RecipeIngredient[]
   whatsappPendingMovements WhatsappPendingMovement[]
+  stockLabels       StockLabel[]
 
   @@index([categoryId])
+}
+
+enum StockLabelStatus {
+  ATIVO
+  BAIXADO
+}
+
+// Um "lote" por etiqueta de produção: nasce junto com a entrada no estoque
+// (a etiqueta É o comprovante da entrada) e morre quando o QR code é
+// escaneado na saída, dando baixa exatamente naquele peso/validade.
+model StockLabel {
+  id           String            @id @default(cuid())
+  ingredient   Ingredient        @relation(fields: [ingredientId], references: [id])
+  ingredientId String
+  quantity     Decimal           @db.Decimal(10, 3)
+  producedAt   DateTime          @db.Date
+  expiresAt    DateTime?         @db.Date
+  status       StockLabelStatus  @default(ATIVO)
+  entradaMovementId String?
+  saidaMovementId   String?
+  createdById  String
+  createdBy    User              @relation("StockLabelCreatedBy", fields: [createdById], references: [id])
+  consumedAt   DateTime?
+  consumedById String?
+  consumedBy   User?             @relation("StockLabelConsumedBy", fields: [consumedById], references: [id])
+  createdAt    DateTime          @default(now())
+
+  @@index([ingredientId])
+  @@index([status])
 }
 
 model StockMovement {
