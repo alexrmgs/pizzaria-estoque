@@ -66,7 +66,7 @@ export function PricingMethodForm({
               salvar("MARGEM");
             }}
           />
-          Margem de contribuição desejada (ignora só o custo fixo)
+          Margem de contribuição desejada (ignora custo fixo e variável)
         </label>
         {metodo === "MARGEM" && (
           <div className="flex items-center gap-2">

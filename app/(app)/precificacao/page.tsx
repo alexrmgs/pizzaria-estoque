@@ -134,7 +134,7 @@ export default async function PrecificacaoPage({
       costPerUnit !== null ? computeSuggestedPrice(costPerUnit, totalMarkupPercent) : null;
     const suggestedPriceMargem =
       costPerUnit !== null
-        ? computeSuggestedPriceByMargin(costPerUnit, totalVariablePercent, targetMarginPercent)
+        ? computeSuggestedPriceByMargin(costPerUnit, targetMarginPercent)
         : null;
     const suggestedPrice = pricingMethod === "MARGEM" ? suggestedPriceMargem : suggestedPriceMarkup;
 
@@ -144,16 +144,14 @@ export default async function PrecificacaoPage({
         ? ((suggestedPrice - currentPrice) / currentPrice) * 100
         : null;
 
-    // Margem de contribuição = preço − custo do produto − custos variáveis (%
-    // sobre o preço, ex: taxa de máquina/ifood). Não desconta o custo fixo —
-    // é o que sobra pra pagar o fixo e ainda ter lucro. Usa o preço praticado
-    // hoje; se ainda não cadastrou preço, usa o sugerido como referência.
+    // Margem de contribuição = preço − custo do produto. Não desconta nem o
+    // custo fixo nem o variável — é o que sobra pra pagar os dois e ainda ter
+    // lucro. Usa o preço praticado hoje; se ainda não cadastrou preço, usa o
+    // sugerido como referência.
     const priceForMargin = currentPrice ?? suggestedPrice;
     const usaPrecoSugerido = currentPrice === null && suggestedPrice !== null;
     const contribMargin =
-      priceForMargin !== null && costPerUnit !== null
-        ? priceForMargin - costPerUnit - priceForMargin * (totalVariablePercent / 100)
-        : null;
+      priceForMargin !== null && costPerUnit !== null ? priceForMargin - costPerUnit : null;
     const contribMarginPercent =
       contribMargin !== null && priceForMargin! > 0 ? (contribMargin / priceForMargin!) * 100 : null;
 
@@ -176,8 +174,10 @@ export default async function PrecificacaoPage({
     validMargins.length > 0
       ? validMargins.reduce((s, r) => s + r.contribMarginPercent!, 0) / validMargins.length
       : null;
-  // Referência pra saber se a margem média cobre o custo fixo (%).
-  const fixedCostPercentOrZero = fixedCostPercent ?? 0;
+  // Referência pra saber se a margem média cobre fixo + variável (%) — a
+  // margem agora não desconta nenhum dos dois, então precisa dar conta dos
+  // dois pra sobrar lucro de verdade.
+  const custosParaCobrir = (fixedCostPercent ?? 0) + totalVariablePercent;
 
   return (
     <div className="flex flex-col gap-6">
@@ -372,8 +372,7 @@ export default async function PrecificacaoPage({
                       : "—"}
                   </p>
                   <p className="text-xs text-neutral-500">
-                    custo fixo não entra no preço (é coberto pelo volume vendido); o variável entra,
-                    pra bater com a margem de contribuição real
+                    custo fixo e variável não entram no preço — só o custo do produto e a margem
                   </p>
                 </CardContent>
               </Card>
@@ -386,7 +385,7 @@ export default async function PrecificacaoPage({
                 <p
                   className={
                     "text-lg font-semibold " +
-                    (avgContribMarginPercent !== null && avgContribMarginPercent < fixedCostPercentOrZero
+                    (avgContribMarginPercent !== null && avgContribMarginPercent < custosParaCobrir
                       ? "text-destructive"
                       : "text-emerald-600")
                   }
@@ -396,7 +395,7 @@ export default async function PrecificacaoPage({
                     : "—"}
                 </p>
                 <p className="text-xs text-neutral-500">
-                  sobra depois do custo do produto e dos custos variáveis, pra pagar o fixo e lucrar
+                  sobra depois do custo do produto, pra pagar o fixo, o variável e ainda lucrar
                 </p>
               </CardContent>
             </Card>
@@ -424,10 +423,9 @@ export default async function PrecificacaoPage({
                   Defina a margem de contribuição desejada no card acima pra calcular o preço sugerido.
                 </p>
               )}
-              {targetMarginPercent !== null && totalVariablePercent + targetMarginPercent >= 100 && (
+              {targetMarginPercent !== null && targetMarginPercent >= 100 && (
                 <p className="text-sm text-destructive">
-                  Custos variáveis + margem desejada passou de 100% — não dá pra calcular um preço
-                  sugerido assim. Revise os percentuais.
+                  A margem desejada passou de 100% — não dá pra calcular um preço sugerido assim.
                 </p>
               )}
             </>
