@@ -169,11 +169,28 @@ export async function respondToSwapAsManager(swapId: string, approve: boolean) {
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.dayOff.deleteMany({
-      where: { employeeId: swap.requesterId, date: swap.requesterDate, type: "FOLGA" },
+    // Marca TRABALHA no dia que cada um cedeu — não basta apagar um FOLGA
+    // explícito, porque se a folga cedida era a fixa semanal (sem registro no
+    // banco) ela continuaria valendo por padrão.
+    await tx.dayOff.upsert({
+      where: { employeeId_date: { employeeId: swap.requesterId, date: swap.requesterDate } },
+      update: { type: "TRABALHA", reason: `Troca de folga com ${swap.target.name}` },
+      create: {
+        employeeId: swap.requesterId,
+        date: swap.requesterDate,
+        type: "TRABALHA",
+        reason: `Troca de folga com ${swap.target.name}`,
+      },
     });
-    await tx.dayOff.deleteMany({
-      where: { employeeId: swap.targetId, date: swap.targetDate, type: "FOLGA" },
+    await tx.dayOff.upsert({
+      where: { employeeId_date: { employeeId: swap.targetId, date: swap.targetDate } },
+      update: { type: "TRABALHA", reason: `Troca de folga com ${swap.requester.name}` },
+      create: {
+        employeeId: swap.targetId,
+        date: swap.targetDate,
+        type: "TRABALHA",
+        reason: `Troca de folga com ${swap.requester.name}`,
+      },
     });
     await tx.dayOff.upsert({
       where: { employeeId_date: { employeeId: swap.requesterId, date: swap.targetDate } },
