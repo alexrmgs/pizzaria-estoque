@@ -51,39 +51,81 @@ export function SaiposSync({ stores }: { stores: { id: string; name: string }[] 
   const [loading, setLoading] = useState(false);
   const [progresso, setProgresso] = useState("");
 
+  const anoAtual = new Date().getFullYear();
+  const [ano, setAno] = useState(String(anoAtual - 1));
+
+  async function puxarPeriodo(
+    alvoStoreId: string,
+    startISO: string,
+    endISO: string,
+    onProgresso: (texto: string) => void,
+  ): Promise<{ dias: number; pedidos: number; total: number }> {
+    const ranges = chunkRanges(startISO, endISO, CHUNK_DAYS);
+    let dias = 0;
+    let pedidos = 0;
+    let total = 0;
+    for (let i = 0; i < ranges.length; i++) {
+      const [rStart, rEnd] = ranges[i];
+      onProgresso(`pedaço ${i + 1}/${ranges.length} (${currency(total)} até agora)`);
+      const result = await sincronizarSaipos({ storeId: alvoStoreId, start: rStart, end: rEnd });
+      if (result.error) {
+        throw new Error(`${rStart} a ${rEnd}: ${result.error}`);
+      }
+      dias += result.dias ?? 0;
+      pedidos += result.pedidos ?? 0;
+      total += result.total ?? 0;
+    }
+    return { dias, pedidos, total };
+  }
+
   async function puxar() {
     if (end < start) {
       toast.error("A data final não pode ser antes da inicial.");
       return;
     }
-    const ranges = chunkRanges(start, end, CHUNK_DAYS);
     setLoading(true);
-    let dias = 0;
-    let pedidos = 0;
-    let total = 0;
     try {
-      for (let i = 0; i < ranges.length; i++) {
-        const [rStart, rEnd] = ranges[i];
-        setProgresso(
-          `Puxando ${i + 1} de ${ranges.length}… (${total > 0 ? currency(total) : "R$ 0,00"} até agora)`,
-        );
-        const result = await sincronizarSaipos({ storeId, start: rStart, end: rEnd });
-        if (result.error) {
-          toast.error(`Erro no pedaço ${rStart} a ${rEnd}: ${result.error}`);
-          router.refresh();
-          return;
-        }
-        dias += result.dias ?? 0;
-        pedidos += result.pedidos ?? 0;
-        total += result.total ?? 0;
-      }
-      if (dias === 0) {
+      const r = await puxarPeriodo(storeId, start, end, (texto) => setProgresso(texto));
+      if (r.dias === 0) {
         toast.info("Nenhuma venda encontrada nesse período.");
         return;
       }
       toast.success(
-        `Faturamento importado: ${dias} dia(s), ${pedidos} pedido(s), ${currency(total)} ✅`,
+        `Faturamento importado: ${r.dias} dia(s), ${r.pedidos} pedido(s), ${currency(r.total)} ✅`,
       );
+      router.refresh();
+    } catch (e) {
+      toast.error(`Erro: ${e instanceof Error ? e.message : "falha ao importar"}`);
+    } finally {
+      setLoading(false);
+      setProgresso("");
+    }
+  }
+
+  // Varredura: puxa o ano inteiro selecionado, loja por loja, todas as lojas
+  // com token SaiPos configurado. Demora (pode levar bem mais de 1h no total)
+  // — a aba precisa continuar aberta.
+  async function puxarAnoTodasLojas() {
+    setLoading(true);
+    const yStart = `${ano}-01-01`;
+    const yEnd = `${ano}-12-31`;
+    let totalGeral = 0;
+    let pedidosGeral = 0;
+    try {
+      for (let s = 0; s < stores.length; s++) {
+        const loja = stores[s];
+        const r = await puxarPeriodo(loja.id, yStart, yEnd, (texto) =>
+          setProgresso(`Loja ${s + 1}/${stores.length} (${loja.name}): ${texto}`),
+        );
+        totalGeral += r.total;
+        pedidosGeral += r.pedidos;
+      }
+      toast.success(
+        `Varredura de ${ano} concluída: ${stores.length} loja(s), ${pedidosGeral} pedido(s), ${currency(totalGeral)} ✅`,
+      );
+      router.refresh();
+    } catch (e) {
+      toast.error(`Parou no meio: ${e instanceof Error ? e.message : "falha ao importar"}`);
       router.refresh();
     } finally {
       setLoading(false);
@@ -153,6 +195,31 @@ export function SaiposSync({ stores }: { stores: { id: string; name: string }[] 
           Períodos longos são puxados em pedaços de {CHUNK_DAYS} dias (a API da SaiPos é lenta). Pode
           demorar um pouco — não feche a página.
         </p>
+
+        {stores.length > 1 && (
+          <div className="mt-4 border-t pt-4">
+            <p className="text-sm font-semibold">Varredura: ano inteiro, todas as lojas</p>
+            <p className="mb-3 text-xs text-neutral-500">
+              Puxa o ano inteiro de {stores.length} loja(s) uma atrás da outra. A API da SaiPos é
+              lenta — pode levar mais de 1 hora no total. Deixe a aba aberta até terminar.
+            </p>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs">Ano</Label>
+                <Input
+                  type="number"
+                  value={ano}
+                  onChange={(e) => setAno(e.target.value)}
+                  className="h-10 w-28"
+                />
+              </div>
+              <Button onClick={puxarAnoTodasLojas} disabled={loading} variant="secondary" className="h-10">
+                <Download className="mr-1 size-4" />
+                {loading ? "Varrendo…" : `Puxar ${ano} de todas`}
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
