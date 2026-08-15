@@ -1,17 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PrintButton } from "@/components/print-button";
 import { WhatsAppShareButton } from "./whatsapp-share-button";
+import { PurchaseTable } from "./purchase-table";
 import { AiAnalysisPanel } from "@/components/ai-analysis-panel";
 import { analisarCompras } from "./ai-actions";
 
@@ -31,13 +24,11 @@ type ListItem = {
 };
 
 function ListaTable({
-  title,
   description,
   emptyMessage,
   items,
   printTitle,
 }: {
-  title: string;
   description: string;
   emptyMessage: string;
   items: ListItem[];
@@ -81,42 +72,7 @@ function ListaTable({
             </CardContent>
           </Card>
 
-          <div className="rounded-lg border bg-white">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Ingrediente</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Estoque atual</TableHead>
-                  <TableHead>Estoque mínimo</TableHead>
-                  <TableHead>Estoque aceitável</TableHead>
-                  <TableHead>Sugestão de compra</TableHead>
-                  <TableHead className="print:hidden">Custo estimado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell className="text-neutral-500">{item.category?.name ?? "—"}</TableCell>
-                    <TableCell>
-                      {item.current} {item.unit}
-                    </TableCell>
-                    <TableCell>
-                      {item.min} {item.unit}
-                    </TableCell>
-                    <TableCell className="text-neutral-500">
-                      {item.ideal !== null ? `${item.ideal} ${item.unit}` : "não definido"}
-                    </TableCell>
-                    <TableCell className="font-semibold text-primary">
-                      {item.suggestedQty} {item.unit}
-                    </TableCell>
-                    <TableCell className="print:hidden">{currency(item.estimatedCost)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <PurchaseTable items={items} />
         </>
       )}
     </div>
@@ -207,7 +163,6 @@ export default async function ListaComprasPage() {
 
         <TabsContent value="minimo" className="pt-4 print:contents">
           <ListaTable
-            title="Abaixo do mínimo"
             description="Ingredientes que já furaram o estoque mínimo — repor com urgência."
             emptyMessage="Nenhum ingrediente abaixo do estoque mínimo no momento. 🎉"
             items={abaixoDoMinimo}
@@ -217,7 +172,6 @@ export default async function ListaComprasPage() {
 
         <TabsContent value="aceitavel" className="pt-4 print:contents">
           <ListaTable
-            title="Super lista"
             description="Todo ingrediente abaixo do estoque aceitável — inclui quem ainda não furou o mínimo, mas já vale repor."
             emptyMessage="Nenhum ingrediente abaixo do estoque aceitável no momento. 🎉"
             items={abaixoDoAceitavel}
