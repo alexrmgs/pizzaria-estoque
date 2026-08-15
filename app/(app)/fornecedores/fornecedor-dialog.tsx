@@ -13,16 +13,41 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { createFornecedor, updateFornecedor } from "./actions";
 
-type Fornecedor = { id: string; name: string; cnpj: string | null; phone: string | null; note: string | null };
+type Fornecedor = {
+  id: string;
+  name: string;
+  cnpj: string | null;
+  phone: string | null;
+  note: string | null;
+  productIds: string[];
+};
+type Product = { id: string; name: string };
 
-export function FornecedorDialog({ fornecedor }: { fornecedor?: Fornecedor }) {
+export function FornecedorDialog({
+  fornecedor,
+  products,
+}: {
+  fornecedor?: Fornecedor;
+  products: Product[];
+}) {
   const isEdit = !!fornecedor;
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
+  const [selected, setSelected] = useState<Set<string>>(new Set(fornecedor?.productIds ?? []));
   const formRef = useRef<HTMLFormElement>(null);
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -34,6 +59,7 @@ export function FornecedorDialog({ fornecedor }: { fornecedor?: Fornecedor }) {
       } else {
         setOpen(false);
         formRef.current?.reset();
+        setSelected(new Set());
       }
     });
   }
@@ -43,7 +69,10 @@ export function FornecedorDialog({ fornecedor }: { fornecedor?: Fornecedor }) {
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (next) setError(undefined);
+        if (next) {
+          setError(undefined);
+          setSelected(new Set(fornecedor?.productIds ?? []));
+        }
       }}
     >
       <DialogTrigger
@@ -57,7 +86,7 @@ export function FornecedorDialog({ fornecedor }: { fornecedor?: Fornecedor }) {
           )
         }
       />
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar fornecedor" : "Novo fornecedor"}</DialogTitle>
         </DialogHeader>
@@ -78,6 +107,28 @@ export function FornecedorDialog({ fornecedor }: { fornecedor?: Fornecedor }) {
             <Label htmlFor="note">Observação (opcional)</Label>
             <Textarea id="note" name="note" defaultValue={fornecedor?.note ?? ""} placeholder="Ex: entrega toda terça" />
           </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Produtos que esse fornecedor vende (opcional)</Label>
+            {products.length === 0 ? (
+              <p className="text-xs text-neutral-500">Nenhum ingrediente cadastrado ainda.</p>
+            ) : (
+              <div className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-md border p-2">
+                {products.map((p) => (
+                  <label key={p.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                    <Checkbox
+                      name="productIds"
+                      value={p.id}
+                      checked={selected.has(p.id)}
+                      onCheckedChange={() => toggle(p.id)}
+                    />
+                    {p.name}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
           {error && <p className="text-sm text-red-600">{error}</p>}
           <DialogFooter>
             <Button type="submit" disabled={isPending}>

@@ -99,7 +99,6 @@ export function NavLinks({
     ...(permissions.canManageEstoque
       ? [
           { href: "/estoque", label: "Estoque" },
-          { href: "/fornecedores", label: "Fornecedores" },
           { href: "/lista-compras", label: "Lista de Compras" },
           { href: "/conferencia", label: "Conferência de Estoque" },
           { href: "/producao", label: "Produção" },

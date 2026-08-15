@@ -230,6 +230,7 @@ model Ingredient {
   recipeIngredients RecipeIngredient[]
   whatsappPendingMovements WhatsappPendingMovement[]
   stockLabels       StockLabel[]
+  fornecedores      Fornecedor[]
 
   @@index([categoryId])
 }
@@ -297,6 +298,7 @@ model Fornecedor {
   updatedAt DateTime @updatedAt
 
   movements StockMovement[]
+  products  Ingredient[]
 }
 
 model Revenue {

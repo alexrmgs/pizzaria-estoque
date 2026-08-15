@@ -178,6 +178,9 @@ export default async function EstoquePage({
             <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/categorias" />}>
               Categorias
             </Button>
+            <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/fornecedores" />}>
+              Fornecedores
+            </Button>
             <RecalcularEstoqueAceitavelButton />
             <IngredientDialog categories={categories} />
           </div>
