@@ -60,6 +60,27 @@ export default async function IngredientHistoryPage({
     ? movements.filter((m) => m.type === "ENTRADA").reduce((sum, m) => sum + Number(m.quantity), 0)
     : null;
 
+  // Média semanal histórica (não depende do filtro De/Até): olha os últimos 90
+  // dias de saída e divide pelo tempo real coberto, pra dar uma referência de
+  // consumo típico por semana (ex: pra planejar compra).
+  const janelaInicio = new Date();
+  janelaInicio.setDate(janelaInicio.getDate() - 90);
+  const saidasRecentes = await prisma.stockMovement.findMany({
+    where: { ingredientId: id, type: "SAIDA", createdAt: { gte: janelaInicio } },
+    orderBy: { createdAt: "asc" },
+    select: { quantity: true, createdAt: true },
+  });
+  let mediaSemanal: number | null = null;
+  if (saidasRecentes.length > 0) {
+    const totalSaida = saidasRecentes.reduce((sum, m) => sum + Number(m.quantity), 0);
+    const primeiraData = saidasRecentes[0].createdAt;
+    const diasCobertos = Math.max(
+      1,
+      (Date.now() - primeiraData.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    mediaSemanal = totalSaida / (diasCobertos / 7);
+  }
+
   const current = Number(ingredient.currentStock);
   const min = Number(ingredient.minStock);
   const low = current < min;
@@ -80,7 +101,7 @@ export default async function IngredientHistoryPage({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="pb-1">
             <CardTitle className="text-sm text-neutral-500">Estoque atual</CardTitle>
@@ -117,6 +138,17 @@ export default async function IngredientHistoryPage({
             <p className="text-2xl font-semibold text-primary">
               {currency(current * Number(ingredient.unitPrice))}
             </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-sm text-neutral-500">Consumo médio semanal</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold">
+              {mediaSemanal !== null ? `${mediaSemanal.toFixed(1)} ${ingredient.unit}` : "—"}
+            </p>
+            <p className="text-xs text-neutral-500">últimos 90 dias</p>
           </CardContent>
         </Card>
       </div>
