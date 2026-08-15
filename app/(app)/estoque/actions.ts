@@ -233,7 +233,9 @@ export async function recalcularEstoqueAceitavel(): Promise<{ atualizados: numbe
     const totalSaida = saidas.reduce((sum, m) => sum + Number(m.quantity), 0);
     const diasCobertos = Math.max(1, (Date.now() - saidas[0].createdAt.getTime()) / 86_400_000);
     const mediaSemanal = totalSaida / (diasCobertos / 7);
-    const novoIdeal = Math.round(mediaSemanal * 1.2 * 1000) / 1000;
+    // Arredonda pra cima em número fechado — não dá pra comprar "34,7kg" de
+    // açúcar, então o valor final vira um inteiro comprável.
+    const novoIdeal = Math.ceil(mediaSemanal * 1.2);
 
     await prisma.ingredient.update({ where: { id }, data: { idealStock: novoIdeal } });
     atualizados += 1;
