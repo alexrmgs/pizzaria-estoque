@@ -1,9 +1,7 @@
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireProducaoAccess } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -72,17 +70,12 @@ export default async function EtiquetasProducaoPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold uppercase">Etiquetas — Produção</h1>
-          <p className="text-sm text-neutral-500">
-            Cada etiqueta impressa aqui vira entrada no estoque (produto, peso, validade) e leva um
-            QR code. Escaneie na saída pra dar baixa automaticamente.
-          </p>
-        </div>
-        <Button variant="outline" nativeButton={false} render={<Link href="/lotes/scan" />}>
-          Escanear QR (dar baixa)
-        </Button>
+      <div>
+        <h1 className="text-2xl font-semibold uppercase">Etiquetas — Produção</h1>
+        <p className="text-sm text-neutral-500">
+          Cada etiqueta impressa aqui vira entrada no estoque (produto, peso, validade) e leva um QR
+          code. Pra dar baixa depois, escaneie em Movimentações → Saída.
+        </p>
       </div>
 
       <LoteForm

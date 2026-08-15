@@ -13,6 +13,7 @@ import { MovementForm } from "./movement-form";
 import { EditMovementDialog } from "./edit-movement-dialog";
 import { DeleteMovementButton } from "./delete-movement-button";
 import { NotasEntradaPanel } from "../notas/notas-list";
+import { QrBaixaPanel } from "./qr-baixa-panel";
 
 export const maxDuration = 60;
 
@@ -149,7 +150,8 @@ export default async function MovimentacoesPage() {
           </Tabs>
         </TabsContent>
 
-        <TabsContent value="saida" className="pt-4">
+        <TabsContent value="saida" className="flex flex-col gap-4 pt-4">
+          <QrBaixaPanel />
           <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
             <MovementForm ingredients={ingredients} type="SAIDA" />
             <MovementsTable movements={saidas} ingredients={ingredients} />
