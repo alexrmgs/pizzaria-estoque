@@ -157,7 +157,9 @@ export async function updatePricingMethod(input: {
     where: { id: input.storeId },
     data: {
       pricingMethod: input.method,
-      targetMarginPercent: input.method === "MARGEM" ? input.targetMarginPercent : input.targetMarginPercent,
+      // Só grava a margem quando o método é margem — trocando pra markup, o
+      // campo não é usado, então limpa em vez de deixar um valor velho preso.
+      targetMarginPercent: input.method === "MARGEM" ? input.targetMarginPercent : null,
     },
   });
   revalidatePath("/precificacao");
