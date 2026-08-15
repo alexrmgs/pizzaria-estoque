@@ -10,6 +10,14 @@ import { criarLote } from "./actions";
 import { imprimirTspl } from "../etiquetas/ble-print";
 import { buildProducaoTspl } from "../etiquetas/tspl";
 
+const TEMP_SUGESTOES = [
+  "2°C a -18°C",
+  "Congelado (-18°C)",
+  "Refrigerado (0 a 4°C)",
+  "Resfriado",
+  "Ambiente",
+];
+
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -174,11 +182,17 @@ export function LoteForm({
           </Label>
           <Input
             id="temperatura"
+            list="lote-temperaturas"
             value={temperatura}
             onChange={(e) => setTemperatura(e.target.value)}
             placeholder="Ex: Congelado"
             className="h-10 w-48"
           />
+          <datalist id="lote-temperaturas">
+            {TEMP_SUGESTOES.map((t) => (
+              <option key={t} value={t} />
+            ))}
+          </datalist>
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="quantidade" className="text-xs">
