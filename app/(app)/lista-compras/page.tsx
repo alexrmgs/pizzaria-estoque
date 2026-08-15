@@ -26,10 +26,7 @@ export default async function ListaComprasPage() {
   });
 
   const lowStock = ingredients
-    .filter(
-      (ingredient) =>
-        !ingredient.isProduced && Number(ingredient.currentStock) < Number(ingredient.minStock),
-    )
+    .filter((ingredient) => !ingredient.isProduced)
     .map((ingredient) => {
       const current = Number(ingredient.currentStock);
       const min = Number(ingredient.minStock);
@@ -41,10 +38,14 @@ export default async function ListaComprasPage() {
         current,
         min,
         ideal,
+        target,
         suggestedQty,
         estimatedCost: suggestedQty * Number(ingredient.unitPrice),
       };
-    });
+    })
+    // Abaixo do "aceitável" (ou do mínimo, quando não tem aceitável definido)
+    // entra na lista — antes só entrava quem já tinha furado o mínimo.
+    .filter((item) => item.current < item.target);
 
   const totalEstimatedCost = lowStock.reduce((sum, item) => sum + item.estimatedCost, 0);
 
@@ -54,7 +55,8 @@ export default async function ListaComprasPage() {
         <div>
           <h1 className="text-2xl font-semibold uppercase">Lista de Compras</h1>
           <p className="text-sm text-neutral-500">
-            Gerada automaticamente a partir dos ingredientes abaixo do estoque mínimo.
+            Gerada automaticamente com todo ingrediente abaixo do estoque aceitável (ou do
+            mínimo, quando o aceitável não está definido).
           </p>
         </div>
         {lowStock.length > 0 && (
@@ -82,7 +84,7 @@ export default async function ListaComprasPage() {
 
       {lowStock.length === 0 ? (
         <p className="text-sm text-neutral-500">
-          Nenhum ingrediente abaixo do estoque mínimo no momento. 🎉
+          Nenhum ingrediente abaixo do estoque aceitável no momento. 🎉
         </p>
       ) : (
         <>
@@ -137,8 +139,9 @@ export default async function ListaComprasPage() {
           </div>
 
           <p className="text-xs text-neutral-500 print:hidden">
-            Dica: defina o &quot;estoque aceitável&quot; de cada ingrediente na tela de Estoque
-            para que a sugestão de compra traga uma quantidade mais precisa (não apenas o mínimo).
+            Dica: defina o &quot;estoque aceitável&quot; de cada ingrediente na tela de Estoque (ou
+            use o botão &quot;Recalcular estoque aceitável&quot;) para essa lista trazer a
+            quantidade certa a comprar de cada um.
           </p>
         </>
       )}
