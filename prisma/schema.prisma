@@ -274,10 +274,29 @@ model StockMovement {
   userId       String
   createdAt    DateTime     @default(now())
   unitPriceAtEntry Decimal? @db.Decimal(10, 2)
+  supplier     Fornecedor?  @relation(fields: [supplierId], references: [id])
+  supplierId   String?
 
   @@index([ingredientId])
   @@index([userId])
   @@index([createdAt])
+  @@index([supplierId])
+}
+
+// Cadastro de fornecedores — pra medir onde mais se compra. Entradas
+// manuais podem marcar o fornecedor (Movimentações); notas fiscais (NF-e)
+// já trazem o nome do emitente em texto livre em NotaFiscal.fornecedor, sem
+// vínculo com esse cadastro por enquanto (comparado por nome no relatório).
+model Fornecedor {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  cnpj      String?
+  phone     String?
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  movements StockMovement[]
 }
 
 model Revenue {

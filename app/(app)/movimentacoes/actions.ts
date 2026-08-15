@@ -212,6 +212,7 @@ const batchItemSchema = z.object({
 const batchSchema = z.object({
   type: z.enum(["ENTRADA", "SAIDA"]),
   items: z.array(batchItemSchema).min(1, "Adicione ao menos um item à lista."),
+  supplierId: z.string().trim().min(1).optional(),
 });
 
 export type BatchMovementState = { error?: string; count?: number } | undefined;
@@ -223,10 +224,11 @@ export type BatchMovementState = { error?: string; count?: number } | undefined;
 export async function createMovementsBatch(
   type: "ENTRADA" | "SAIDA",
   items: { ingredientId: string; quantity: number; reason?: string; unitPrice?: number }[],
+  supplierId?: string,
 ): Promise<BatchMovementState> {
   const user = await requirePermission("canManageEstoque");
 
-  const parsed = batchSchema.safeParse({ type, items });
+  const parsed = batchSchema.safeParse({ type, items, supplierId });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
@@ -254,6 +256,7 @@ export async function createMovementsBatch(
             // o preço cadastrado mude depois.
             unitPriceAtEntry:
               parsed.data.type === "ENTRADA" ? (item.unitPrice ?? Number(ingredient.unitPrice)) : null,
+            supplierId: parsed.data.type === "ENTRADA" ? parsed.data.supplierId : null,
           },
         });
         const newUnitPrice =
@@ -285,6 +288,7 @@ export async function createMovementsBatch(
   revalidatePath("/lista-compras");
   revalidatePath("/producao");
   revalidatePath("/receitas");
+  revalidatePath("/fornecedores");
 
   return { count: parsed.data.items.length };
 }

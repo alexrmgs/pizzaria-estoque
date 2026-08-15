@@ -93,7 +93,7 @@ function MovementsTable({
 export default async function MovimentacoesPage() {
   await requirePermission("canManageEstoque");
 
-  const [ingredientRows, entradas, saidas] = await Promise.all([
+  const [ingredientRows, entradas, saidas, fornecedores] = await Promise.all([
     prisma.ingredient.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true, unit: true, currentStock: true },
@@ -110,6 +110,7 @@ export default async function MovimentacoesPage() {
       take: 20,
       include: { ingredient: true, user: true },
     }),
+    prisma.fornecedor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
   const ingredients: IngredientOption[] = ingredientRows.map((i) => ({
@@ -140,7 +141,7 @@ export default async function MovimentacoesPage() {
             </TabsList>
             <TabsContent value="manual" className="pt-4">
               <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-                <MovementForm ingredients={ingredients} type="ENTRADA" />
+                <MovementForm ingredients={ingredients} type="ENTRADA" fornecedores={fornecedores} />
                 <MovementsTable movements={entradas} ingredients={ingredients} />
               </div>
             </TabsContent>

@@ -30,6 +30,7 @@ const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 type Ingredient = { id: string; name: string; unit: string; currentStock: number };
+type Fornecedor = { id: string; name: string };
 
 const formatQty = (value: number) => value.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
 
@@ -46,15 +47,18 @@ type PendingItem = {
 export function MovementForm({
   ingredients,
   type,
+  fornecedores = [],
 }: {
   ingredients: Ingredient[];
   type: "ENTRADA" | "SAIDA";
+  fornecedores?: Fornecedor[];
 }) {
   const [isPending, startTransition] = useTransition();
   const [formKey, setFormKey] = useState(0);
   const [items, setItems] = useState<PendingItem[]>([]);
   const [previewIngredientId, setPreviewIngredientId] = useState("");
   const [previewQuantity, setPreviewQuantity] = useState("");
+  const [supplierId, setSupplierId] = useState("");
 
   const isEntrada = type === "ENTRADA";
   const ingredientItems = ingredients.map((i) => ({ value: i.id, label: `${i.name} (${i.unit})` }));
@@ -123,6 +127,7 @@ export function MovementForm({
           reason,
           unitPrice,
         })),
+        isEntrada && supplierId ? supplierId : undefined,
       );
       if (result?.error) {
         toast.error(result.error);
@@ -131,6 +136,7 @@ export function MovementForm({
           `${result?.count ?? items.length} ${isEntrada ? "entrada(s)" : "saída(s)"} efetivada(s) com sucesso.`,
         );
         setItems([]);
+        setSupplierId("");
       }
     });
   }
@@ -287,6 +293,25 @@ export function MovementForm({
                 </TableBody>
               </Table>
             </div>
+
+            {isEntrada && fornecedores.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="supplierId">Fornecedor dessa entrega (opcional)</Label>
+                <select
+                  id="supplierId"
+                  value={supplierId}
+                  onChange={(e) => setSupplierId(e.target.value)}
+                  className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                >
+                  <option value="">Sem fornecedor</option>
+                  {fornecedores.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <Button
               onClick={handleConfirm}
