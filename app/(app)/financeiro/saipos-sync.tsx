@@ -104,28 +104,44 @@ export function SaiposSync({ stores }: { stores: { id: string; name: string }[] 
 
   // Varredura: puxa o ano inteiro selecionado, loja por loja, todas as lojas
   // com token SaiPos configurado. Demora (pode levar bem mais de 1h no total)
-  // — a aba precisa continuar aberta.
+  // — a aba precisa continuar aberta. A SaiPos é instável sob esse volume de
+  // chamadas, então um pedaço que falhar (mesmo após os retries do fetch) não
+  // aborta a varredura inteira: pula pro próximo e reporta no final.
   async function puxarAnoTodasLojas() {
     setLoading(true);
     const yStart = `${ano}-01-01`;
     const yEnd = `${ano}-12-31`;
     let totalGeral = 0;
     let pedidosGeral = 0;
+    const falhas: string[] = [];
     try {
       for (let s = 0; s < stores.length; s++) {
         const loja = stores[s];
-        const r = await puxarPeriodo(loja.id, yStart, yEnd, (texto) =>
-          setProgresso(`Loja ${s + 1}/${stores.length} (${loja.name}): ${texto}`),
-        );
-        totalGeral += r.total;
-        pedidosGeral += r.pedidos;
+        const ranges = chunkRanges(yStart, yEnd, CHUNK_DAYS);
+        for (let i = 0; i < ranges.length; i++) {
+          const [rStart, rEnd] = ranges[i];
+          setProgresso(
+            `Loja ${s + 1}/${stores.length} (${loja.name}): pedaço ${i + 1}/${ranges.length} (${currency(totalGeral)} até agora)`,
+          );
+          const result = await sincronizarSaipos({ storeId: loja.id, start: rStart, end: rEnd });
+          if (result.error) {
+            falhas.push(`${loja.name} ${rStart} a ${rEnd}: ${result.error}`);
+            continue;
+          }
+          totalGeral += result.total ?? 0;
+          pedidosGeral += result.pedidos ?? 0;
+        }
       }
-      toast.success(
-        `Varredura de ${ano} concluída: ${stores.length} loja(s), ${pedidosGeral} pedido(s), ${currency(totalGeral)} ✅`,
-      );
-      router.refresh();
-    } catch (e) {
-      toast.error(`Parou no meio: ${e instanceof Error ? e.message : "falha ao importar"}`);
+      if (falhas.length > 0) {
+        toast.error(
+          `Varredura de ${ano} terminou com ${falhas.length} pedaço(s) sem importar (puxe-os de novo à mão). Ver console.`,
+        );
+        console.warn("Pedaços que falharam na varredura SaiPos:", falhas);
+      } else {
+        toast.success(
+          `Varredura de ${ano} concluída: ${stores.length} loja(s), ${pedidosGeral} pedido(s), ${currency(totalGeral)} ✅`,
+        );
+      }
       router.refresh();
     } finally {
       setLoading(false);

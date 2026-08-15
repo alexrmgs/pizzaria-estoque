@@ -35,10 +35,11 @@ async function fetchPage(
   url.searchParams.set("p_offset", String(offset));
 
   // A API da SaiPos às vezes dá 504/timeout de pool sob carga — tenta de novo
-  // algumas vezes antes de desistir.
+  // algumas vezes antes de desistir. Backoff mais longo pq a varredura de ano
+  // inteiro martela a API com centenas de chamadas seguidas.
   let lastErr: unknown;
-  for (let attempt = 0; attempt < 4; attempt++) {
-    if (attempt > 0) await sleep(1500 * attempt);
+  for (let attempt = 0; attempt < 7; attempt++) {
+    if (attempt > 0) await sleep(Math.min(2000 * attempt, 15_000));
     try {
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
