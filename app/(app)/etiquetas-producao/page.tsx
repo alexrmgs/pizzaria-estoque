@@ -71,7 +71,7 @@ export default async function EtiquetasProducaoPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold uppercase">Etiquetas — Produção</h1>
+        <h1 className="text-2xl font-semibold uppercase">Etiquetas / Lotes (Validade)</h1>
         <p className="text-sm text-neutral-500">
           Cada etiqueta impressa aqui vira entrada no estoque (produto, peso, validade) e leva um QR
           code. Pra dar baixa depois, escaneie em Movimentações → Saída.

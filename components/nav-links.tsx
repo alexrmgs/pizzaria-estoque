@@ -89,7 +89,7 @@ export function NavLinks({
           <NavLink href="/etiquetas" label="Etiquetas — Pedidos" />
         )}
         {permissions.canPrintProducao && (
-          <NavLink href="/etiquetas-producao" label="Etiquetas — Produção" />
+          <NavLink href="/etiquetas-producao" label="Etiquetas / Lotes (Validade)" />
         )}
       </nav>
     );
@@ -104,7 +104,7 @@ export function NavLinks({
           { href: "/producao", label: "Produção" },
           { href: "/movimentacoes", label: "Movimentações" },
           { href: "/etiquetas", label: "Etiquetas (Pedidos)" },
-          { href: "/etiquetas-producao", label: "Etiquetas (Produção)" },
+          { href: "/etiquetas-producao", label: "Etiquetas / Lotes (Validade)" },
         ]
       : []),
     ...(permissions.canManageReceitas ? [{ href: "/receitas", label: "Receitas" }] : []),
