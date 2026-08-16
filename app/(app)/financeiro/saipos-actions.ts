@@ -62,8 +62,6 @@ export async function sincronizarSaipos(input: {
   // Agrega por dia + canal + loja-do-canal (ex: duas marcas no mesmo iFood).
   type Bucket = { amount: number; count: number };
   const byDayChannel = new Map<string, Bucket>();
-  let pedidos = 0;
-  let total = 0;
   for (const sale of sales) {
     if ((sale.canceled ?? "").toUpperCase() === "Y") continue;
     const day = (sale.shift_date ?? "").slice(0, 10);
@@ -76,19 +74,32 @@ export async function sincronizarSaipos(input: {
     bucket.amount += amount;
     bucket.count += 1;
     byDayChannel.set(key, bucket);
-    pedidos += 1;
-    total += amount;
   }
 
-  if (byDayChannel.size === 0) {
-    return { dias: 0, pedidos: 0, total: 0 };
-  }
-
-  const parsedEntries = Array.from(byDayChannel.entries(), ([key, bucket]) => {
+  // Canal com "marcas" (iFood, 99 — várias lojinhas virtuais na mesma conta):
+  // a SaiPos manda cada pedido DUAS vezes nesses casos — uma sem marca
+  // (visão agregada do canal) e outra já com a marca — e as duas trazem o
+  // valor cheio do pedido. Somando as duas, o total dobra. Quando existe a
+  // versão com marca, ela já é o detalhamento certo: descarta a sem-marca
+  // daquele canal naquele dia em vez de somar em cima.
+  let parsedEntries = Array.from(byDayChannel.entries(), ([key, bucket]) => {
     const [day, channel, channelStore] = JSON.parse(key) as [string, string, string];
     return { day, channel, channelStore, bucket };
   });
+  const temMarca = new Set(
+    parsedEntries.filter((e) => e.channelStore !== "").map((e) => `${e.day}|${e.channel}`),
+  );
+  parsedEntries = parsedEntries.filter(
+    (e) => e.channelStore !== "" || !temMarca.has(`${e.day}|${e.channel}`),
+  );
+
+  if (parsedEntries.length === 0) {
+    return { dias: 0, pedidos: 0, total: 0 };
+  }
+
   const dias = new Set(parsedEntries.map((e) => e.day)).size;
+  const pedidos = parsedEntries.reduce((sum, e) => sum + e.bucket.count, 0);
+  const total = parsedEntries.reduce((sum, e) => sum + e.bucket.amount, 0);
 
   // Quando a SaiPos ainda não tinha marcado a "lojinha"/marca de um pedido
   // (partner_sale.desc_store_partner vazio) na hora da 1ª sincronização, mas
