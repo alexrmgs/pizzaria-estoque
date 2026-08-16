@@ -8,6 +8,7 @@ const PAGE_LIMIT = 1000;
 const MAX_WINDOW_DAYS = 15; // limite da API por consulta
 
 export type SaiposSale = {
+  id_sale: number | string;
   shift_date: string;
   total_amount: number | string | null;
   canceled: string | null;
@@ -100,7 +101,13 @@ export async function fetchSaiposSales(
     all.push(...(await fetchWindow(token, cursor, realEnd)));
     cursor.setUTCDate(cursor.getUTCDate() + MAX_WINDOW_DAYS);
   }
-  return all;
+  // A paginação é por offset; se um pedido novo entra no meio da busca (loja
+  // com bastante movimento), o "empurrão" pode fazer a mesma venda aparecer
+  // em duas páginas. Deduplica pelo id_sale antes de somar, senão conta a
+  // mesma venda duas vezes.
+  const seen = new Map<string, SaiposSale>();
+  for (const sale of all) seen.set(String(sale.id_sale), sale);
+  return [...seen.values()];
 }
 
 function semAcento(s: string): string {
