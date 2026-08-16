@@ -1,9 +1,19 @@
-export const REVENUE_CHANNELS = ["LOJA_PROPRIA", "IFOOD", "NOVENTA_NOVE"] as const;
+export const REVENUE_CHANNELS = [
+  "LOJA_PROPRIA",
+  "IFOOD",
+  "NOVENTA_NOVE",
+  "CARDAPIO_WEB",
+  "VOCE_PEDE",
+  "MULTIPEDIDOS",
+] as const;
 
 export const REVENUE_CHANNEL_LABELS: Record<string, string> = {
   LOJA_PROPRIA: "Loja própria",
   IFOOD: "iFood",
   NOVENTA_NOVE: "99Food",
+  CARDAPIO_WEB: "Cardápio Web",
+  VOCE_PEDE: "Você Pede",
+  MULTIPEDIDOS: "Multipedidos",
 };
 
 export const MONTH_NAMES_SHORT = [

@@ -103,18 +103,28 @@ export async function fetchSaiposSales(
   return all;
 }
 
+function semAcento(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
 /**
- * Descobre o canal a partir do parceiro da venda. iFood e 99Food mantêm os
- * nomes de sempre (mesmo valor que o lançamento manual usa e que já está
- * gravado no histórico); qualquer canal novo que a SaiPos mandar (Rappi,
- * WhatsApp etc) passa direto com o nome real, em vez de cair tudo em
+ * Descobre o canal a partir do parceiro da venda. iFood, 99Food, Cardápio Web,
+ * Você Pede e Multipedidos mantêm nomes fixos (pra ter cor/rótulo consistente
+ * — ver components/channel-badge.tsx); qualquer canal novo que a SaiPos
+ * mandar além desses passa direto com o nome real, em vez de cair tudo em
  * "loja própria".
  */
 export function saiposChannel(sale: SaiposSale): string {
   const raw = (sale.partner_sale?.desc_partner_sale ?? "").trim();
-  const lower = raw.toLowerCase();
-  if (lower.includes("ifood")) return "IFOOD";
-  if (lower.includes("99")) return "NOVENTA_NOVE";
+  const norm = semAcento(raw);
+  if (norm.includes("ifood")) return "IFOOD";
+  if (norm.includes("99")) return "NOVENTA_NOVE";
+  if (norm.includes("cardapio")) return "CARDAPIO_WEB";
+  if (norm.includes("voce pede") || norm.includes("vocepede")) return "VOCE_PEDE";
+  if (norm.includes("multipedidos")) return "MULTIPEDIDOS";
   return raw || "LOJA_PROPRIA";
 }
 

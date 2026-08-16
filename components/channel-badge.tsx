@@ -2,17 +2,25 @@ import { cn } from "@/lib/utils";
 import { REVENUE_CHANNEL_LABELS } from "@/lib/financeiro";
 
 /** Cor de referência de cada canal — usada no selo e reaproveitada nos
- * gráficos (pizza/linha) do financeiro pra manter a mesma identidade visual. */
+ * gráficos (pizza/linha) do financeiro pra manter a mesma identidade visual.
+ * iFood/99Food usam a cor real da marca; os demais vêm da paleta categórica
+ * validada (contraste + separação pra daltonismo já conferidos). */
 export const CHANNEL_COLORS: Record<string, string> = {
   IFOOD: "#EA1D2C",
   NOVENTA_NOVE: "#FFCC00",
   LOJA_PROPRIA: "#9CA3AF",
+  CARDAPIO_WEB: "#4a3aa7",
+  VOCE_PEDE: "#2a78d6",
+  MULTIPEDIDOS: "#eb6834",
 };
 
 const CHANNEL_STYLE: Record<string, { bg: string; fg: string }> = {
   IFOOD: { bg: CHANNEL_COLORS.IFOOD, fg: "#FFFFFF" },
   NOVENTA_NOVE: { bg: CHANNEL_COLORS.NOVENTA_NOVE, fg: "#1A1A1A" },
   LOJA_PROPRIA: { bg: "#E5E5E5", fg: "#1A1A1A" },
+  CARDAPIO_WEB: { bg: CHANNEL_COLORS.CARDAPIO_WEB, fg: "#FFFFFF" },
+  VOCE_PEDE: { bg: CHANNEL_COLORS.VOCE_PEDE, fg: "#FFFFFF" },
+  MULTIPEDIDOS: { bg: CHANNEL_COLORS.MULTIPEDIDOS, fg: "#FFFFFF" },
 };
 
 function DeliveryBagIcon({ className }: { className?: string }) {
