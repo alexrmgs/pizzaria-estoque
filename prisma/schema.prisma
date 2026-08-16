@@ -531,8 +531,61 @@ model Employee {
   dayOffs              DayOff[]
   swapRequestsSent     ShiftSwapRequest[]  @relation("SwapRequester")
   swapRequestsReceived ShiftSwapRequest[]  @relation("SwapTarget")
+  terminations         Termination[]
 
   @@index([storeId])
+}
+
+enum TerminationReason {
+  SEM_JUSTA_CAUSA
+  PEDIDO_DEMISSAO
+  JUSTA_CAUSA
+  ACORDO
+}
+
+enum AvisoPrevioTipo {
+  INDENIZADO
+  TRABALHADO
+  DISPENSADO
+}
+
+// Cálculo de rescisão trabalhista (CLT) guardado como registro auditável de
+// quando/como um funcionário foi desligado, além do próprio valor pago.
+model Termination {
+  id                       String             @id @default(cuid())
+  companyId                String
+  employee                 Employee           @relation(fields: [employeeId], references: [id])
+  employeeId               String
+  dismissalDate            DateTime           @db.Date
+  reason                   TerminationReason
+  avisoPrevio              AvisoPrevioTipo?
+  lastVacationDate         DateTime           @db.Date
+  baseSalary               Decimal            @db.Decimal(10, 2)
+  avisoPrevioDays          Int                @default(0)
+  projectedEndDate         DateTime           @db.Date
+  saldoSalario             Decimal            @db.Decimal(10, 2)
+  avisoIndenizadoValor     Decimal            @db.Decimal(10, 2)
+  feriasVencidas           Decimal            @db.Decimal(10, 2)
+  feriasProporcionais      Decimal            @db.Decimal(10, 2)
+  decimoTerceiro           Decimal            @db.Decimal(10, 2)
+  inssDeduzido             Decimal            @db.Decimal(10, 2)
+  irrfDeduzido             Decimal            @db.Decimal(10, 2)
+  adiantamentosDeduzidos   Decimal            @db.Decimal(10, 2)
+  descontoAvisoNaoCumprido Decimal            @db.Decimal(10, 2)
+  totalLiquido             Decimal            @db.Decimal(10, 2)
+  fgtsBalanceInformado     Decimal            @default(0) @db.Decimal(10, 2)
+  multaFgts                Decimal            @db.Decimal(10, 2)
+  jaPago                   Boolean            @default(false)
+  formaPagamento           String?
+  payableId                String?
+  note                     String?
+  userId                   String?
+  createdAt                DateTime           @default(now())
+
+  advances    Advance[]
+  adjustments PayrollAdjustment[]
+
+  @@index([employeeId])
 }
 
 model TimeEntry {
@@ -622,8 +675,10 @@ model PayrollAdjustment {
   date        DateTime       @db.Date
   amount      Decimal        @db.Decimal(10, 2)
   description String?
-  paymentId   String?
-  payment     Payment?       @relation(fields: [paymentId], references: [id])
+  paymentId     String?
+  payment       Payment?       @relation(fields: [paymentId], references: [id])
+  terminationId String?
+  termination   Termination?   @relation(fields: [terminationId], references: [id])
   createdAt   DateTime       @default(now())
 
   @@index([employeeId])
@@ -637,8 +692,10 @@ model Advance {
   date        DateTime @db.Date
   amount      Decimal  @db.Decimal(10, 2)
   description String?
-  paymentId   String?
-  payment     Payment? @relation(fields: [paymentId], references: [id])
+  paymentId     String?
+  payment       Payment?     @relation(fields: [paymentId], references: [id])
+  terminationId String?
+  termination   Termination? @relation(fields: [terminationId], references: [id])
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id])
   userId      String

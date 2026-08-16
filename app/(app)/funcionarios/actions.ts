@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
+import { getAppSettings } from "@/lib/settings";
+import { computeRescisao } from "@/lib/rescisao";
+import type { TaxBracket } from "@/lib/payroll";
 
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -235,6 +238,7 @@ export async function deleteEmployee(id: string) {
       prisma.advance.deleteMany({ where: { employeeId: id } }),
       prisma.payrollAdjustment.deleteMany({ where: { employeeId: id } }),
       prisma.payment.deleteMany({ where: { employeeId: id } }),
+      prisma.termination.deleteMany({ where: { employeeId: id } }),
       prisma.employee.delete({ where: { id } }),
     ]);
   } catch {
@@ -244,5 +248,213 @@ export async function deleteEmployee(id: string) {
   revalidatePath("/funcionarios");
   revalidatePath("/pagamentos");
   revalidatePath("/vales");
+  revalidatePath("/dashboard");
+}
+
+// ---------- Rescisão ----------
+
+export type TerminationPreviewData = {
+  baseSalary: number;
+  dependents: number;
+  hireDate: string | null;
+  suggestedLastVacationDate: string | null;
+  pendingAdvancesTotal: number;
+  pendingDiscountsTotal: number;
+  pendingBonusesTotal: number;
+  cltSettings: {
+    inssBrackets: TaxBracket[];
+    irrfBrackets: TaxBracket[];
+    irrfDependentDeduction: number;
+  };
+};
+
+export async function getTerminationPreview(
+  employeeId: string,
+): Promise<TerminationPreviewData | { error: string }> {
+  const user = await requirePermission("canManageFuncionarios");
+
+  const [employee, settings, advances, adjustments] = await Promise.all([
+    prisma.employee.findUnique({ where: { id: employeeId } }),
+    getAppSettings(user.companyId),
+    prisma.advance.findMany({ where: { employeeId, paymentId: null, terminationId: null } }),
+    prisma.payrollAdjustment.findMany({ where: { employeeId, paymentId: null, terminationId: null } }),
+  ]);
+  if (!employee) return { error: "Funcionário não encontrado." };
+
+  const pendingAdvancesTotal = advances.reduce((s, a) => s + Number(a.amount), 0);
+  const pendingDiscountsTotal = adjustments
+    .filter((a) => a.type === "DESCONTO")
+    .reduce((s, a) => s + Number(a.amount), 0);
+  const pendingBonusesTotal = adjustments
+    .filter((a) => a.type === "BONUS")
+    .reduce((s, a) => s + Number(a.amount), 0);
+
+  const hireDateStr = employee.hireDate ? employee.hireDate.toISOString().slice(0, 10) : null;
+
+  return {
+    baseSalary: Number(employee.baseSalary),
+    dependents: employee.dependents,
+    hireDate: hireDateStr,
+    suggestedLastVacationDate: hireDateStr,
+    pendingAdvancesTotal,
+    pendingDiscountsTotal,
+    pendingBonusesTotal,
+    cltSettings: {
+      inssBrackets: settings.inssBrackets as unknown as TaxBracket[],
+      irrfBrackets: settings.irrfBrackets as unknown as TaxBracket[],
+      irrfDependentDeduction: Number(settings.irrfDependentDeduction),
+    },
+  };
+}
+
+const terminationSchema = z.object({
+  dismissalDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data de desligamento inválida."),
+  reason: z.enum(["SEM_JUSTA_CAUSA", "PEDIDO_DEMISSAO", "JUSTA_CAUSA", "ACORDO"]),
+  avisoPrevio: z.enum(["INDENIZADO", "TRABALHADO", "DISPENSADO"]).optional(),
+  lastVacationDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data do início do período de férias inválida."),
+  fgtsBalance: z.coerce.number().min(0).default(0),
+  jaPago: z.coerce.boolean(),
+  formaPagamento: z.enum(["DINHEIRO", "PIX"]).optional(),
+  note: z.string().trim().max(500).optional(),
+});
+
+export type TerminationFormState = { error?: string } | undefined;
+
+/**
+ * Calcula a rescisão (regras CLT padrão — ver lib/rescisao.ts), demite o
+ * funcionário e cria a conta em Contas a Pagar (ou já paga, se marcado).
+ * Vales/bônus/descontos ainda pendentes desse funcionário entram no cálculo
+ * e ficam vinculados à rescisão, pra não sumirem sem serem contados (o
+ * funcionário inativo some das telas de Pagamentos/Vales).
+ */
+export async function demitirComRescisao(
+  employeeId: string,
+  _prevState: TerminationFormState,
+  formData: FormData,
+): Promise<TerminationFormState> {
+  const user = await requirePermission("canManageFuncionarios");
+
+  const parsed = terminationSchema.safeParse({
+    dismissalDate: formData.get("dismissalDate"),
+    reason: formData.get("reason"),
+    avisoPrevio: formData.get("avisoPrevio") || undefined,
+    lastVacationDate: formData.get("lastVacationDate"),
+    fgtsBalance: formData.get("fgtsBalance") || 0,
+    jaPago: formData.get("jaPago") === "on",
+    formaPagamento: formData.get("formaPagamento") || undefined,
+    note: formData.get("note") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+  if (!employee) return { error: "Funcionário não encontrado." };
+
+  const dismissalDate = new Date(`${parsed.data.dismissalDate}T00:00:00Z`);
+  const lastVacationDate = new Date(`${parsed.data.lastVacationDate}T00:00:00Z`);
+  const hireDate = employee.hireDate ?? lastVacationDate;
+
+  const [settings, advances, adjustments] = await Promise.all([
+    getAppSettings(user.companyId),
+    prisma.advance.findMany({ where: { employeeId, paymentId: null, terminationId: null } }),
+    prisma.payrollAdjustment.findMany({ where: { employeeId, paymentId: null, terminationId: null } }),
+  ]);
+  const pendingAdvancesTotal = advances.reduce((s, a) => s + Number(a.amount), 0);
+  const pendingDiscountsTotal = adjustments
+    .filter((a) => a.type === "DESCONTO")
+    .reduce((s, a) => s + Number(a.amount), 0);
+  const pendingBonusesTotal = adjustments
+    .filter((a) => a.type === "BONUS")
+    .reduce((s, a) => s + Number(a.amount), 0);
+
+  const result = computeRescisao({
+    baseSalary: Number(employee.baseSalary),
+    hireDate,
+    dismissalDate,
+    reason: parsed.data.reason,
+    avisoPrevio: parsed.data.avisoPrevio ?? null,
+    lastVacationDate,
+    fgtsBalance: parsed.data.fgtsBalance,
+    pendingAdvances: pendingAdvancesTotal,
+    pendingDiscounts: pendingDiscountsTotal,
+    pendingBonuses: pendingBonusesTotal,
+    dependents: employee.dependents,
+    inssBrackets: settings.inssBrackets as unknown as TaxBracket[],
+    irrfBrackets: settings.irrfBrackets as unknown as TaxBracket[],
+    irrfDependentDeduction: Number(settings.irrfDependentDeduction),
+  });
+
+  await prisma.$transaction(async (tx) => {
+    const due = new Date(dismissalDate);
+    due.setUTCDate(due.getUTCDate() + 10);
+
+    const payable = await tx.payable.create({
+      data: {
+        description: `Rescisão — ${employee.name}`,
+        category: "Rescisão",
+        amount: result.totalLiquido,
+        dueDate: parsed.data.jaPago ? dismissalDate : due,
+        status: parsed.data.jaPago ? "PAGA" : "PENDENTE",
+        paidDate: parsed.data.jaPago ? dismissalDate : null,
+        paymentMethod: parsed.data.jaPago ? parsed.data.formaPagamento || null : null,
+        note: "Gerada pelo cálculo de rescisão",
+        userId: user.id,
+        companyId: user.companyId,
+      },
+    });
+
+    const termination = await tx.termination.create({
+      data: {
+        companyId: user.companyId,
+        employeeId,
+        dismissalDate,
+        reason: parsed.data.reason,
+        avisoPrevio: parsed.data.avisoPrevio || null,
+        lastVacationDate,
+        baseSalary: employee.baseSalary,
+        avisoPrevioDays: result.avisoPrevioDays,
+        projectedEndDate: result.projectedEndDate,
+        saldoSalario: result.saldoSalario,
+        avisoIndenizadoValor: result.avisoIndenizadoValor,
+        feriasVencidas: result.feriasVencidas,
+        feriasProporcionais: result.feriasProporcionais,
+        decimoTerceiro: result.decimoTerceiroProporcional,
+        inssDeduzido: result.inssSaldoSalario + result.inssDecimoTerceiro,
+        irrfDeduzido: result.irrfSaldoSalario + result.irrfDecimoTerceiro,
+        adiantamentosDeduzidos: pendingAdvancesTotal + pendingDiscountsTotal,
+        descontoAvisoNaoCumprido: result.descontoAvisoNaoCumprido,
+        totalLiquido: result.totalLiquido,
+        fgtsBalanceInformado: parsed.data.fgtsBalance,
+        multaFgts: result.multaFgts,
+        jaPago: parsed.data.jaPago,
+        formaPagamento: parsed.data.jaPago ? parsed.data.formaPagamento || null : null,
+        payableId: payable.id,
+        note: parsed.data.note || null,
+        userId: user.id,
+      },
+    });
+
+    if (advances.length > 0) {
+      await tx.advance.updateMany({
+        where: { id: { in: advances.map((a) => a.id) } },
+        data: { terminationId: termination.id },
+      });
+    }
+    if (adjustments.length > 0) {
+      await tx.payrollAdjustment.updateMany({
+        where: { id: { in: adjustments.map((a) => a.id) } },
+        data: { terminationId: termination.id },
+      });
+    }
+
+    await tx.employee.update({ where: { id: employeeId }, data: { active: false } });
+  });
+
+  revalidatePath("/funcionarios");
+  revalidatePath(`/funcionarios/${employeeId}`);
+  revalidatePath("/pagamentos");
+  revalidatePath("/vales");
+  revalidatePath("/caixa");
   revalidatePath("/dashboard");
 }

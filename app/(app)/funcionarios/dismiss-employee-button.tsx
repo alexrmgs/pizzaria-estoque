@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { setEmployeeActive } from "./actions";
+import { TerminationDialog } from "./termination-dialog";
 
 export function DismissEmployeeButton({
   id,
@@ -17,32 +18,7 @@ export function DismissEmployeeButton({
   const [isPending, startTransition] = useTransition();
 
   if (active) {
-    return (
-      <Button
-        variant="outline"
-        size="sm"
-        className="text-destructive hover:text-destructive"
-        disabled={isPending}
-        onClick={() => {
-          if (
-            !confirm(
-              `Demitir "${name}"? Ele deixa de aparecer em Pagamentos e Vales, mas o histórico dele fica salvo.`,
-            )
-          )
-            return;
-          startTransition(async () => {
-            try {
-              await setEmployeeActive(id, false);
-              toast.success(`${name} foi marcado como demitido.`);
-            } catch {
-              toast.error("Não foi possível demitir o funcionário.");
-            }
-          });
-        }}
-      >
-        Demitir
-      </Button>
-    );
+    return <TerminationDialog employeeId={id} employeeName={name} />;
   }
 
   return (
