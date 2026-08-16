@@ -12,6 +12,10 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+// A API da SaiPos é lenta (~28s por página de 1000 vendas) — sem isso a
+// função estoura o tempo limite padrão da Vercel antes de terminar.
+export const maxDuration = 60;
+
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
