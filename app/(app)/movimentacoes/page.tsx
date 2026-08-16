@@ -106,7 +106,7 @@ function MovementsTable({
 export default async function MovimentacoesPage() {
   await requirePermission("canManageEstoque");
 
-  const [ingredientRows, entradas, saidas, fornecedores] = await Promise.all([
+  const [ingredientRows, entradas, saidas, fornecedoresRaw] = await Promise.all([
     prisma.ingredient.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true, unit: true, currentStock: true },
@@ -123,7 +123,10 @@ export default async function MovimentacoesPage() {
       take: 20,
       include: { ingredient: true, user: true, supplier: { select: { name: true } } },
     }),
-    prisma.fornecedor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.fornecedor.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, products: { select: { id: true } } },
+    }),
   ]);
 
   const ingredients: IngredientOption[] = ingredientRows.map((i) => ({
@@ -131,6 +134,12 @@ export default async function MovimentacoesPage() {
     name: i.name,
     unit: i.unit,
     currentStock: Number(i.currentStock),
+  }));
+
+  const fornecedores = fornecedoresRaw.map((f) => ({
+    id: f.id,
+    name: f.name,
+    productIds: f.products.map((p) => p.id),
   }));
 
   return (

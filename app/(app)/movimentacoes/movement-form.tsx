@@ -30,7 +30,7 @@ const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 type Ingredient = { id: string; name: string; unit: string; currentStock: number };
-type Fornecedor = { id: string; name: string };
+type Fornecedor = { id: string; name: string; productIds?: string[] };
 
 const formatQty = (value: number) => value.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
 
@@ -59,10 +59,26 @@ export function MovementForm({
   const [previewIngredientId, setPreviewIngredientId] = useState("");
   const [previewQuantity, setPreviewQuantity] = useState("");
   const [supplierId, setSupplierId] = useState("");
+  const [supplierTouched, setSupplierTouched] = useState(false);
+  const [supplierSuggested, setSupplierSuggested] = useState(false);
 
   const isEntrada = type === "ENTRADA";
   const ingredientItems = ingredients.map((i) => ({ value: i.id, label: `${i.name} (${i.unit})` }));
   const ingredientById = new Map(ingredients.map((i) => [i.id, i]));
+
+  // Se só tem 1 fornecedor cadastrado pra esse produto, já sugere ele no
+  // combo — sem sobrescrever se a pessoa já escolheu outro na mão.
+  function suggestSupplierFor(ingredientId: string) {
+    if (!isEntrada || supplierTouched) return;
+    const matches = fornecedores.filter((f) => f.productIds?.includes(ingredientId));
+    if (matches.length === 1) {
+      setSupplierId(matches[0].id);
+      setSupplierSuggested(true);
+    } else if (supplierSuggested) {
+      setSupplierId("");
+      setSupplierSuggested(false);
+    }
+  }
 
   const previewIngredient = ingredientById.get(previewIngredientId);
   const previewQuantityNumber = Number(previewQuantity);
@@ -137,6 +153,8 @@ export function MovementForm({
         );
         setItems([]);
         setSupplierId("");
+        setSupplierTouched(false);
+        setSupplierSuggested(false);
       }
     });
   }
@@ -157,9 +175,11 @@ export function MovementForm({
                 items={ingredientItems}
                 name="ingredientId"
                 required
-                onValueChange={(item: { value: string; label: string } | null) =>
-                  setPreviewIngredientId(item?.value ?? "")
-                }
+                onValueChange={(item: { value: string; label: string } | null) => {
+                  const id = item?.value ?? "";
+                  setPreviewIngredientId(id);
+                  if (id) suggestSupplierFor(id);
+                }}
               >
                 <ComboboxInput
                   id={`ingredientId-${type}`}
@@ -300,7 +320,11 @@ export function MovementForm({
                 <select
                   id="supplierId"
                   value={supplierId}
-                  onChange={(e) => setSupplierId(e.target.value)}
+                  onChange={(e) => {
+                    setSupplierId(e.target.value);
+                    setSupplierTouched(true);
+                    setSupplierSuggested(false);
+                  }}
                   className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
                 >
                   <option value="">Sem fornecedor</option>
@@ -310,6 +334,11 @@ export function MovementForm({
                     </option>
                   ))}
                 </select>
+                {supplierSuggested && (
+                  <p className="text-xs text-neutral-400">
+                    Sugerido automaticamente — só esse fornecedor vende esse produto.
+                  </p>
+                )}
               </div>
             )}
 
