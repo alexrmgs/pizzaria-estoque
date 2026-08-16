@@ -84,10 +84,38 @@ export async function sincronizarSaipos(input: {
     return { dias: 0, pedidos: 0, total: 0 };
   }
 
-  const dias = new Set(Array.from(byDayChannel.keys(), (k) => JSON.parse(k)[0])).size;
-
-  const ops = Array.from(byDayChannel.entries()).map(([key, bucket]) => {
+  const parsedEntries = Array.from(byDayChannel.entries(), ([key, bucket]) => {
     const [day, channel, channelStore] = JSON.parse(key) as [string, string, string];
+    return { day, channel, channelStore, bucket };
+  });
+  const dias = new Set(parsedEntries.map((e) => e.day)).size;
+
+  // Quando a SaiPos ainda não tinha marcado a "lojinha"/marca de um pedido
+  // (partner_sale.desc_store_partner vazio) na hora da 1ª sincronização, mas
+  // já marca numa 2ª puxada mais tarde, a chave (canal, loja-do-canal) muda —
+  // sem isso, a 2ª puxada só somaria em cima da 1ª em vez de substituir,
+  // contando o mesmo pedido duas vezes. Por isso apaga, por dia, qualquer
+  // linha importada da SaiPos que não bateu com o que essa puxada achou,
+  // antes de gravar os valores atuais.
+  const keysByDay = new Map<string, { channel: string; channelStore: string }[]>();
+  for (const e of parsedEntries) {
+    const list = keysByDay.get(e.day) ?? [];
+    list.push({ channel: e.channel, channelStore: e.channelStore });
+    keysByDay.set(e.day, list);
+  }
+
+  const deleteOps = Array.from(keysByDay.entries()).map(([day, keys]) =>
+    prisma.revenue.deleteMany({
+      where: {
+        storeId: parsed.data.storeId,
+        date: new Date(`${day}T00:00:00Z`),
+        note: "Importado da SaiPos",
+        NOT: { OR: keys.map((k) => ({ channel: k.channel, channelStore: k.channelStore })) },
+      },
+    }),
+  );
+
+  const upsertOps = parsedEntries.map(({ day, channel, channelStore, bucket }) => {
     const date = new Date(`${day}T00:00:00Z`);
     const amount = Math.round(bucket.amount * 100) / 100;
     return prisma.revenue.upsert({
@@ -113,10 +141,13 @@ export async function sincronizarSaipos(input: {
     });
   });
 
-  // Em lotes pra não estourar o pool de conexões em períodos longos.
+  // Em lotes pra não estourar o pool de conexões em períodos longos — os
+  // deletes vêm primeiro (são poucos, um por dia) pra já limpar antes de
+  // gravar os valores atuais.
   const BATCH = 50;
-  for (let i = 0; i < ops.length; i += BATCH) {
-    await prisma.$transaction(ops.slice(i, i + BATCH));
+  await prisma.$transaction(deleteOps);
+  for (let i = 0; i < upsertOps.length; i += BATCH) {
+    await prisma.$transaction(upsertOps.slice(i, i + BATCH));
   }
 
   revalidatePath("/financeiro");
