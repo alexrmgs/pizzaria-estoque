@@ -39,6 +39,8 @@ export default async function NotaPage({ params }: { params: Promise<{ id: strin
           emissao: nota.emissao ? nota.emissao.toISOString().slice(0, 10) : "",
           boleto: nota.boleto,
           vencimento: nota.vencimento ? nota.vencimento.toISOString().slice(0, 10) : "",
+          jaPago: nota.jaPago,
+          formaPagamento: (nota.formaPagamento as "DINHEIRO" | "PIX" | null) ?? null,
           total: nota.total.toString(),
         }}
         itens={nota.items.map((it) => ({

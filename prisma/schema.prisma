@@ -446,6 +446,8 @@ model NotaFiscal {
   status     NotaStatus       @default(CONFERINDO)
   boleto     Boolean          @default(false)
   vencimento DateTime?        @db.Date
+  jaPago     Boolean          @default(false)
+  formaPagamento String?
   payableId  String?
   userId     String?
   createdAt  DateTime         @default(now())
@@ -480,6 +482,7 @@ model Payable {
   dueDate     DateTime      @db.Date
   status      PayableStatus @default(PENDENTE)
   paidDate    DateTime?     @db.Date
+  paymentMethod String?
   storeId     String?
   note        String?
   userId      String?

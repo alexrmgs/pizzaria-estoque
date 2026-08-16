@@ -71,6 +71,8 @@ export type NotaHeaderInput = {
   emissao?: string | null;
   boleto: boolean;
   vencimento?: string | null;
+  jaPago: boolean;
+  formaPagamento?: "DINHEIRO" | "PIX" | null;
   total: number;
 };
 
@@ -286,6 +288,8 @@ async function salvar(notaId: string, header: NotaHeaderInput, items: NotaItemIn
         emissao: header.emissao ? new Date(`${header.emissao}T00:00:00Z`) : null,
         boleto: header.boleto,
         vencimento: header.vencimento ? new Date(`${header.vencimento}T00:00:00Z`) : null,
+        jaPago: header.jaPago,
+        formaPagamento: header.jaPago ? header.formaPagamento || null : null,
         total: header.total,
         items: {
           create: items.map((it) => ({
@@ -382,15 +386,34 @@ export async function lancarNota(
       }
 
       let payableId: string | null = null;
+      const descricao =
+        `NF ${header.numero ?? ""} ${header.fornecedor ?? ""}`.trim() || "Nota fiscal";
       if (header.boleto) {
         const due = header.vencimento || header.emissao || new Date().toISOString().slice(0, 10);
         const payable = await tx.payable.create({
           data: {
-            description: `NF ${header.numero ?? ""} ${header.fornecedor ?? ""}`.trim() || "Nota fiscal",
+            description: descricao,
             category: "Fornecedor",
             amount: header.total,
             dueDate: new Date(`${due}T00:00:00Z`),
             status: "PENDENTE",
+            note: "Gerada pela nota fiscal de entrada",
+            userId: user.id,
+            companyId: user.companyId,
+          },
+        });
+        payableId = payable.id;
+      } else if (header.jaPago) {
+        const pago = header.emissao || new Date().toISOString().slice(0, 10);
+        const payable = await tx.payable.create({
+          data: {
+            description: descricao,
+            category: "Fornecedor",
+            amount: header.total,
+            dueDate: new Date(`${pago}T00:00:00Z`),
+            status: "PAGA",
+            paidDate: new Date(`${pago}T00:00:00Z`),
+            paymentMethod: header.formaPagamento || null,
             note: "Gerada pela nota fiscal de entrada",
             userId: user.id,
             companyId: user.companyId,

@@ -383,6 +383,7 @@ export default async function CaixaPage({
                   <TableHead>Pago em</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Categoria</TableHead>
+                  <TableHead>Forma</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -390,7 +391,7 @@ export default async function CaixaPage({
               <TableBody>
                 {pagasMes.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-neutral-500">
+                    <TableCell colSpan={6} className="text-center text-neutral-500">
                       Nenhuma conta paga neste mês.
                     </TableCell>
                   </TableRow>
@@ -400,6 +401,9 @@ export default async function CaixaPage({
                     <TableCell>{p.paidDate ? brDate(p.paidDate) : "—"}</TableCell>
                     <TableCell className="font-medium">{p.description}</TableCell>
                     <TableCell className="text-neutral-500">{p.category}</TableCell>
+                    <TableCell className="text-neutral-500">
+                      {p.paymentMethod === "PIX" ? "Pix" : p.paymentMethod === "DINHEIRO" ? "Dinheiro" : "—"}
+                    </TableCell>
                     <TableCell className="text-right font-medium">
                       {currency(Number(p.amount))}
                     </TableCell>

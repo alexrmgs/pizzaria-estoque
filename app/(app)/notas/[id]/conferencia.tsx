@@ -30,6 +30,8 @@ type Props = {
     emissao: string;
     boleto: boolean;
     vencimento: string;
+    jaPago: boolean;
+    formaPagamento: "DINHEIRO" | "PIX" | null;
     total: string;
   };
   itens: ItemRow[];
@@ -42,8 +44,13 @@ export function Conferencia({ notaId, lancada, ingredients, header, itens }: Pro
   const [numero, setNumero] = useState(header.numero);
   const [fornecedor, setFornecedor] = useState(header.fornecedor);
   const [emissao, setEmissao] = useState(header.emissao);
-  const [boleto, setBoleto] = useState(header.boleto);
+  const [pagamento, setPagamento] = useState<"nenhum" | "boleto" | "pago">(
+    header.boleto ? "boleto" : header.jaPago ? "pago" : "nenhum",
+  );
   const [vencimento, setVencimento] = useState(header.vencimento);
+  const [formaPagamento, setFormaPagamento] = useState<"DINHEIRO" | "PIX">(
+    header.formaPagamento || "DINHEIRO",
+  );
   const [total, setTotal] = useState(header.total);
   const [rows, setRows] = useState<ItemRow[]>(itens);
   const [saving, setSaving] = useState(false);
@@ -85,8 +92,10 @@ export function Conferencia({ notaId, lancada, ingredients, header, itens }: Pro
         numero,
         fornecedor,
         emissao: emissao || null,
-        boleto,
+        boleto: pagamento === "boleto",
         vencimento: vencimento || null,
+        jaPago: pagamento === "pago",
+        formaPagamento: pagamento === "pago" ? formaPagamento : null,
         total: Number(total) || 0,
       },
       items,
@@ -148,17 +157,40 @@ export function Conferencia({ notaId, lancada, ingredients, header, itens }: Pro
         </div>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Pagamento</Label>
-          <label className="flex h-9 items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={boleto}
-              onChange={(e) => setBoleto(e.target.checked)}
-              disabled={lancada}
-            />
-            Boleto (gera conta a pagar)
-          </label>
+          <div className="flex h-9 items-center gap-3 text-sm">
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="pagamento"
+                checked={pagamento === "nenhum"}
+                onChange={() => setPagamento("nenhum")}
+                disabled={lancada}
+              />
+              Nenhum
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="pagamento"
+                checked={pagamento === "boleto"}
+                onChange={() => setPagamento("boleto")}
+                disabled={lancada}
+              />
+              Boleto
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="pagamento"
+                checked={pagamento === "pago"}
+                onChange={() => setPagamento("pago")}
+                disabled={lancada}
+              />
+              Já pago
+            </label>
+          </div>
         </div>
-        {boleto && (
+        {pagamento === "boleto" && (
           <div className="flex flex-col gap-1">
             <Label className="text-xs">Vencimento do boleto</Label>
             <Input
@@ -167,6 +199,20 @@ export function Conferencia({ notaId, lancada, ingredients, header, itens }: Pro
               onChange={(e) => setVencimento(e.target.value)}
               disabled={lancada}
             />
+          </div>
+        )}
+        {pagamento === "pago" && (
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs">Forma de pagamento</Label>
+            <select
+              value={formaPagamento}
+              onChange={(e) => setFormaPagamento(e.target.value as "DINHEIRO" | "PIX")}
+              disabled={lancada}
+              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+            >
+              <option value="DINHEIRO">Dinheiro</option>
+              <option value="PIX">Pix</option>
+            </select>
           </div>
         )}
       </div>
@@ -308,7 +354,9 @@ export function Conferencia({ notaId, lancada, ingredients, header, itens }: Pro
         </div>
       ) : (
         <p className="text-sm font-medium text-emerald-600">
-          Nota lançada — as entradas já estão no estoque{boleto ? " e a conta foi pra Contas a Pagar" : ""}.
+          Nota lançada — as entradas já estão no estoque
+          {pagamento === "boleto" && " e a conta foi pra Contas a Pagar"}
+          {pagamento === "pago" && " e a conta foi pra Contas Pagas"}.
         </p>
       )}
     </div>

@@ -77,6 +77,11 @@ export async function NotasEntradaPanel() {
                     <Badge className="bg-amber-100 text-amber-800">Conferindo</Badge>
                   )}
                   {n.boleto && <Badge className="ml-1 bg-blue-100 text-blue-800">Boleto</Badge>}
+                  {n.jaPago && (
+                    <Badge className="ml-1 bg-emerald-100 text-emerald-800">
+                      Pago ({n.formaPagamento === "PIX" ? "Pix" : "Dinheiro"})
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell className="text-right">
                   <Link
