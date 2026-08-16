@@ -62,6 +62,7 @@ export default async function SaiposDebugPage({
       amount: Number(s.total_amount) || 0,
       canceled: (s.canceled ?? "").toUpperCase() === "Y",
       shiftDate: s.shift_date,
+      day: (s.shift_date ?? "").slice(0, 10),
     }))
     .sort((a, b) => a.amount - b.amount);
 
@@ -73,6 +74,45 @@ export default async function SaiposDebugPage({
   const totalIfood = rows
     .filter((r) => !r.canceled && r.channel === "IFOOD")
     .reduce((sum, r) => sum + r.amount, 0);
+
+  // Reproduz exatamente a mesma agregação + filtro de "descarta sem-marca
+  // quando tem marca" que sincronizarSaipos faz, só pra comparar com o que
+  // tá gravado no banco de verdade.
+  type Bucket = { amount: number; count: number };
+  const byDayChannel = new Map<string, Bucket>();
+  for (const r of rows) {
+    if (r.canceled) continue;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(r.day)) continue;
+    const key = JSON.stringify([r.day, r.channel, r.channelStore]);
+    const bucket = byDayChannel.get(key) ?? { amount: 0, count: 0 };
+    bucket.amount += r.amount;
+    bucket.count += 1;
+    byDayChannel.set(key, bucket);
+  }
+  let simulado = Array.from(byDayChannel.entries(), ([key, bucket]) => {
+    const [day, channel, channelStore] = JSON.parse(key) as [string, string, string];
+    return { day, channel, channelStore, ...bucket };
+  });
+  const temMarcaSet = new Set(
+    simulado.filter((e) => e.channelStore !== "").map((e) => `${e.day}|${e.channel}`),
+  );
+  const descartados = simulado.filter(
+    (e) => e.channelStore === "" && temMarcaSet.has(`${e.day}|${e.channel}`),
+  );
+  simulado = simulado.filter(
+    (e) => e.channelStore !== "" || !temMarcaSet.has(`${e.day}|${e.channel}`),
+  );
+
+  const dbRows = selectedStore
+    ? await prisma.revenue.findMany({
+        where: {
+          storeId: selectedStore.id,
+          date: new Date(`${selectedDate}T00:00:00Z`),
+          note: "Importado da SaiPos",
+        },
+        orderBy: [{ channel: "asc" }, { channelStore: "asc" }],
+      })
+    : [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -155,6 +195,61 @@ export default async function SaiposDebugPage({
           </Card>
         </div>
       )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-lg border bg-white">
+          <div className="border-b p-3 text-sm font-semibold uppercase text-neutral-500">
+            O que a lógica calcula agora (simulado)
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Canal</TableHead>
+                <TableHead>Loja do canal</TableHead>
+                <TableHead>Valor</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {simulado.map((e) => (
+                <TableRow key={`${e.channel}|${e.channelStore}`}>
+                  <TableCell>{e.channel}</TableCell>
+                  <TableCell className="text-neutral-500">{e.channelStore || "—"}</TableCell>
+                  <TableCell>{currency(e.amount)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {descartados.length > 0 && (
+            <div className="border-t p-3 text-xs text-neutral-500">
+              Descartado(s) por já ter marca: {descartados.map((d) => `${d.channel} ${currency(d.amount)}`).join(", ")}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border bg-white">
+          <div className="border-b p-3 text-sm font-semibold uppercase text-neutral-500">
+            O que tá gravado no banco de verdade
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Canal</TableHead>
+                <TableHead>Loja do canal</TableHead>
+                <TableHead>Valor</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {dbRows.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell>{r.channel}</TableCell>
+                  <TableCell className="text-neutral-500">{r.channelStore || "—"}</TableCell>
+                  <TableCell>{currency(Number(r.amount))}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
 
       <div className="rounded-lg border bg-white">
         <Table>
