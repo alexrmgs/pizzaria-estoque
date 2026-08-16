@@ -112,7 +112,7 @@ function semAcento(s: string): string {
 
 /**
  * Descobre o canal a partir do parceiro da venda. iFood, 99Food, Cardápio Web,
- * Você Pede e Multipedidos mantêm nomes fixos (pra ter cor/rótulo consistente
+ * VoceQpad e Multipedidos mantêm nomes fixos (pra ter cor/rótulo consistente
  * — ver components/channel-badge.tsx); qualquer canal novo que a SaiPos
  * mandar além desses passa direto com o nome real, em vez de cair tudo em
  * "loja própria".
@@ -123,7 +123,7 @@ export function saiposChannel(sale: SaiposSale): string {
   if (norm.includes("ifood")) return "IFOOD";
   if (norm.includes("99")) return "NOVENTA_NOVE";
   if (norm.includes("cardapio")) return "CARDAPIO_WEB";
-  if (norm.includes("voce pede") || norm.includes("vocepede")) return "VOCE_PEDE";
+  if (norm.includes("voceqpad")) return "VOCE_PEDE";
   if (norm.includes("multipedidos")) return "MULTIPEDIDOS";
   return raw || "LOJA_PROPRIA";
 }

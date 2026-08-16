@@ -12,7 +12,7 @@ export const REVENUE_CHANNEL_LABELS: Record<string, string> = {
   IFOOD: "iFood",
   NOVENTA_NOVE: "99Food",
   CARDAPIO_WEB: "Cardápio Web",
-  VOCE_PEDE: "Você Pede",
+  VOCE_PEDE: "VoceQpad",
   MULTIPEDIDOS: "Multipedidos",
 };
 
