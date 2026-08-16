@@ -32,6 +32,10 @@ import {
 // A API da SaiPos é lenta (~28s por página de 1000 vendas). Dá mais fôlego pro
 // server action de importação não estourar o tempo limite.
 export const maxDuration = 300;
+// Nunca serve versão em cache dessa página — depois de "Puxar SaiPos" os
+// números têm que refletir o banco na hora, sem depender de revalidação.
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
