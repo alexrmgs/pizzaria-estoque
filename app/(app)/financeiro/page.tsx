@@ -219,6 +219,25 @@ export default async function FinanceiroPage({
   // nos dados (Rappi, WhatsApp etc) entra sozinho nas tabelas por canal.
   const channels = summary.channelTotals.map((c) => c.channel);
 
+  // Loja/marca cadastrada dentro do canal (ex: duas marcas no mesmo iFood) —
+  // só aparece quando a SaiPos manda essa informação (partner_sale).
+  type ChannelStoreAgg = { channel: string; channelStore: string; amount: number; orders: number };
+  const byChannelStore = new Map<string, ChannelStoreAgg>();
+  for (const r of yearRevenues) {
+    if (!r.channelStore) continue;
+    const key = `${r.channel}|${r.channelStore}`;
+    const agg = byChannelStore.get(key) ?? {
+      channel: r.channel,
+      channelStore: r.channelStore,
+      amount: 0,
+      orders: 0,
+    };
+    agg.amount += Number(r.amount);
+    agg.orders += r.orderCount;
+    byChannelStore.set(key, agg);
+  }
+  const channelStoreAggs = [...byChannelStore.values()].sort((a, b) => b.amount - a.amount);
+
   // Crescimento vs. o ano anterior — dá uma noção rápida de tendência sem
   // precisar abrir os gráficos mensais.
   const prevYearAmount = Number(prevYearAgg._sum.amount ?? 0);
@@ -496,6 +515,46 @@ export default async function FinanceiroPage({
               })()}
             </CardContent>
           </Card>
+
+          {channelStoreAggs.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">🏪 Lojas/marcas dentro de cada canal</CardTitle>
+                <p className="text-sm text-neutral-500">
+                  Quando o canal tem mais de uma loja cadastrada nele (ex: duas marcas no mesmo
+                  iFood), o faturamento de cada uma aparece separado aqui.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Canal</TableHead>
+                        <TableHead>Loja/marca no canal</TableHead>
+                        <TableHead>Faturamento</TableHead>
+                        <TableHead>Pedidos</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {channelStoreAggs.map((c) => (
+                        <TableRow key={`${c.channel}|${c.channelStore}`}>
+                          <TableCell>
+                            <ChannelBadge channel={c.channel} />
+                          </TableCell>
+                          <TableCell className="font-medium">{c.channelStore}</TableCell>
+                          <TableCell>{currency(c.amount)}</TableCell>
+                          <TableCell className="text-neutral-500">
+                            {c.orders.toLocaleString("pt-BR")}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Separator />
 
