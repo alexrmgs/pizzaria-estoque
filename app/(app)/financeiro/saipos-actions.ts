@@ -161,6 +161,27 @@ export async function sincronizarSaipos(input: {
     await prisma.$transaction(upsertOps.slice(i, i + BATCH));
   }
 
+  // Segunda rede de segurança: a SaiPos é instável e às vezes essa busca em
+  // si só enxergou a versão sem marca de um canal (a marca ainda não tinha
+  // chegado NESSA hora) — o filtro acima não pega isso porque só compara
+  // dentro dos dados dessa mesma busca. Aqui a limpeza olha o BANCO inteiro
+  // dessa loja: se em qualquer sincronização (essa ou uma anterior) sobrou
+  // uma linha sem marca com uma versão com marca do mesmo dia/canal, apaga a
+  // sem marca — ela é sempre o espelho agregado, nunca um pedido a mais.
+  await prisma.$executeRaw`
+    DELETE FROM "Revenue" alvo
+    WHERE alvo."storeId" = ${parsed.data.storeId}
+      AND alvo."channelStore" = ''
+      AND alvo.note = 'Importado da SaiPos'
+      AND EXISTS (
+        SELECT 1 FROM "Revenue" "comMarca"
+        WHERE "comMarca"."storeId" = alvo."storeId"
+          AND "comMarca".date = alvo.date
+          AND "comMarca".channel = alvo.channel
+          AND "comMarca"."channelStore" != ''
+      )
+  `;
+
   revalidatePath("/financeiro");
   revalidatePath("/dashboard");
   return { dias, pedidos, total };
