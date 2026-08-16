@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { updateMovement } from "./actions";
 
 type Ingredient = { id: string; name: string; unit: string; currentStock: number };
+type Fornecedor = { id: string; name: string };
 
 type MovementValues = {
   id: string;
@@ -32,6 +33,7 @@ type MovementValues = {
   type: "ENTRADA" | "SAIDA";
   quantity: string;
   reason: string | null;
+  supplierId: string | null;
 };
 
 const formatQty = (value: number) => value.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
@@ -39,9 +41,11 @@ const formatQty = (value: number) => value.toLocaleString("pt-BR", { maximumFrac
 export function EditMovementDialog({
   movement,
   ingredients,
+  fornecedores = [],
 }: {
   movement: MovementValues;
   ingredients: Ingredient[];
+  fornecedores?: Fornecedor[];
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -49,6 +53,7 @@ export function EditMovementDialog({
   const [ingredientId, setIngredientId] = useState(movement.ingredientId);
   const [type, setType] = useState<"ENTRADA" | "SAIDA">(movement.type);
   const [quantity, setQuantity] = useState(movement.quantity);
+  const [supplierId, setSupplierId] = useState(movement.supplierId ?? "");
 
   const ingredientById = new Map(ingredients.map((i) => [i.id, i]));
   const previewIngredient = ingredientById.get(ingredientId);
@@ -84,6 +89,7 @@ export function EditMovementDialog({
           setIngredientId(movement.ingredientId);
           setType(movement.type);
           setQuantity(movement.quantity);
+          setSupplierId(movement.supplierId ?? "");
         }
       }}
     >
@@ -188,6 +194,26 @@ export function EditMovementDialog({
                 Se preencher, o preço cadastrado é recalculado como média ponderada entre o
                 estoque que já existe e essa compra — não sobrescreve direto.
               </p>
+            </div>
+          )}
+
+          {type === "ENTRADA" && fornecedores.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="supplierId">Fornecedor (opcional)</Label>
+              <select
+                id="supplierId"
+                name="supplierId"
+                value={supplierId}
+                onChange={(e) => setSupplierId(e.target.value)}
+                className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+              >
+                <option value="">Sem fornecedor</option>
+                {fornecedores.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

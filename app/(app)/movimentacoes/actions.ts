@@ -11,6 +11,7 @@ const movementSchema = z.object({
   quantity: z.coerce.number().positive("A quantidade deve ser maior que zero."),
   reason: z.string().trim().max(500).optional(),
   unitPrice: z.coerce.number().positive().optional(),
+  supplierId: z.string().trim().min(1).optional(),
 });
 
 export type MovementFormState = { error?: string } | undefined;
@@ -96,12 +97,13 @@ export async function updateMovement(
     quantity: formData.get("quantity"),
     reason: formData.get("reason") || undefined,
     unitPrice: formData.get("unitPrice") || undefined,
+    supplierId: formData.get("supplierId") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const { ingredientId, type, quantity, reason, unitPrice } = parsed.data;
+  const { ingredientId, type, quantity, reason, unitPrice, supplierId } = parsed.data;
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -146,6 +148,7 @@ export async function updateMovement(
           quantity,
           reason,
           unitPriceAtEntry: type === "ENTRADA" ? (unitPrice ?? Number(ingredient.unitPrice)) : null,
+          supplierId: type === "ENTRADA" ? (supplierId ?? null) : null,
         },
       });
     });
@@ -158,6 +161,7 @@ export async function updateMovement(
   revalidatePath("/dashboard");
   revalidatePath("/relatorios");
   revalidatePath("/receitas");
+  revalidatePath("/fornecedores");
 }
 
 export type DeleteMovementState = { error?: string } | undefined;

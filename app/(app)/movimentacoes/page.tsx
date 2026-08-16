@@ -26,16 +26,23 @@ type Movement = {
   ingredientId: string;
   ingredient: { name: string; unit: string };
   user: { name: string };
+  supplierId: string | null;
+  supplier: { name: string } | null;
 };
 
 type IngredientOption = { id: string; name: string; unit: string; currentStock: number };
+type FornecedorOption = { id: string; name: string };
 
 function MovementsTable({
   movements,
   ingredients,
+  fornecedores,
+  showFornecedor,
 }: {
   movements: Movement[];
   ingredients: IngredientOption[];
+  fornecedores: FornecedorOption[];
+  showFornecedor?: boolean;
 }) {
   return (
     <div className="rounded-lg border bg-white">
@@ -45,6 +52,7 @@ function MovementsTable({
             <TableHead>Data</TableHead>
             <TableHead>Ingrediente</TableHead>
             <TableHead>Quantidade</TableHead>
+            {showFornecedor && <TableHead>Fornecedor</TableHead>}
             <TableHead>Funcionário</TableHead>
             <TableHead>Motivo</TableHead>
             <TableHead className="text-right">Ações</TableHead>
@@ -53,7 +61,7 @@ function MovementsTable({
         <TableBody>
           {movements.length === 0 && (
             <TableRow>
-              <TableCell colSpan={6} className="text-center text-neutral-500">
+              <TableCell colSpan={showFornecedor ? 7 : 6} className="text-center text-neutral-500">
                 Nenhuma movimentação registrada ainda.
               </TableCell>
             </TableRow>
@@ -65,18 +73,23 @@ function MovementsTable({
               <TableCell>
                 {String(movement.quantity)} {movement.ingredient.unit}
               </TableCell>
+              {showFornecedor && (
+                <TableCell className="text-neutral-500">{movement.supplier?.name ?? "—"}</TableCell>
+              )}
               <TableCell>{movement.user.name}</TableCell>
               <TableCell className="text-neutral-500">{movement.reason ?? "—"}</TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
                   <EditMovementDialog
                     ingredients={ingredients}
+                    fornecedores={fornecedores}
                     movement={{
                       id: movement.id,
                       ingredientId: movement.ingredientId,
                       type: movement.type,
                       quantity: String(movement.quantity),
                       reason: movement.reason,
+                      supplierId: movement.supplierId,
                     }}
                   />
                   <DeleteMovementButton id={movement.id} />
@@ -102,13 +115,13 @@ export default async function MovimentacoesPage() {
       where: { type: "ENTRADA" },
       orderBy: { createdAt: "desc" },
       take: 20,
-      include: { ingredient: true, user: true },
+      include: { ingredient: true, user: true, supplier: { select: { name: true } } },
     }),
     prisma.stockMovement.findMany({
       where: { type: "SAIDA" },
       orderBy: { createdAt: "desc" },
       take: 20,
-      include: { ingredient: true, user: true },
+      include: { ingredient: true, user: true, supplier: { select: { name: true } } },
     }),
     prisma.fornecedor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
@@ -142,7 +155,12 @@ export default async function MovimentacoesPage() {
             <TabsContent value="manual" className="pt-4">
               <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
                 <MovementForm ingredients={ingredients} type="ENTRADA" fornecedores={fornecedores} />
-                <MovementsTable movements={entradas} ingredients={ingredients} />
+                <MovementsTable
+                  movements={entradas}
+                  ingredients={ingredients}
+                  fornecedores={fornecedores}
+                  showFornecedor
+                />
               </div>
             </TabsContent>
             <TabsContent value="nota" className="pt-4">
@@ -155,7 +173,7 @@ export default async function MovimentacoesPage() {
           <QrBaixaPanel />
           <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
             <MovementForm ingredients={ingredients} type="SAIDA" />
-            <MovementsTable movements={saidas} ingredients={ingredients} />
+            <MovementsTable movements={saidas} ingredients={ingredients} fornecedores={fornecedores} />
           </div>
         </TabsContent>
       </Tabs>
