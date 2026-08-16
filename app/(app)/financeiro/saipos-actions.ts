@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
-import { fetchSaiposSales, saiposChannel, type RevenueChannel } from "@/lib/saipos";
+import { fetchSaiposSales, saiposChannel, saiposChannelStore } from "@/lib/saipos";
 
 const schema = z.object({
   storeId: z.string().trim().min(1, "Selecione a loja."),
@@ -59,7 +59,7 @@ export async function sincronizarSaipos(input: {
     return { error: e instanceof Error ? e.message : "Falha ao consultar a SaiPos." };
   }
 
-  // Agrega por dia + canal.
+  // Agrega por dia + canal + loja-do-canal (ex: duas marcas no mesmo iFood).
   type Bucket = { amount: number; count: number };
   const byDayChannel = new Map<string, Bucket>();
   let pedidos = 0;
@@ -70,7 +70,8 @@ export async function sincronizarSaipos(input: {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
     const amount = Number(sale.total_amount) || 0;
     const channel = saiposChannel(sale);
-    const key = `${day}|${channel}`;
+    const channelStore = saiposChannelStore(sale);
+    const key = JSON.stringify([day, channel, channelStore]);
     const bucket = byDayChannel.get(key) ?? { amount: 0, count: 0 };
     bucket.amount += amount;
     bucket.count += 1;
@@ -83,18 +84,21 @@ export async function sincronizarSaipos(input: {
     return { dias: 0, pedidos: 0, total: 0 };
   }
 
-  const dias = new Set(Array.from(byDayChannel.keys(), (k) => k.split("|")[0])).size;
+  const dias = new Set(Array.from(byDayChannel.keys(), (k) => JSON.parse(k)[0])).size;
 
   const ops = Array.from(byDayChannel.entries()).map(([key, bucket]) => {
-    const [day, channel] = key.split("|") as [string, RevenueChannel];
+    const [day, channel, channelStore] = JSON.parse(key) as [string, string, string];
     const date = new Date(`${day}T00:00:00Z`);
     const amount = Math.round(bucket.amount * 100) / 100;
     return prisma.revenue.upsert({
-      where: { date_storeId_channel: { date, storeId: parsed.data.storeId, channel } },
+      where: {
+        date_storeId_channel_channelStore: { date, storeId: parsed.data.storeId, channel, channelStore },
+      },
       create: {
         date,
         storeId: parsed.data.storeId,
         channel,
+        channelStore,
         amount,
         orderCount: bucket.count,
         note: "Importado da SaiPos",

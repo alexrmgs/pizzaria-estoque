@@ -74,7 +74,12 @@ export async function createDailyRevenueSplit(
     channelData.map((c) =>
       prisma.revenue.upsert({
         where: {
-          date_storeId_channel: { date, storeId: parsed.data.storeId, channel: c.channel },
+          date_storeId_channel_channelStore: {
+            date,
+            storeId: parsed.data.storeId,
+            channel: c.channel,
+            channelStore: "",
+          },
         },
         create: {
           date,

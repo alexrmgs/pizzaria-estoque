@@ -11,7 +11,10 @@ export type SaiposSale = {
   shift_date: string;
   total_amount: number | string | null;
   canceled: string | null;
-  partner_sale: { desc_partner_sale?: string | null } | null;
+  partner_sale: {
+    desc_partner_sale?: string | null;
+    desc_store_partner?: string | null;
+  } | null;
 };
 
 function toParam(d: Date, endOfDay = false): string {
@@ -100,12 +103,23 @@ export async function fetchSaiposSales(
   return all;
 }
 
-export type RevenueChannel = "LOJA_PROPRIA" | "IFOOD" | "NOVENTA_NOVE";
+/**
+ * Descobre o canal a partir do parceiro da venda. iFood e 99Food mantêm os
+ * nomes de sempre (mesmo valor que o lançamento manual usa e que já está
+ * gravado no histórico); qualquer canal novo que a SaiPos mandar (Rappi,
+ * WhatsApp etc) passa direto com o nome real, em vez de cair tudo em
+ * "loja própria".
+ */
+export function saiposChannel(sale: SaiposSale): string {
+  const raw = (sale.partner_sale?.desc_partner_sale ?? "").trim();
+  const lower = raw.toLowerCase();
+  if (lower.includes("ifood")) return "IFOOD";
+  if (lower.includes("99")) return "NOVENTA_NOVE";
+  return raw || "LOJA_PROPRIA";
+}
 
-/** Descobre o canal a partir do parceiro da venda (iFood, 99Food ou loja). */
-export function saiposChannel(sale: SaiposSale): RevenueChannel {
-  const p = (sale.partner_sale?.desc_partner_sale ?? "").toLowerCase();
-  if (p.includes("ifood")) return "IFOOD";
-  if (p.includes("99")) return "NOVENTA_NOVE";
-  return "LOJA_PROPRIA";
+/** Loja/marca cadastrada dentro do canal (ex: duas marcas no mesmo iFood).
+ * Vazio quando o canal não distingue ("" pra loja própria ou sem essa info). */
+export function saiposChannelStore(sale: SaiposSale): string {
+  return (sale.partner_sale?.desc_store_partner ?? "").trim();
 }

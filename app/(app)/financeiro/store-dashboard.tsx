@@ -116,7 +116,7 @@ function computeDailyByChannel(dailyRecords: DailyRecord[], year: number, month:
     const day = i + 1;
     const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const channels = byDate.get(iso) ?? {};
-    const total = REVENUE_CHANNELS.reduce((sum, c) => sum + (channels[c] ?? 0), 0);
+    const total = Object.values(channels).reduce((sum, v) => sum + v, 0);
     return { day, channels, total };
   });
 }
@@ -281,17 +281,23 @@ export function StoreDashboard({
   );
   const channelBreakdown = useMemo(() => computeChannelBreakdown(dailyRecords), [dailyRecords]);
   const channelMonthly = useMemo(() => computeChannelMonthly(dailyRecords), [dailyRecords]);
+  // Canais de verdade presentes nos dados — não uma lista fixa, pra qualquer
+  // canal novo (Rappi, WhatsApp etc) aparecer sozinho nas tabelas/gráficos.
+  const channels = channelBreakdown.map((c) => c.channel);
   const dailyByChannel = useMemo(
     () => computeDailyByChannel(dailyRecords, year, selectedMonth),
     [dailyRecords, year, selectedMonth],
   );
   const monthlyByChannelData = MONTH_NAMES_SHORT.map((label, month) => {
     const row: Record<string, string | number> = { month: label };
-    for (const c of REVENUE_CHANNELS) row[REVENUE_CHANNEL_LABELS[c]] = channelMonthly[c][month].amount;
+    for (const c of channels) row[REVENUE_CHANNEL_LABELS[c] ?? c] = channelMonthly[c]?.[month]?.amount ?? 0;
     return row;
   });
   const channelChartConfig: ChartConfig = Object.fromEntries(
-    REVENUE_CHANNELS.map((c) => [REVENUE_CHANNEL_LABELS[c], { label: REVENUE_CHANNEL_LABELS[c], color: CHANNEL_COLORS[c] }]),
+    channels.map((c) => [
+      REVENUE_CHANNEL_LABELS[c] ?? c,
+      { label: REVENUE_CHANNEL_LABELS[c] ?? c, color: CHANNEL_COLORS[c] ?? "#9CA3AF" },
+    ]),
   );
   const selectedMonthAgg = store.months[selectedMonth];
   const selectedMonthTicket =
@@ -372,12 +378,12 @@ export function StoreDashboard({
               <YAxis tickLine={false} axisLine={false} width={80} tickFormatter={(v: number) => chartCurrency(v)} />
               <ChartTooltip content={<ChartTooltipContent formatter={(value) => currency(Number(value))} />} />
               <ChartLegend content={<ChartLegendContent />} />
-              {REVENUE_CHANNELS.map((c) => (
+              {channels.map((c) => (
                 <Line
                   key={c}
-                  dataKey={REVENUE_CHANNEL_LABELS[c]}
+                  dataKey={REVENUE_CHANNEL_LABELS[c] ?? c}
                   type="monotone"
-                  stroke={CHANNEL_COLORS[c]}
+                  stroke={CHANNEL_COLORS[c] ?? "#9CA3AF"}
                   strokeWidth={2}
                   dot={false}
                 />
@@ -397,7 +403,7 @@ export function StoreDashboard({
               <TableHeader>
                 <TableRow>
                   <TableHead>Mês</TableHead>
-                  {REVENUE_CHANNELS.map((c) => (
+                  {channels.map((c) => (
                     <TableHead key={c}>
                       <ChannelBadge channel={c} />
                     </TableHead>
@@ -411,7 +417,7 @@ export function StoreDashboard({
                   return (
                     <TableRow key={month}>
                       <TableCell className="font-medium">{label}</TableCell>
-                      {REVENUE_CHANNELS.map((c) => {
+                      {channels.map((c) => {
                         const amount = channelMonthly[c][month].amount;
                         return (
                           <TableCell key={c} className="text-neutral-500">
@@ -425,7 +431,7 @@ export function StoreDashboard({
                 })}
                 <TableRow className="bg-muted/50">
                   <TableCell className="font-semibold">Ano</TableCell>
-                  {REVENUE_CHANNELS.map((c) => {
+                  {channels.map((c) => {
                     const channelTotal = channelBreakdown.find((b) => b.channel === c)?.share ?? null;
                     return (
                       <TableCell key={c} className="font-semibold text-primary">
@@ -690,7 +696,7 @@ export function StoreDashboard({
               <TableHeader>
                 <TableRow>
                   <TableHead>Dia</TableHead>
-                  {REVENUE_CHANNELS.map((c) => (
+                  {channels.map((c) => (
                     <TableHead key={c}>
                       <ChannelBadge channel={c} />
                     </TableHead>
@@ -701,7 +707,7 @@ export function StoreDashboard({
               <TableBody>
                 {dailyByChannel.every((d) => d.total === 0) && (
                   <TableRow>
-                    <TableCell colSpan={REVENUE_CHANNELS.length + 2} className="text-center text-neutral-500">
+                    <TableCell colSpan={channels.length + 2} className="text-center text-neutral-500">
                       Nenhum lançamento nesse mês.
                     </TableCell>
                   </TableRow>
@@ -709,7 +715,7 @@ export function StoreDashboard({
                 {dailyByChannel.map((d) => (
                   <TableRow key={d.day}>
                     <TableCell className="font-medium">{d.day}</TableCell>
-                    {REVENUE_CHANNELS.map((c) => {
+                    {channels.map((c) => {
                       const amount = d.channels[c] ?? 0;
                       const share = d.total > 0 ? amount / d.total : null;
                       return (

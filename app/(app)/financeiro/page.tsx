@@ -215,6 +215,9 @@ export default async function FinanceiroPage({
     stores.map((s) => ({ id: s.id, name: s.name })),
   );
   const storesByAmount = [...summary.stores].sort((a, b) => b.totalAmount - a.totalAmount);
+  // Canais de verdade (não uma lista fixa) — qualquer canal novo que apareça
+  // nos dados (Rappi, WhatsApp etc) entra sozinho nas tabelas por canal.
+  const channels = summary.channelTotals.map((c) => c.channel);
 
   // Crescimento vs. o ano anterior — dá uma noção rápida de tendência sem
   // precisar abrir os gráficos mensais.
@@ -811,7 +814,7 @@ export default async function FinanceiroPage({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Mês</TableHead>
-                      {REVENUE_CHANNELS.map((channel) => (
+                      {channels.map((channel) => (
                         <TableHead key={channel}>
                           <ChannelBadge channel={channel} />
                         </TableHead>
@@ -823,7 +826,7 @@ export default async function FinanceiroPage({
                     {MONTH_NAMES_SHORT.map((label, month) => (
                       <TableRow key={month}>
                         <TableCell className="font-medium">{label}</TableCell>
-                        {REVENUE_CHANNELS.map((channel) => (
+                        {channels.map((channel) => (
                           <TableCell key={channel} className="text-neutral-500">
                             {currency(summary.channelMonthly[channel]?.[month]?.amount ?? 0)}
                           </TableCell>
@@ -835,7 +838,7 @@ export default async function FinanceiroPage({
                     ))}
                     <TableRow className="bg-muted/50">
                       <TableCell className="font-semibold">Total</TableCell>
-                      {REVENUE_CHANNELS.map((channel) => (
+                      {channels.map((channel) => (
                         <TableCell key={channel} className="font-semibold">
                           {currency(
                             summary.channelTotals.find((c) => c.channel === channel)?.amount ?? 0,
@@ -862,7 +865,7 @@ export default async function FinanceiroPage({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Mês</TableHead>
-                      {REVENUE_CHANNELS.map((channel) => (
+                      {channels.map((channel) => (
                         <TableHead key={channel}>
                           <ChannelBadge channel={channel} />
                         </TableHead>
@@ -875,7 +878,7 @@ export default async function FinanceiroPage({
                       return (
                         <TableRow key={month}>
                           <TableCell className="font-medium">{label}</TableCell>
-                          {REVENUE_CHANNELS.map((channel) => {
+                          {channels.map((channel) => {
                             const channelAmount = summary.channelMonthly[channel]?.[month]?.amount ?? 0;
                             return (
                               <TableCell key={channel} className="text-neutral-500">
@@ -888,7 +891,7 @@ export default async function FinanceiroPage({
                     })}
                     <TableRow className="bg-muted/50">
                       <TableCell className="font-semibold">Ano</TableCell>
-                      {REVENUE_CHANNELS.map((channel) => (
+                      {channels.map((channel) => (
                         <TableCell key={channel} className="font-semibold text-primary">
                           {percent(channelShare(summary.channelTotals.find((c) => c.channel === channel)?.amount ?? 0))}
                         </TableCell>
@@ -910,7 +913,7 @@ export default async function FinanceiroPage({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Mês</TableHead>
-                      {REVENUE_CHANNELS.map((channel) => (
+                      {channels.map((channel) => (
                         <TableHead key={channel}>
                           <ChannelBadge channel={channel} />
                         </TableHead>
@@ -922,7 +925,7 @@ export default async function FinanceiroPage({
                     {MONTH_NAMES_SHORT.map((label, month) => (
                       <TableRow key={month}>
                         <TableCell className="font-medium">{label}</TableCell>
-                        {REVENUE_CHANNELS.map((channel) => (
+                        {channels.map((channel) => (
                           <TableCell key={channel} className="text-neutral-500">
                             {(summary.channelMonthly[channel]?.[month]?.orders ?? 0).toLocaleString("pt-BR")}
                           </TableCell>
@@ -934,7 +937,7 @@ export default async function FinanceiroPage({
                     ))}
                     <TableRow className="bg-muted/50">
                       <TableCell className="font-semibold">Total</TableCell>
-                      {REVENUE_CHANNELS.map((channel) => (
+                      {channels.map((channel) => (
                         <TableCell key={channel} className="font-semibold">
                           {(
                             summary.channelTotals.find((c) => c.channel === channel)?.orders ?? 0

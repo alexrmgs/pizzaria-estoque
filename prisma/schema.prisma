@@ -10,12 +10,6 @@ datasource db {
   provider = "postgresql"
 }
 
-enum RevenueChannel {
-  LOJA_PROPRIA
-  IFOOD
-  NOVENTA_NOVE
-}
-
 enum RecipeType {
   PRODUCAO
   PIZZA
@@ -60,28 +54,28 @@ model Role {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  companyId    String
-  company      Company  @relation(fields: [companyId], references: [id])
-  name         String
-  email        String   @unique
-  passwordHash String
-  roleId       String
-  role         Role     @relation(fields: [roleId], references: [id])
-  whatsappPhone String? @unique
-  createdAt    DateTime @default(now())
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id])
+  name          String
+  email         String   @unique
+  passwordHash  String
+  roleId        String
+  role          Role     @relation(fields: [roleId], references: [id])
+  whatsappPhone String?  @unique
+  createdAt     DateTime @default(now())
 
-  movements StockMovement[]
-  revenues  Revenue[]
-  advances  Advance[]
-  payments  Payment[]
-  employee  Employee?
-  approvedSwaps ShiftSwapRequest[]
+  movements                StockMovement[]
+  revenues                 Revenue[]
+  advances                 Advance[]
+  payments                 Payment[]
+  employee                 Employee?
+  approvedSwaps            ShiftSwapRequest[]
   whatsappPendingMovements WhatsappPendingMovement[]
-  fixedCosts        FixedCost[]
-  variableCostRates VariableCostRate[]
-  stockLabelsCreated  StockLabel[] @relation("StockLabelCreatedBy")
-  stockLabelsConsumed StockLabel[] @relation("StockLabelConsumedBy")
+  fixedCosts               FixedCost[]
+  variableCostRates        VariableCostRate[]
+  stockLabelsCreated       StockLabel[]              @relation("StockLabelCreatedBy")
+  stockLabelsConsumed      StockLabel[]              @relation("StockLabelConsumedBy")
 
   @@index([roleId])
   @@index([companyId])
@@ -170,33 +164,33 @@ model PrintJob {
 }
 
 model AppSettings {
-  id                  String       @id @default(cuid())
-  companyId           String       @unique
-  company             Company      @relation(fields: [companyId], references: [id])
-  pontoMode           PontoMode    @default(CELULAR)
-  overtimeMode        OvertimeMode @default(HORA_EXTRA)
-  dailyExpectedHours  Decimal      @default(8) @db.Decimal(4, 2)
-  overtimeRate        Decimal      @default(1.5) @db.Decimal(4, 2)
-  inssBrackets        Json         @default("[{\"upTo\":1412.00,\"rate\":0.075},{\"upTo\":2666.68,\"rate\":0.09},{\"upTo\":4000.03,\"rate\":0.12},{\"upTo\":7786.02,\"rate\":0.14}]")
-  irrfBrackets        Json         @default("[{\"upTo\":2259.20,\"rate\":0},{\"upTo\":2826.65,\"rate\":0.075},{\"upTo\":3751.05,\"rate\":0.15},{\"upTo\":4664.68,\"rate\":0.225},{\"upTo\":null,\"rate\":0.275}]")
-  irrfDependentDeduction Decimal   @default(189.59) @db.Decimal(10, 2)
-  valeTransporteRate  Decimal      @default(6) @db.Decimal(4, 2)
-  latePenaltyPoints   Int          @default(3)
-  labelWidthMm        Int          @default(100)
-  labelHeightMm       Int          @default(70)
-  labelProducaoWidthMm  Int        @default(100)
-  labelProducaoHeightMm Int        @default(70)
-  etiquetaProximoNumero Int        @default(1)
-  etiquetaImpressos   Json         @default("[]")
-  focusUltimaVersao   Int          @default(0)
-  labelEmpresa        String?
-  labelCnpj           String?
-  labelEndereco       String?
-  labelCep            String?
-  labelCidade         String?
-  attendanceBonusTiers Json        @default("[{\"minScore\":100,\"bonus\":0}]")
-  attendanceStreakTiers Json       @default("[{\"months\":6,\"multiplier\":3},{\"months\":3,\"multiplier\":2},{\"months\":0,\"multiplier\":1}]")
-  updatedAt           DateTime     @updatedAt
+  id                     String       @id @default(cuid())
+  companyId              String       @unique
+  company                Company      @relation(fields: [companyId], references: [id])
+  pontoMode              PontoMode    @default(CELULAR)
+  overtimeMode           OvertimeMode @default(HORA_EXTRA)
+  dailyExpectedHours     Decimal      @default(8) @db.Decimal(4, 2)
+  overtimeRate           Decimal      @default(1.5) @db.Decimal(4, 2)
+  inssBrackets           Json         @default("[{\"upTo\":1412.00,\"rate\":0.075},{\"upTo\":2666.68,\"rate\":0.09},{\"upTo\":4000.03,\"rate\":0.12},{\"upTo\":7786.02,\"rate\":0.14}]")
+  irrfBrackets           Json         @default("[{\"upTo\":2259.20,\"rate\":0},{\"upTo\":2826.65,\"rate\":0.075},{\"upTo\":3751.05,\"rate\":0.15},{\"upTo\":4664.68,\"rate\":0.225},{\"upTo\":null,\"rate\":0.275}]")
+  irrfDependentDeduction Decimal      @default(189.59) @db.Decimal(10, 2)
+  valeTransporteRate     Decimal      @default(6) @db.Decimal(4, 2)
+  latePenaltyPoints      Int          @default(3)
+  labelWidthMm           Int          @default(100)
+  labelHeightMm          Int          @default(70)
+  labelProducaoWidthMm   Int          @default(100)
+  labelProducaoHeightMm  Int          @default(70)
+  etiquetaProximoNumero  Int          @default(1)
+  etiquetaImpressos      Json         @default("[]")
+  focusUltimaVersao      Int          @default(0)
+  labelEmpresa           String?
+  labelCnpj              String?
+  labelEndereco          String?
+  labelCep               String?
+  labelCidade            String?
+  attendanceBonusTiers   Json         @default("[{\"minScore\":100,\"bonus\":0}]")
+  attendanceStreakTiers  Json         @default("[{\"months\":6,\"multiplier\":3},{\"months\":3,\"multiplier\":2},{\"months\":0,\"multiplier\":1}]")
+  updatedAt              DateTime     @updatedAt
 }
 
 model Category {
@@ -208,29 +202,29 @@ model Category {
 }
 
 model Ingredient {
-  id           String   @id @default(cuid())
-  name         String   @unique
-  unit         Unit
-  unitPrice    Decimal  @default(0) @db.Decimal(10, 2)
-  currentStock Decimal  @default(0) @db.Decimal(10, 3)
-  minStock     Decimal  @default(0) @db.Decimal(10, 3)
-  idealStock   Decimal? @db.Decimal(10, 3)
-  includeInCmv Boolean  @default(true)
-  isProduced   Boolean  @default(false)
-  recipeUnit      Unit?
-  unitsPerPackage Decimal @default(1) @db.Decimal(10, 3)
-  correctionGrossWeight Decimal? @db.Decimal(10, 3)
-  correctionNetWeight   Decimal? @db.Decimal(10, 3)
-  categoryId   String?
-  category     Category? @relation(fields: [categoryId], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                    String    @id @default(cuid())
+  name                  String    @unique
+  unit                  Unit
+  unitPrice             Decimal   @default(0) @db.Decimal(10, 2)
+  currentStock          Decimal   @default(0) @db.Decimal(10, 3)
+  minStock              Decimal   @default(0) @db.Decimal(10, 3)
+  idealStock            Decimal?  @db.Decimal(10, 3)
+  includeInCmv          Boolean   @default(true)
+  isProduced            Boolean   @default(false)
+  recipeUnit            Unit?
+  unitsPerPackage       Decimal   @default(1) @db.Decimal(10, 3)
+  correctionGrossWeight Decimal?  @db.Decimal(10, 3)
+  correctionNetWeight   Decimal?  @db.Decimal(10, 3)
+  categoryId            String?
+  category              Category? @relation(fields: [categoryId], references: [id])
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  movements        StockMovement[]
-  recipeIngredients RecipeIngredient[]
+  movements                StockMovement[]
+  recipeIngredients        RecipeIngredient[]
   whatsappPendingMovements WhatsappPendingMovement[]
-  stockLabels       StockLabel[]
-  fornecedores      Fornecedor[]
+  stockLabels              StockLabel[]
+  fornecedores             Fornecedor[]
 
   @@index([categoryId])
 }
@@ -244,39 +238,39 @@ enum StockLabelStatus {
 // (a etiqueta É o comprovante da entrada) e morre quando o QR code é
 // escaneado na saída, dando baixa exatamente naquele peso/validade.
 model StockLabel {
-  id           String            @id @default(cuid())
-  ingredient   Ingredient        @relation(fields: [ingredientId], references: [id])
-  ingredientId String
-  quantity     Decimal           @db.Decimal(10, 3)
-  producedAt   DateTime          @db.Date
-  expiresAt    DateTime?         @db.Date
-  status       StockLabelStatus  @default(ATIVO)
+  id                String           @id @default(cuid())
+  ingredient        Ingredient       @relation(fields: [ingredientId], references: [id])
+  ingredientId      String
+  quantity          Decimal          @db.Decimal(10, 3)
+  producedAt        DateTime         @db.Date
+  expiresAt         DateTime?        @db.Date
+  status            StockLabelStatus @default(ATIVO)
   entradaMovementId String?
   saidaMovementId   String?
-  createdById  String
-  createdBy    User              @relation("StockLabelCreatedBy", fields: [createdById], references: [id])
-  consumedAt   DateTime?
-  consumedById String?
-  consumedBy   User?             @relation("StockLabelConsumedBy", fields: [consumedById], references: [id])
-  createdAt    DateTime          @default(now())
+  createdById       String
+  createdBy         User             @relation("StockLabelCreatedBy", fields: [createdById], references: [id])
+  consumedAt        DateTime?
+  consumedById      String?
+  consumedBy        User?            @relation("StockLabelConsumedBy", fields: [consumedById], references: [id])
+  createdAt         DateTime         @default(now())
 
   @@index([ingredientId])
   @@index([status])
 }
 
 model StockMovement {
-  id           String       @id @default(cuid())
-  ingredient   Ingredient   @relation(fields: [ingredientId], references: [id])
-  ingredientId String
-  type         MovementType
-  quantity     Decimal      @db.Decimal(10, 3)
-  reason       String?
-  user         User         @relation(fields: [userId], references: [id])
-  userId       String
-  createdAt    DateTime     @default(now())
-  unitPriceAtEntry Decimal? @db.Decimal(10, 2)
-  supplier     Fornecedor?  @relation(fields: [supplierId], references: [id])
-  supplierId   String?
+  id               String       @id @default(cuid())
+  ingredient       Ingredient   @relation(fields: [ingredientId], references: [id])
+  ingredientId     String
+  type             MovementType
+  quantity         Decimal      @db.Decimal(10, 3)
+  reason           String?
+  user             User         @relation(fields: [userId], references: [id])
+  userId           String
+  createdAt        DateTime     @default(now())
+  unitPriceAtEntry Decimal?     @db.Decimal(10, 2)
+  supplier         Fornecedor?  @relation(fields: [supplierId], references: [id])
+  supplierId       String?
 
   @@index([ingredientId])
   @@index([userId])
@@ -302,20 +296,27 @@ model Fornecedor {
 }
 
 model Revenue {
-  id         String         @id @default(cuid())
-  date       DateTime       @db.Date
-  storeId    String
-  store      Store          @relation(fields: [storeId], references: [id])
-  channel    RevenueChannel @default(LOJA_PROPRIA)
-  amount     Decimal        @db.Decimal(10, 2)
-  orderCount Int            @default(0)
-  note       String?
-  userId     String
-  user       User           @relation(fields: [userId], references: [id])
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  id           String   @id @default(cuid())
+  date         DateTime @db.Date
+  storeId      String
+  store        Store    @relation(fields: [storeId], references: [id])
+  // Texto livre (não é mais um enum fixo): vem direto do nome do parceiro na
+  // SaiPos (iFood, 99Food, qualquer canal novo que apareça) ou "LOJA_PROPRIA"
+  // pra venda direta/lançamento manual.
+  channel      String   @default("LOJA_PROPRIA")
+  // Loja/marca cadastrada DENTRO do canal (ex: duas marcas diferentes no
+  // mesmo iFood) — "" quando o canal não distingue lojas (loja própria, ou
+  // canal sem essa informação).
+  channelStore String   @default("")
+  amount       Decimal  @db.Decimal(10, 2)
+  orderCount   Int      @default(0)
+  note         String?
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  @@unique([date, storeId, channel])
+  @@unique([date, storeId, channel, channelStore])
   @@index([storeId])
 }
 
@@ -384,15 +385,15 @@ model RecipeIngredient {
 }
 
 model Store {
-  id           String   @id @default(cuid())
-  companyId    String
-  company      Company  @relation(fields: [companyId], references: [id])
-  name         String
-  address      String?
-  latitude     Decimal  @db.Decimal(10, 7)
-  longitude    Decimal  @db.Decimal(10, 7)
-  radiusMeters Int      @default(150)
-  saiposToken  String?
+  id                  String   @id @default(cuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id])
+  name                String
+  address             String?
+  latitude            Decimal  @db.Decimal(10, 7)
+  longitude           Decimal  @db.Decimal(10, 7)
+  radiusMeters        Int      @default(150)
+  saiposToken         String?
   // Método usado na Precificação: "MARKUP" (custo / (1 - %fixo - %variável))
   // ou "MARGEM" (custo / (1 - %variável - margem de contribuição desejada)).
   pricingMethod       String   @default("MARKUP")
@@ -400,10 +401,10 @@ model Store {
   // Open Finance (Pluggy) próprio dessa loja — o responsável de lá faz o
   // cadastro Meu Pluggy dele e conecta o banco dele com essas credenciais.
   // Se vazio, cai pras variáveis de ambiente globais (compatibilidade).
-  pluggyClientId     String?
-  pluggyClientSecret String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  pluggyClientId      String?
+  pluggyClientSecret  String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   employees         Employee[]
   revenues          Revenue[]
@@ -436,20 +437,20 @@ enum NotaStatus {
 // digitada. Fica em CONFERINDO até o usuário conferir/casar os itens e lançar
 // a entrada no estoque (vira LANCADA). Se for boleto, gera uma conta a pagar.
 model NotaFiscal {
-  id          String           @id @default(cuid())
-  numero      String?
-  fornecedor  String?
-  chave       String?
-  emissao     DateTime?        @db.Date
-  total       Decimal          @default(0) @db.Decimal(10, 2)
-  status      NotaStatus       @default(CONFERINDO)
-  boleto      Boolean          @default(false)
-  vencimento  DateTime?        @db.Date
-  payableId   String?
-  userId      String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  items       NotaFiscalItem[]
+  id         String           @id @default(cuid())
+  numero     String?
+  fornecedor String?
+  chave      String?
+  emissao    DateTime?        @db.Date
+  total      Decimal          @default(0) @db.Decimal(10, 2)
+  status     NotaStatus       @default(CONFERINDO)
+  boleto     Boolean          @default(false)
+  vencimento DateTime?        @db.Date
+  payableId  String?
+  userId     String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  items      NotaFiscalItem[]
 }
 
 model NotaFiscalItem {
@@ -501,49 +502,49 @@ model BankConnection {
 }
 
 model Employee {
-  id         String    @id @default(cuid())
-  name       String
-  role       String?
-  phone      String?
-  baseSalary Decimal   @default(0) @db.Decimal(10, 2)
-  dependents Int       @default(0)
-  hireDate   DateTime? @db.Date
+  id             String    @id @default(cuid())
+  name           String
+  role           String?
+  phone          String?
+  baseSalary     Decimal   @default(0) @db.Decimal(10, 2)
+  dependents     Int       @default(0)
+  hireDate       DateTime? @db.Date
   scheduledStart String?
   scheduledEnd   String?
   weeklyDayOff   Int?
-  active     Boolean   @default(true)
+  active         Boolean   @default(true)
   faceDescriptor Json?
-  userId     String?   @unique
-  user       User?     @relation(fields: [userId], references: [id])
-  storeId    String?
-  store      Store?    @relation(fields: [storeId], references: [id])
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  userId         String?   @unique
+  user           User?     @relation(fields: [userId], references: [id])
+  storeId        String?
+  store          Store?    @relation(fields: [storeId], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  timeEntries TimeEntry[]
-  advances    Advance[]
-  adjustments PayrollAdjustment[]
-  payments    Payment[]
-  dayOffs     DayOff[]
-  swapRequestsSent     ShiftSwapRequest[] @relation("SwapRequester")
-  swapRequestsReceived ShiftSwapRequest[] @relation("SwapTarget")
+  timeEntries          TimeEntry[]
+  advances             Advance[]
+  adjustments          PayrollAdjustment[]
+  payments             Payment[]
+  dayOffs              DayOff[]
+  swapRequestsSent     ShiftSwapRequest[]  @relation("SwapRequester")
+  swapRequestsReceived ShiftSwapRequest[]  @relation("SwapTarget")
 
   @@index([storeId])
 }
 
 model TimeEntry {
-  id         String    @id @default(cuid())
-  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  employeeId String
-  date       DateTime  @db.Date
-  clockIn    DateTime
+  id                String    @id @default(cuid())
+  employee          Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId        String
+  date              DateTime  @db.Date
+  clockIn           DateTime
   clockInDistanceM  Int?
-  clockInPhoto  String?
-  clockOut   DateTime?
+  clockInPhoto      String?
+  clockOut          DateTime?
   clockOutDistanceM Int?
-  clockOutPhoto String?
-  note       String?
-  createdAt  DateTime  @default(now())
+  clockOutPhoto     String?
+  note              String?
+  createdAt         DateTime  @default(now())
 
   @@index([employeeId])
   @@index([date])
@@ -585,20 +586,20 @@ enum SwapStatus {
  * aceita E um gerente aprova.
  */
 model ShiftSwapRequest {
-  id            String     @id @default(cuid())
-  requester     Employee   @relation("SwapRequester", fields: [requesterId], references: [id], onDelete: Cascade)
-  requesterId   String
-  target        Employee   @relation("SwapTarget", fields: [targetId], references: [id], onDelete: Cascade)
-  targetId      String
-  requesterDate DateTime   @db.Date
-  targetDate    DateTime   @db.Date
-  status        SwapStatus @default(PENDENTE)
-  note          String?
+  id                 String     @id @default(cuid())
+  requester          Employee   @relation("SwapRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  requesterId        String
+  target             Employee   @relation("SwapTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  targetId           String
+  requesterDate      DateTime   @db.Date
+  targetDate         DateTime   @db.Date
+  status             SwapStatus @default(PENDENTE)
+  note               String?
   targetRespondedAt  DateTime?
   managerId          String?
-  manager            User?     @relation(fields: [managerId], references: [id])
+  manager            User?      @relation(fields: [managerId], references: [id])
   managerRespondedAt DateTime?
-  createdAt     DateTime   @default(now())
+  createdAt          DateTime   @default(now())
 
   @@index([requesterId])
   @@index([targetId])
@@ -644,35 +645,35 @@ model Advance {
 }
 
 model Payment {
-  id            String   @id @default(cuid())
-  employee      Employee @relation(fields: [employeeId], references: [id])
-  employeeId    String
-  periodStart   DateTime @db.Date
-  periodEnd     DateTime @db.Date
-  baseSalary    Decimal  @db.Decimal(10, 2)
-  nightPremium  Decimal  @db.Decimal(10, 2)
-  overtimeHours Decimal  @default(0) @db.Decimal(6, 2)
-  overtimeAmount Decimal @default(0) @db.Decimal(10, 2)
-  bankedHours   Decimal  @default(0) @db.Decimal(6, 2)
-  lateDiscountMinutes Decimal @default(0) @db.Decimal(6, 2)
-  lateDiscountAmount  Decimal @default(0) @db.Decimal(10, 2)
-  faltaDays     Decimal  @default(0) @db.Decimal(4, 1)
-  faltaAmount   Decimal  @default(0) @db.Decimal(10, 2)
-  inssAmount    Decimal  @default(0) @db.Decimal(10, 2)
-  irrfAmount    Decimal  @default(0) @db.Decimal(10, 2)
-  valeTransporteAmount Decimal @default(0) @db.Decimal(10, 2)
-  bonusTotal    Decimal  @db.Decimal(10, 2)
-  discountTotal Decimal  @db.Decimal(10, 2)
-  advancesTotal Decimal  @db.Decimal(10, 2)
-  attendanceScore  Int     @default(100)
-  attendanceStreakMonths Int @default(0)
-  attendanceBonusAmount Decimal @default(0) @db.Decimal(10, 2)
-  netAmount     Decimal  @db.Decimal(10, 2)
-  note          String?
-  paidAt        DateTime @default(now())
-  createdAt     DateTime @default(now())
-  user          User     @relation(fields: [userId], references: [id])
-  userId        String
+  id                     String   @id @default(cuid())
+  employee               Employee @relation(fields: [employeeId], references: [id])
+  employeeId             String
+  periodStart            DateTime @db.Date
+  periodEnd              DateTime @db.Date
+  baseSalary             Decimal  @db.Decimal(10, 2)
+  nightPremium           Decimal  @db.Decimal(10, 2)
+  overtimeHours          Decimal  @default(0) @db.Decimal(6, 2)
+  overtimeAmount         Decimal  @default(0) @db.Decimal(10, 2)
+  bankedHours            Decimal  @default(0) @db.Decimal(6, 2)
+  lateDiscountMinutes    Decimal  @default(0) @db.Decimal(6, 2)
+  lateDiscountAmount     Decimal  @default(0) @db.Decimal(10, 2)
+  faltaDays              Decimal  @default(0) @db.Decimal(4, 1)
+  faltaAmount            Decimal  @default(0) @db.Decimal(10, 2)
+  inssAmount             Decimal  @default(0) @db.Decimal(10, 2)
+  irrfAmount             Decimal  @default(0) @db.Decimal(10, 2)
+  valeTransporteAmount   Decimal  @default(0) @db.Decimal(10, 2)
+  bonusTotal             Decimal  @db.Decimal(10, 2)
+  discountTotal          Decimal  @db.Decimal(10, 2)
+  advancesTotal          Decimal  @db.Decimal(10, 2)
+  attendanceScore        Int      @default(100)
+  attendanceStreakMonths Int      @default(0)
+  attendanceBonusAmount  Decimal  @default(0) @db.Decimal(10, 2)
+  netAmount              Decimal  @db.Decimal(10, 2)
+  note                   String?
+  paidAt                 DateTime @default(now())
+  createdAt              DateTime @default(now())
+  user                   User     @relation(fields: [userId], references: [id])
+  userId                 String
 
   advances    Advance[]
   adjustments PayrollAdjustment[]
@@ -712,7 +713,7 @@ model CashEntry {
 model CashMonth {
   id              String   @id @default(cuid())
   companyId       String
-  month           String   // YYYY-MM
+  month           String // YYYY-MM
   saldoInicial    Decimal  @default(0) @db.Decimal(10, 2)
   saldoAnterior   Decimal? @db.Decimal(10, 2)
   ini05           Int      @default(0)
