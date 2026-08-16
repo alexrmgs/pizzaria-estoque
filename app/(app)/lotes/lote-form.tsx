@@ -63,6 +63,10 @@ export function LoteForm({
   const ingredient = ingredients.find((i) => i.id === ingredientId);
   const dias = Math.max(0, Number(validadeDias) || 0);
   const validadeISO = /^\d{4}-\d{2}-\d{2}$/.test(producao) ? addDaysISO(producao, dias) : "";
+  const titleFont = Math.max(11, Math.min(widthMm, heightMm * 1.6) * 0.14);
+  const lineFont = titleFont * 0.52;
+  const logoMm = Math.max(6, heightMm * 0.12);
+  const qrMm = Math.max(14, Math.min(30, heightMm - 4));
 
   async function imprimir() {
     if (!ingredientId) {
@@ -233,6 +237,60 @@ export function LoteForm({
         Cada etiqueta impressa vira um lote: entra no estoque na hora, com um QR code que dá baixa
         (saída) quando escaneado depois.
       </p>
+
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-semibold uppercase text-neutral-500">
+          Prévia da etiqueta ({widthMm}×{heightMm}mm)
+        </p>
+        <div
+          style={{ width: `${widthMm}mm`, height: `${heightMm}mm` }}
+          className="flex max-w-full rounded-md border bg-white px-3 py-2 text-black"
+        >
+          <div className="flex flex-1 flex-col justify-between overflow-hidden">
+            <div className="flex flex-col gap-0.5">
+              <p className="font-black uppercase leading-tight" style={{ fontSize: `${titleFont}pt` }}>
+                {ingredient?.name || "PRODUTO"}
+              </p>
+              <div className="my-0.5 border-t border-black" />
+              <div className="flex justify-between font-bold" style={{ fontSize: `${lineFont}pt` }}>
+                <span>{temperatura.trim() || "—"}</span>
+                <span>
+                  {quantidade.trim()} {ingredient?.unit ?? ""}
+                </span>
+              </div>
+              <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
+                <b>FABRIC:</b> {formatBR(producao)}
+              </p>
+              <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
+                <b>VALIDADE:</b> {validadeISO ? formatBR(validadeISO) : "—"}
+              </p>
+              {responsavel.trim() && (
+                <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
+                  <b>RESP:</b> {responsavel.trim()}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 border-t border-black pt-1">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="" style={{ height: `${logoMm}mm` }} />
+              <div className="flex flex-col leading-tight" style={{ fontSize: `${lineFont * 0.85}pt` }}>
+                <span className="font-bold">{empresa.nome || "FB Pizzaria & Esfiharia"}</span>
+                {empresa.cnpj && <span>CNPJ: {empresa.cnpj}</span>}
+                {empresa.cidade && <span>{empresa.cidade}</span>}
+              </div>
+            </div>
+          </div>
+          <div
+            className="ml-2 flex shrink-0 flex-col items-center justify-center gap-1 self-start border border-dashed border-neutral-400 text-neutral-400"
+            style={{ width: `${qrMm}mm`, height: `${qrMm}mm` }}
+          >
+            <span style={{ fontSize: "7pt" }}>QR</span>
+          </div>
+        </div>
+        <p className="text-xs text-neutral-400">
+          O QR de verdade só sai na impressora (a prévia só marca onde ele fica).
+        </p>
+      </div>
     </div>
   );
 }
