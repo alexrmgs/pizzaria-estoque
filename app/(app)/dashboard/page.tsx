@@ -45,7 +45,7 @@ export default async function DashboardPage({
   const fromISO = toISODate(from);
   const toISO = toISODate(to);
 
-  const [ingredients, recentMovements] = canManageEstoque
+  const [ingredients, recentMovements, lotesVencendoRaw] = canManageEstoque
     ? await Promise.all([
         prisma.ingredient.findMany({ orderBy: { name: "asc" } }),
         prisma.stockMovement.findMany({
@@ -53,8 +53,19 @@ export default async function DashboardPage({
           take: 8,
           include: { ingredient: true, user: true },
         }),
+        // Lote ainda em estoque (não baixado) com validade em até 3 dias, ou
+        // já vencido — pra avisar antes de perder o produto.
+        prisma.stockLabel.findMany({
+          where: {
+            status: "ATIVO",
+            expiresAt: { lte: new Date(new Date().getTime() + 3 * 86_400_000) },
+          },
+          orderBy: { expiresAt: "asc" },
+          take: 20,
+          include: { ingredient: { select: { name: true, unit: true } } },
+        }),
       ])
-    : [[], []];
+    : [[], [], []];
 
   const lowStock = ingredients.filter(
     (ingredient) => Number(ingredient.currentStock) < Number(ingredient.minStock),
@@ -63,6 +74,16 @@ export default async function DashboardPage({
     (sum, ingredient) => sum + Number(ingredient.currentStock) * Number(ingredient.unitPrice),
     0,
   );
+  const hojeUTC = new Date();
+  hojeUTC.setUTCHours(0, 0, 0, 0);
+  const lotesVencendo = lotesVencendoRaw.map((l) => ({
+    id: l.id,
+    name: l.ingredient.name,
+    unit: l.ingredient.unit,
+    quantity: Number(l.quantity),
+    expiresAt: l.expiresAt,
+    vencido: l.expiresAt !== null && l.expiresAt.getTime() < hojeUTC.getTime(),
+  }));
 
   const canViewRelatorios = canManageEstoque && user.role.canViewRelatorios;
 
@@ -495,6 +516,41 @@ export default async function DashboardPage({
               )}
               <Link href="/estoque" className="mt-4 inline-block text-sm text-neutral-900 underline">
                 Ver estoque completo
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                Vencendo / vencido
+                {lotesVencendo.length > 0 && <Badge variant="destructive">{lotesVencendo.length}</Badge>}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {lotesVencendo.length === 0 ? (
+                <p className="text-sm text-neutral-500">
+                  Nenhum lote vencendo nos próximos 3 dias. 🎉
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {lotesVencendo.map((l) => (
+                    <li key={l.id} className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{l.name}</span>
+                      <span className={l.vencido ? "font-semibold text-destructive" : "text-amber-600"}>
+                        {l.quantity} {l.unit} ·{" "}
+                        {l.expiresAt?.toLocaleDateString("pt-BR", { timeZone: "UTC" })}
+                        {l.vencido && " (vencido)"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Link
+                href="/etiquetas-producao"
+                className="mt-4 inline-block text-sm text-neutral-900 underline"
+              >
+                Ver etiquetas / lotes
               </Link>
             </CardContent>
           </Card>

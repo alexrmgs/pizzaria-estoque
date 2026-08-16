@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
+import { getAppSettings } from "@/lib/settings";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -12,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { LoteRowActions } from "../../lotes/lote-row-actions";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -22,6 +24,21 @@ function isValidDate(s: string | undefined): s is string {
   return !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
 }
 
+function formatDate(date: Date | null) {
+  if (!date) return "—";
+  return date.toLocaleDateString("pt-BR", { timeZone: "UTC" });
+}
+
+function statusValidade(expiresAt: Date | null): "vencido" | "perto" | "ok" | null {
+  if (!expiresAt) return null;
+  const hoje = new Date();
+  hoje.setUTCHours(0, 0, 0, 0);
+  const dias = Math.round((expiresAt.getTime() - hoje.getTime()) / 86_400_000);
+  if (dias < 0) return "vencido";
+  if (dias <= 1) return "perto";
+  return "ok";
+}
+
 export default async function IngredientHistoryPage({
   params,
   searchParams,
@@ -29,7 +46,7 @@ export default async function IngredientHistoryPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  await requirePermission("canManageEstoque");
+  const user = await requirePermission("canManageEstoque");
   const { id } = await params;
   const { from, to } = await searchParams;
 
@@ -38,6 +55,15 @@ export default async function IngredientHistoryPage({
     include: { category: true },
   });
   if (!ingredient) notFound();
+
+  const [lotes, settings] = await Promise.all([
+    prisma.stockLabel.findMany({
+      where: { ingredientId: id },
+      orderBy: [{ status: "asc" }, { expiresAt: "asc" }],
+      take: 50,
+    }),
+    getAppSettings(user.companyId),
+  ]);
 
   const hasRange = isValidDate(from) && isValidDate(to);
   const rangeStart = hasRange ? new Date(`${from}T00:00:00`) : null;
@@ -76,7 +102,7 @@ export default async function IngredientHistoryPage({
     const primeiraData = saidasRecentes[0].createdAt;
     const diasCobertos = Math.max(
       1,
-      (Date.now() - primeiraData.getTime()) / (1000 * 60 * 60 * 24),
+      (new Date().getTime() - primeiraData.getTime()) / (1000 * 60 * 60 * 24),
     );
     mediaSemanal = totalSaida / (diasCobertos / 7);
   }
@@ -216,6 +242,95 @@ export default async function IngredientHistoryPage({
               </Card>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Lotes (validade)</CardTitle>
+          <p className="text-xs text-neutral-500">
+            Um lote por etiqueta impressa em Etiquetas / Lotes — cada um com o peso e validade
+            daquela produção específica.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fabricação</TableHead>
+                  <TableHead>Validade</TableHead>
+                  <TableHead>Peso</TableHead>
+                  <TableHead>Situação</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lotes.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-neutral-500">
+                      Nenhum lote registrado pra esse produto ainda.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {lotes.map((l) => {
+                  const validade = statusValidade(l.expiresAt);
+                  return (
+                    <TableRow key={l.id}>
+                      <TableCell className="text-neutral-500">{formatDate(l.producedAt)}</TableCell>
+                      <TableCell>
+                        <span
+                          className={
+                            validade === "vencido"
+                              ? "font-semibold text-destructive"
+                              : validade === "perto"
+                                ? "font-semibold text-amber-600"
+                                : ""
+                          }
+                        >
+                          {formatDate(l.expiresAt)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-neutral-500">
+                        {Number(l.quantity)} {ingredient.unit}
+                      </TableCell>
+                      <TableCell>
+                        {l.status === "BAIXADO" ? (
+                          <Badge variant="secondary">Baixado</Badge>
+                        ) : validade === "vencido" ? (
+                          <Badge variant="destructive">Vencido</Badge>
+                        ) : (
+                          <Badge className="bg-emerald-100 text-emerald-800">Em estoque</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <LoteRowActions
+                          lote={{
+                            id: l.id,
+                            ingredientName: ingredient.name,
+                            unit: ingredient.unit,
+                            quantity: Number(l.quantity),
+                            producedAt: l.producedAt,
+                            expiresAt: l.expiresAt,
+                            status: l.status,
+                          }}
+                          empresa={{
+                            nome: settings.labelEmpresa ?? "",
+                            cnpj: settings.labelCnpj ?? "",
+                            endereco: settings.labelEndereco ?? "",
+                            cep: settings.labelCep ?? "",
+                            cidade: settings.labelCidade ?? "",
+                          }}
+                          widthMm={settings.labelProducaoWidthMm}
+                          heightMm={settings.labelProducaoHeightMm}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
