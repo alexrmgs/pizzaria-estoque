@@ -62,7 +62,35 @@ const dailyConfig: ChartConfig = {
 
 const WEEKDAY_ABBR = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-type DailyRecord = { date: string; amount: number; orders: number; channel: string };
+type DailyRecord = {
+  date: string;
+  amount: number;
+  orders: number;
+  channel: string;
+  channelStore: string;
+};
+
+/** Ranking das lojas/marcas dentro de cada canal (ex: as várias marcas
+ * cadastradas no mesmo iFood) — só entra canal que tem essa informação. */
+function computeChannelStoreRanking(dailyRecords: DailyRecord[]) {
+  const totals = new Map<string, { channel: string; channelStore: string; amount: number; orders: number }>();
+  for (const r of dailyRecords) {
+    if (!r.channelStore) continue;
+    const key = `${r.channel}|${r.channelStore}`;
+    const agg = totals.get(key) ?? { channel: r.channel, channelStore: r.channelStore, amount: 0, orders: 0 };
+    agg.amount += r.amount;
+    agg.orders += r.orders;
+    totals.set(key, agg);
+  }
+  const byChannel = new Map<string, { channelStore: string; amount: number; orders: number }[]>();
+  for (const { channel, channelStore, amount, orders } of totals.values()) {
+    const list = byChannel.get(channel) ?? [];
+    list.push({ channelStore, amount, orders });
+    byChannel.set(channel, list);
+  }
+  for (const list of byChannel.values()) list.sort((a, b) => b.amount - a.amount);
+  return byChannel;
+}
 
 function computeChannelBreakdown(dailyRecords: DailyRecord[]) {
   const totals = new Map<string, { amount: number; orders: number }>();
@@ -281,6 +309,7 @@ export function StoreDashboard({
   );
   const channelBreakdown = useMemo(() => computeChannelBreakdown(dailyRecords), [dailyRecords]);
   const channelMonthly = useMemo(() => computeChannelMonthly(dailyRecords), [dailyRecords]);
+  const channelStoreRanking = useMemo(() => computeChannelStoreRanking(dailyRecords), [dailyRecords]);
   // Canais de verdade presentes nos dados — não uma lista fixa, pra qualquer
   // canal novo (Rappi, WhatsApp etc) aparecer sozinho nas tabelas/gráficos.
   const channels = channelBreakdown.map((c) => c.channel);
@@ -496,6 +525,37 @@ export function StoreDashboard({
           </div>
         </CardContent>
       </Card>
+
+      {channelStoreRanking.size > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">🏪 Ranking das lojas dentro de cada canal — {year}</CardTitle>
+            <p className="text-sm text-neutral-500">
+              Quando um canal tem mais de uma loja/marca cadastrada nele (ex: várias marcas no
+              mesmo iFood), o faturamento de cada uma aparece separado aqui.
+            </p>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[...channelStoreRanking.entries()].map(([channel, lojas]) => (
+              <div key={channel} className="rounded-lg border p-3">
+                <div className="mb-2">
+                  <ChannelBadge channel={channel} />
+                </div>
+                <ol className="flex flex-col gap-2 text-sm">
+                  {lojas.map((l, index) => (
+                    <li key={l.channelStore} className="flex items-center justify-between gap-2">
+                      <span className="truncate">
+                        <span className="text-neutral-400">{index + 1}.</span> {l.channelStore}
+                      </span>
+                      <span className="shrink-0 font-medium">{currency(l.amount)}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

@@ -258,7 +258,7 @@ export default async function FinanceiroPage({
 
   const dailyRecordsByStore = new Map<
     string,
-    { date: string; amount: number; orders: number; channel: string }[]
+    { date: string; amount: number; orders: number; channel: string; channelStore: string }[]
   >();
   for (const r of yearRevenues) {
     const list = dailyRecordsByStore.get(r.storeId) ?? [];
@@ -267,6 +267,7 @@ export default async function FinanceiroPage({
       amount: Number(r.amount),
       orders: r.orderCount,
       channel: r.channel,
+      channelStore: r.channelStore,
     });
     dailyRecordsByStore.set(r.storeId, list);
   }
