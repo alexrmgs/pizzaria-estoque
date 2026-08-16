@@ -336,6 +336,20 @@ export async function lancarNota(
 
   try {
     await prisma.$transaction(async (tx) => {
+      // Nota com fornecedor identificado já marca a entrada sozinha — cria o
+      // cadastro do fornecedor na hora se ainda não existir (pelo nome do
+      // emitente da NF-e), pra não depender de alguém cadastrar antes.
+      const fornecedorNome = header.fornecedor?.trim();
+      const supplierId = fornecedorNome
+        ? (
+            await tx.fornecedor.upsert({
+              where: { name: fornecedorNome },
+              update: {},
+              create: { name: fornecedorNome },
+            })
+          ).id
+        : null;
+
       for (const it of comProduto) {
         const ing = await tx.ingredient.findUniqueOrThrow({ where: { id: it.ingredientId! } });
         const current = Number(ing.currentStock);
@@ -351,6 +365,7 @@ export async function lancarNota(
             reason: `NF ${header.numero ?? ""} ${header.fornecedor ?? ""}`.trim() || "Nota fiscal",
             userId: user.id,
             unitPriceAtEntry: custoEstoque || Number(ing.unitPrice),
+            supplierId,
           },
         });
         const newPrice =
@@ -398,6 +413,8 @@ export async function lancarNota(
   revalidatePath("/estoque");
   revalidatePath("/movimentacoes");
   revalidatePath("/caixa");
+  revalidatePath("/fornecedores");
+  revalidatePath("/dashboard");
   return {};
 }
 

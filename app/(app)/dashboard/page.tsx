@@ -71,7 +71,7 @@ export default async function DashboardPage({
     const [entradas, saidas, revenues, stores] = await Promise.all([
       prisma.stockMovement.findMany({
         where: { type: "ENTRADA", createdAt: { gte: from, lte: to } },
-        include: { ingredient: { include: { category: true } } },
+        include: { ingredient: { include: { category: true } }, supplier: { select: { name: true } } },
       }),
       prisma.stockMovement.findMany({
         where: { type: "SAIDA", createdAt: { gte: from, lte: to }, ingredient: { includeInCmv: true } },
@@ -106,6 +106,7 @@ export default async function DashboardPage({
     type Agg = { name: string; unit: string; qty: number; value: number };
     const porIngrediente = new Map<string, Agg>();
     const porCategoria = new Map<string, number>();
+    const porFornecedor = new Map<string, number>();
 
     let comprasTotal = 0;
     for (const m of entradas) {
@@ -129,6 +130,10 @@ export default async function DashboardPage({
 
       const categoryName = m.ingredient.category?.name ?? "Sem categoria";
       porCategoria.set(categoryName, (porCategoria.get(categoryName) ?? 0) + value);
+
+      if (m.supplier) {
+        porFornecedor.set(m.supplier.name, (porFornecedor.get(m.supplier.name) ?? 0) + value);
+      }
     }
 
     const topComprados = [...porIngrediente.values()].sort((a, b) => b.qty - a.qty).slice(0, 5);
@@ -136,6 +141,9 @@ export default async function DashboardPage({
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
     const topGastoCategoria = [...porCategoria.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    const topFornecedores = [...porFornecedor.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
 
@@ -222,7 +230,7 @@ export default async function DashboardPage({
           </Card>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Mais comprados (quantidade)</CardTitle>
@@ -277,6 +285,29 @@ export default async function DashboardPage({
               ) : (
                 <ol className="flex flex-col gap-2 text-sm">
                   {topGastoCategoria.map(([name, value], index) => (
+                    <li key={name} className="flex items-center justify-between">
+                      <span>
+                        <span className="text-neutral-400">{index + 1}.</span> {name}
+                      </span>
+                      <span className="font-medium">{currency(value)}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Ranking de fornecedores</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {topFornecedores.length === 0 ? (
+                <p className="text-sm text-neutral-500">
+                  Sem entradas com fornecedor marcado no período.
+                </p>
+              ) : (
+                <ol className="flex flex-col gap-2 text-sm">
+                  {topFornecedores.map(([name, value], index) => (
                     <li key={name} className="flex items-center justify-between">
                       <span>
                         <span className="text-neutral-400">{index + 1}.</span> {name}
