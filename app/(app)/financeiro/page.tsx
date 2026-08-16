@@ -31,7 +31,7 @@ import {
 
 // A API da SaiPos é lenta (~28s por página de 1000 vendas). Dá mais fôlego pro
 // server action de importação não estourar o tempo limite.
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
