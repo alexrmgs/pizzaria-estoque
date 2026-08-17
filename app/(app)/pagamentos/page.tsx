@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { ClosePaymentDialog } from "../funcionarios/close-payment-dialog";
 import { GenerateAdvancesButton } from "../vales/generate-advances-button";
+import { DeleteValeButton } from "../vales/delete-vale-button";
 import { PaymentMonthSection } from "./payment-month-section";
 
 const currency = (value: number) =>
@@ -174,6 +175,10 @@ export default async function PagamentosPage() {
   const employeesToPay: typeof employees = [];
   const employeesPaid: typeof employees = [];
   for (const employee of employees) {
+    // Admitido depois que o mês anterior já tinha acabado — não existia
+    // ainda, então não tem folha de mês anterior pra fechar (a folha dele
+    // começa no mês corrente).
+    if (employee.hireDate && employee.hireDate > prevMonth.end) continue;
     const lastPayment = lastPaymentByEmployee.get(employee.id);
     const prevMonthClosed = !!lastPayment && lastPayment.periodEnd >= prevMonth.end;
     (prevMonthClosed ? employeesPaid : employeesToPay).push(employee);
@@ -221,12 +226,13 @@ export default async function PagamentosPage() {
                   <TableHead>Data</TableHead>
                   <TableHead>Valor</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {monthAdvances.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-neutral-500">
+                    <TableCell colSpan={5} className="text-center text-neutral-500">
                       Nenhum adiantamento gerado este mês ainda.
                     </TableCell>
                   </TableRow>
@@ -244,6 +250,9 @@ export default async function PagamentosPage() {
                       ) : (
                         <Badge variant="destructive">Pendente</Badge>
                       )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {!advance.paymentId && <DeleteValeButton id={advance.id} />}
                     </TableCell>
                   </TableRow>
                 ))}
