@@ -63,6 +63,12 @@ export type RescisaoInput = {
   applyAvisoNaoCumpridoDiscount: boolean;
   /** Desconta os vales/adiantamentos ainda em aberto do valor líquido — opcional, decisão do empregador. */
   applyPendingAdvancesDiscount: boolean;
+  /** Desconta os ajustes tipo DESCONTO ainda em aberto — opcional, decisão do empregador. */
+  applyPendingDiscountsDiscount: boolean;
+  /** Desconta o INSS calculado — opcional, decisão do empregador. */
+  applyInssDiscount: boolean;
+  /** Desconta o IRRF calculado — opcional, decisão do empregador. */
+  applyIrrfDiscount: boolean;
   dependents: number;
   inssBrackets: TaxBracket[];
   irrfBrackets: TaxBracket[];
@@ -180,15 +186,14 @@ export function computeRescisao(input: RescisaoInput): RescisaoResult {
     input.pendingBonuses;
 
   const pendingAdvancesApplied = input.applyPendingAdvancesDiscount ? input.pendingAdvances : 0;
+  const pendingDiscountsApplied = input.applyPendingDiscountsDiscount ? input.pendingDiscounts : 0;
+  const inssApplied = input.applyInssDiscount ? inssSaldoSalario + inssDecimoTerceiro : 0;
+  // IRRF sempre usa o INSS teórico como base de cálculo (é a regra), mesmo
+  // que o INSS não esteja sendo efetivamente descontado do líquido.
+  const irrfApplied = input.applyIrrfDiscount ? irrfSaldoSalario + irrfDecimoTerceiro : 0;
 
   const totalDescontos =
-    inssSaldoSalario +
-    inssDecimoTerceiro +
-    irrfSaldoSalario +
-    irrfDecimoTerceiro +
-    pendingAdvancesApplied +
-    input.pendingDiscounts +
-    descontoAvisoNaoCumprido;
+    inssApplied + irrfApplied + pendingAdvancesApplied + pendingDiscountsApplied + descontoAvisoNaoCumprido;
 
   const totalLiquido = totalProventos - totalDescontos;
 

@@ -47,6 +47,9 @@ export function TerminationDialog({
   const [fgtsBalance, setFgtsBalance] = useState("0");
   const [applyAvisoNaoCumpridoDiscount, setApplyAvisoNaoCumpridoDiscount] = useState(true);
   const [applyPendingAdvancesDiscount, setApplyPendingAdvancesDiscount] = useState(true);
+  const [applyPendingDiscountsDiscount, setApplyPendingDiscountsDiscount] = useState(true);
+  const [applyInssDiscount, setApplyInssDiscount] = useState(true);
+  const [applyIrrfDiscount, setApplyIrrfDiscount] = useState(true);
   const [jaPago, setJaPago] = useState(false);
   const [formaPagamento, setFormaPagamento] = useState<"DINHEIRO" | "PIX">("DINHEIRO");
   const [note, setNote] = useState("");
@@ -85,6 +88,9 @@ export function TerminationDialog({
       pendingBonuses: preview.pendingBonusesTotal,
       applyAvisoNaoCumpridoDiscount,
       applyPendingAdvancesDiscount,
+      applyPendingDiscountsDiscount,
+      applyInssDiscount,
+      applyIrrfDiscount,
       dependents: preview.dependents,
       inssBrackets: preview.cltSettings.inssBrackets,
       irrfBrackets: preview.cltSettings.irrfBrackets,
@@ -99,6 +105,9 @@ export function TerminationDialog({
     fgtsBalance,
     applyAvisoNaoCumpridoDiscount,
     applyPendingAdvancesDiscount,
+    applyPendingDiscountsDiscount,
+    applyInssDiscount,
+    applyIrrfDiscount,
   ]);
 
   function handleConfirm(formData: FormData) {
@@ -136,6 +145,9 @@ export function TerminationDialog({
           setFgtsBalance("0");
           setApplyAvisoNaoCumpridoDiscount(true);
           setApplyPendingAdvancesDiscount(true);
+          setApplyPendingDiscountsDiscount(true);
+          setApplyInssDiscount(true);
+          setApplyIrrfDiscount(true);
           setJaPago(false);
           setNote("");
           loadPreview();
@@ -178,6 +190,13 @@ export function TerminationDialog({
               name="applyPendingAdvancesDiscount"
               value={applyPendingAdvancesDiscount ? "on" : ""}
             />
+            <input
+              type="hidden"
+              name="applyPendingDiscountsDiscount"
+              value={applyPendingDiscountsDiscount ? "on" : ""}
+            />
+            <input type="hidden" name="applyInssDiscount" value={applyInssDiscount ? "on" : ""} />
+            <input type="hidden" name="applyIrrfDiscount" value={applyIrrfDiscount ? "on" : ""} />
             <input type="hidden" name="jaPago" value={jaPago ? "on" : ""} />
             <input type="hidden" name="formaPagamento" value={jaPago ? formaPagamento : ""} />
             <input type="hidden" name="note" value={note} />
@@ -298,18 +317,30 @@ export function TerminationDialog({
                     <span className="font-medium">{currency(preview.pendingBonusesTotal)}</span>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span className="text-neutral-500">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="flex items-center gap-2 text-neutral-500">
+                    <input
+                      type="checkbox"
+                      checked={applyInssDiscount}
+                      onChange={(e) => setApplyInssDiscount(e.target.checked)}
+                    />
                     INSS (saldo + 13º)
-                  </span>
+                  </label>
                   <span className="font-medium text-destructive">
-                    -{currency(result.inssSaldoSalario + result.inssDecimoTerceiro)}
+                    -{currency(applyInssDiscount ? result.inssSaldoSalario + result.inssDecimoTerceiro : 0)}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-500">IRRF (saldo + 13º)</span>
+                <div className="flex items-center justify-between gap-2">
+                  <label className="flex items-center gap-2 text-neutral-500">
+                    <input
+                      type="checkbox"
+                      checked={applyIrrfDiscount}
+                      onChange={(e) => setApplyIrrfDiscount(e.target.checked)}
+                    />
+                    IRRF (saldo + 13º)
+                  </label>
                   <span className="font-medium text-destructive">
-                    -{currency(result.irrfSaldoSalario + result.irrfDecimoTerceiro)}
+                    -{currency(applyIrrfDiscount ? result.irrfSaldoSalario + result.irrfDecimoTerceiro : 0)}
                   </span>
                 </div>
                 {preview.pendingAdvancesTotal > 0 && (
@@ -328,10 +359,17 @@ export function TerminationDialog({
                   </div>
                 )}
                 {preview.pendingDiscountsTotal > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500">Descontos pendentes</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="flex items-center gap-2 text-neutral-500">
+                      <input
+                        type="checkbox"
+                        checked={applyPendingDiscountsDiscount}
+                        onChange={(e) => setApplyPendingDiscountsDiscount(e.target.checked)}
+                      />
+                      Descontos pendentes
+                    </label>
                     <span className="font-medium text-destructive">
-                      -{currency(preview.pendingDiscountsTotal)}
+                      -{currency(applyPendingDiscountsDiscount ? preview.pendingDiscountsTotal : 0)}
                     </span>
                   </div>
                 )}

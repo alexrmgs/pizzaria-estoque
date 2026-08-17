@@ -315,6 +315,9 @@ const terminationSchema = z.object({
   fgtsBalance: z.coerce.number().min(0).default(0),
   applyAvisoNaoCumpridoDiscount: z.coerce.boolean(),
   applyPendingAdvancesDiscount: z.coerce.boolean(),
+  applyPendingDiscountsDiscount: z.coerce.boolean(),
+  applyInssDiscount: z.coerce.boolean(),
+  applyIrrfDiscount: z.coerce.boolean(),
   jaPago: z.coerce.boolean(),
   formaPagamento: z.enum(["DINHEIRO", "PIX"]).optional(),
   note: z.string().trim().max(500).optional(),
@@ -344,6 +347,9 @@ export async function demitirComRescisao(
     fgtsBalance: formData.get("fgtsBalance") || 0,
     applyAvisoNaoCumpridoDiscount: formData.get("applyAvisoNaoCumpridoDiscount") === "on",
     applyPendingAdvancesDiscount: formData.get("applyPendingAdvancesDiscount") === "on",
+    applyPendingDiscountsDiscount: formData.get("applyPendingDiscountsDiscount") === "on",
+    applyInssDiscount: formData.get("applyInssDiscount") === "on",
+    applyIrrfDiscount: formData.get("applyIrrfDiscount") === "on",
     jaPago: formData.get("jaPago") === "on",
     formaPagamento: formData.get("formaPagamento") || undefined,
     note: formData.get("note") || undefined,
@@ -385,6 +391,9 @@ export async function demitirComRescisao(
     pendingBonuses: pendingBonusesTotal,
     applyAvisoNaoCumpridoDiscount: parsed.data.applyAvisoNaoCumpridoDiscount,
     applyPendingAdvancesDiscount: parsed.data.applyPendingAdvancesDiscount,
+    applyPendingDiscountsDiscount: parsed.data.applyPendingDiscountsDiscount,
+    applyInssDiscount: parsed.data.applyInssDiscount,
+    applyIrrfDiscount: parsed.data.applyIrrfDiscount,
     dependents: employee.dependents,
     inssBrackets: settings.inssBrackets as unknown as TaxBracket[],
     irrfBrackets: settings.irrfBrackets as unknown as TaxBracket[],
@@ -426,10 +435,15 @@ export async function demitirComRescisao(
         feriasVencidas: result.feriasVencidas,
         feriasProporcionais: result.feriasProporcionais,
         decimoTerceiro: result.decimoTerceiroProporcional,
-        inssDeduzido: result.inssSaldoSalario + result.inssDecimoTerceiro,
-        irrfDeduzido: result.irrfSaldoSalario + result.irrfDecimoTerceiro,
+        inssDeduzido: parsed.data.applyInssDiscount
+          ? result.inssSaldoSalario + result.inssDecimoTerceiro
+          : 0,
+        irrfDeduzido: parsed.data.applyIrrfDiscount
+          ? result.irrfSaldoSalario + result.irrfDecimoTerceiro
+          : 0,
         adiantamentosDeduzidos:
-          (parsed.data.applyPendingAdvancesDiscount ? pendingAdvancesTotal : 0) + pendingDiscountsTotal,
+          (parsed.data.applyPendingAdvancesDiscount ? pendingAdvancesTotal : 0) +
+          (parsed.data.applyPendingDiscountsDiscount ? pendingDiscountsTotal : 0),
         descontoAvisoNaoCumprido: result.descontoAvisoNaoCumprido,
         totalLiquido: result.totalLiquido,
         fgtsBalanceInformado: parsed.data.fgtsBalance,
