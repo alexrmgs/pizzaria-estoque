@@ -131,8 +131,9 @@ export function AdvancesSection({
                   <TableCell className="text-right">
                     {!advance.settled && (
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
+                        className="text-destructive hover:text-destructive"
                         disabled={isPending}
                         onClick={() => {
                           if (confirm("Excluir este vale?")) handleDelete(advance.id);
