@@ -16,7 +16,6 @@ const advanceSchema = z.object({
   date: z.string().trim().min(1, "Informe a data."),
   amount: z.coerce.number().positive("O valor deve ser maior que zero."),
   description: z.string().trim().max(300).optional(),
-  formaPagamento: z.enum(["DINHEIRO", "PIX"]).default("DINHEIRO"),
 });
 
 export type AdvanceFormState = { error?: string } | undefined;
@@ -36,7 +35,6 @@ export async function createAdvance(
     date: formData.get("date"),
     amount: formData.get("amount"),
     description: formData.get("description") || undefined,
-    formaPagamento: formData.get("formaPagamento") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -56,7 +54,6 @@ export async function createAdvance(
         dueDate: date,
         status: "PAGA",
         paidDate: date,
-        paymentMethod: parsed.data.formaPagamento,
         note: "Gerada pelo lançamento de vale",
         userId: user.id,
         companyId: user.companyId,
@@ -92,9 +89,7 @@ export async function removeAdvance(id: string) {
   revalidatePath("/caixa");
 }
 
-export async function generateSalaryAdvances(
-  formaPagamento: "DINHEIRO" | "PIX" = "DINHEIRO",
-): Promise<{ created: number; skipped: number }> {
+export async function generateSalaryAdvances(): Promise<{ created: number; skipped: number }> {
   const user = await requirePermission("canManageFuncionarios");
 
   const brazilToday = todayInBrazil();
@@ -138,7 +133,6 @@ export async function generateSalaryAdvances(
             dueDate: day20,
             status: "PAGA",
             paidDate: day20,
-            paymentMethod: formaPagamento,
             note: "Gerada pelo adiantamento em lote do dia 20",
             userId: user.id,
             companyId: user.companyId,
