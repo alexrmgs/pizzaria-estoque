@@ -80,6 +80,9 @@ export function ClosePaymentDialog({
   const [applyFalta, setApplyFalta] = useState(false);
   const [faltaDays, setFaltaDays] = useState("0");
   const [applyAttendanceBonus, setApplyAttendanceBonus] = useState(false);
+  const [jaPago, setJaPago] = useState(false);
+  const [formaPagamento, setFormaPagamento] = useState<"DINHEIRO" | "PIX">("PIX");
+  const [dataPagamento, setDataPagamento] = useState("");
 
   function loadPreview() {
     startTransition(async () => {
@@ -157,6 +160,9 @@ export function ClosePaymentDialog({
           setApplyFalta(false);
           setFaltaDays("0");
           setApplyAttendanceBonus(false);
+          setJaPago(false);
+          setFormaPagamento("PIX");
+          setDataPagamento("");
         }
       }}
     >
@@ -224,6 +230,9 @@ export function ClosePaymentDialog({
                 name="applyAttendanceBonus"
                 value={applyAttendanceBonus ? "on" : ""}
               />
+              <input type="hidden" name="jaPago" value={jaPago ? "on" : ""} />
+              <input type="hidden" name="formaPagamento" value={jaPago ? formaPagamento : ""} />
+              <input type="hidden" name="dataPagamento" value={jaPago ? dataPagamento : ""} />
 
               <div className="flex flex-col gap-2">
                 <Label htmlFor="baseSalary">Salário base do período (R$)</Label>
@@ -460,6 +469,46 @@ export function ClosePaymentDialog({
                       vtVal,
                   )}
                 </span>
+              </div>
+
+              <div className="flex flex-col gap-2 rounded-lg border p-3">
+                <label htmlFor="jaPago-cb" className="flex items-center gap-2 text-sm">
+                  <Checkbox id="jaPago-cb" checked={jaPago} onCheckedChange={(v) => setJaPago(v === true)} />
+                  Já foi pago
+                </label>
+                {jaPago ? (
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="flex flex-col gap-1">
+                      <Label className="text-xs">Forma de pagamento</Label>
+                      <select
+                        value={formaPagamento}
+                        onChange={(e) => setFormaPagamento(e.target.value as "DINHEIRO" | "PIX")}
+                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                      >
+                        <option value="PIX">Pix</option>
+                        <option value="DINHEIRO">Dinheiro</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Label className="text-xs">Data do pagamento</Label>
+                      <Input
+                        type="date"
+                        value={dataPagamento}
+                        onChange={(e) => setDataPagamento(e.target.value)}
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Senão vai pra Contas a Pagar, vencimento no 5º dia útil do mês seguinte (
+                    {(() => {
+                      const [y, m] = periodEnd.split("-").map(Number);
+                      return nthBusinessDayOfMonth(y, m, 5).toLocaleDateString("pt-BR");
+                    })()}
+                    ).
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col gap-2">

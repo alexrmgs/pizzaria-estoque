@@ -85,6 +85,20 @@ export function ValeForm({ employees }: { employees: Employee[] }) {
             </Label>
             <Input id="description" name="description" placeholder="Ex: pizza broto" className="h-9" />
           </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="formaPagamento" className="text-xs">
+              Forma de pagamento
+            </Label>
+            <select
+              id="formaPagamento"
+              name="formaPagamento"
+              defaultValue="DINHEIRO"
+              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+            >
+              <option value="DINHEIRO">Dinheiro</option>
+              <option value="PIX">Pix</option>
+            </select>
+          </div>
           <Button type="submit" size="sm" disabled={isPending}>
             Lançar
           </Button>

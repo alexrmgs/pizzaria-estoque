@@ -6,7 +6,13 @@ import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { computePaymentPreview, type PaymentPreview } from "@/lib/payment-preview";
 import { getAppSettings } from "@/lib/settings";
-import { faltaAmount, inssAmount, irrfAmount, valeTransporteAmount } from "@/lib/payroll";
+import {
+  faltaAmount,
+  inssAmount,
+  irrfAmount,
+  nthBusinessDayOfMonth,
+  valeTransporteAmount,
+} from "@/lib/payroll";
 
 function combineDateTime(date: string, time: string, baseDate?: Date) {
   const [year, month, day] = date.split("-").map(Number);
@@ -279,6 +285,9 @@ const closePaymentSchema = z.object({
   faltaDays: z.coerce.number().min(0).default(0),
   applyAttendanceBonus: z.coerce.boolean(),
   note: z.string().trim().max(500).optional(),
+  jaPago: z.coerce.boolean(),
+  formaPagamento: z.enum(["DINHEIRO", "PIX"]).optional(),
+  dataPagamento: z.string().trim().optional(),
 });
 
 export type ClosePaymentFormState = { error?: string } | undefined;
@@ -300,6 +309,9 @@ export async function closePayment(
     faltaDays: formData.get("faltaDays") || 0,
     applyAttendanceBonus: formData.get("applyAttendanceBonus"),
     note: formData.get("note") || undefined,
+    jaPago: formData.get("jaPago") === "on",
+    formaPagamento: formData.get("formaPagamento") || undefined,
+    dataPagamento: formData.get("dataPagamento") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -365,6 +377,15 @@ export async function closePayment(
     irrfVal -
     vtVal;
 
+  // Pago no 5º dia útil do mês seguinte ao período fechado (padrão do ciclo
+  // mensal já usado no resto da tela), a menos que já tenha sido pago agora.
+  const dueDate = nthBusinessDayOfMonth(periodEnd.getUTCFullYear(), periodEnd.getUTCMonth() + 1, 5);
+  const paidDate = parsed.data.jaPago
+    ? parsed.data.dataPagamento
+      ? new Date(`${parsed.data.dataPagamento}T00:00:00Z`)
+      : new Date()
+    : null;
+
   try {
     await prisma.$transaction(async (tx) => {
       const raceOverlap = await tx.payment.findFirst({
@@ -373,6 +394,22 @@ export async function closePayment(
       if (raceOverlap) {
         throw new Error("__DUPLICATE_PAYMENT__");
       }
+
+      const periodLabel = `${parsed.data.periodStart.split("-").reverse().join("/")} a ${parsed.data.periodEnd.split("-").reverse().join("/")}`;
+      const payable = await tx.payable.create({
+        data: {
+          description: `Folha — ${employee.name} (${periodLabel})`,
+          category: "Folha de Pagamento",
+          amount: netAmount,
+          dueDate: paidDate ?? dueDate,
+          status: parsed.data.jaPago ? "PAGA" : "PENDENTE",
+          paidDate,
+          paymentMethod: parsed.data.jaPago ? parsed.data.formaPagamento || null : null,
+          note: "Gerada pelo fechamento de pagamento",
+          userId: user.id,
+          companyId: user.companyId,
+        },
+      });
 
       const payment = await tx.payment.create({
         data: {
@@ -399,6 +436,7 @@ export async function closePayment(
           attendanceBonusAmount: attendanceBonusVal,
           netAmount,
           note: parsed.data.note,
+          payableId: payable.id,
           userId: user.id,
         },
       });
@@ -430,14 +468,15 @@ export async function closePayment(
 
   revalidatePath(`/funcionarios/${employeeId}`);
   revalidatePath("/pagamentos");
+  revalidatePath("/caixa");
 }
 
 /**
  * Desfaz um pagamento já fechado: solta os vales e bônus/descontos que
- * tinham sido vinculados a ele (voltam a ficar pendentes) e apaga o
- * registro do pagamento. Assim o admin corrige o que precisar e fecha de
- * novo pelo fluxo normal, em vez de editar valores soltos que podem ficar
- * inconsistentes com o total.
+ * tinham sido vinculados a ele (voltam a ficar pendentes), apaga a conta
+ * gerada em Contas a Pagar/Pagas e o registro do pagamento. Assim o admin
+ * corrige o que precisar e fecha de novo pelo fluxo normal, em vez de editar
+ * valores soltos que podem ficar inconsistentes com o total.
  */
 export async function reopenPayment(employeeId: string, paymentId: string) {
   await requirePermission("canManageFuncionarios");
@@ -451,10 +490,14 @@ export async function reopenPayment(employeeId: string, paymentId: string) {
       where: { paymentId },
       data: { paymentId: null },
     });
-    await tx.payment.delete({ where: { id: paymentId, employeeId } });
+    const payment = await tx.payment.delete({ where: { id: paymentId, employeeId } });
+    if (payment.payableId) {
+      await tx.payable.delete({ where: { id: payment.payableId } }).catch(() => {});
+    }
   });
 
   revalidatePath(`/funcionarios/${employeeId}`);
   revalidatePath("/pagamentos");
   revalidatePath("/vales");
+  revalidatePath("/caixa");
 }
