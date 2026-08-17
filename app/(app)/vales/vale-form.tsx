@@ -14,9 +14,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createAdvance } from "./actions";
+import { todayInBrazil } from "@/lib/payroll";
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return todayInBrazil().toISOString().slice(0, 10);
 }
 
 type Employee = { id: string; name: string };

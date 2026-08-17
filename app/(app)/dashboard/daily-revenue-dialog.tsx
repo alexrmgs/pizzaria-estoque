@@ -31,12 +31,13 @@ import {
 import { cn } from "@/lib/utils";
 import { ChannelBadge } from "@/components/channel-badge";
 import { createDailyRevenueSplit, getDailyRevenueSplit } from "./actions";
+import { todayInBrazil } from "@/lib/payroll";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return todayInBrazil().toISOString().slice(0, 10);
 }
 
 export function DailyRevenueDialog({

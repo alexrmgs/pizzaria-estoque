@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { upsertFixedCost } from "./actions";
+import { todayInBrazil } from "@/lib/payroll";
 
 const CATEGORY_SUGGESTIONS = ["Aluguel", "Água", "Energia", "Folha de Pagamento", "Internet", "Manutenção"];
 
 function currentMonthISO() {
-  return new Date().toISOString().slice(0, 7);
+  return todayInBrazil().toISOString().slice(0, 7);
 }
 
 export function FixedCostForm({ storeId }: { storeId: string }) {

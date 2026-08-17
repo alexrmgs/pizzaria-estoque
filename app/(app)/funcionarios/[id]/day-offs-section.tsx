@@ -17,9 +17,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { addDayOff, deleteDayOff } from "./actions";
+import { todayInBrazil } from "@/lib/payroll";
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return todayInBrazil().toISOString().slice(0, 10);
 }
 
 type AbsenceType = "FOLGA" | "ATESTADO" | "FALTA" | "TRABALHA";

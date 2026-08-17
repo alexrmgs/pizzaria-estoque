@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { criarLote } from "./actions";
 import { imprimirTspl } from "../etiquetas/ble-print";
 import { buildProducaoTspl } from "../etiquetas/tspl";
+import { todayInBrazil } from "@/lib/payroll";
 
 const TEMP_SUGESTOES = [
   "2°C a -18°C",
@@ -19,7 +20,7 @@ const TEMP_SUGESTOES = [
 ];
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return todayInBrazil().toISOString().slice(0, 10);
 }
 
 function formatBR(iso: string) {

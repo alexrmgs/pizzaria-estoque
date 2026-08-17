@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { parseNfeXml } from "@/lib/nfe";
 import { extrairCupom } from "@/lib/ai-cupom";
+import { todayInBrazil } from "@/lib/payroll";
 import {
   focusConfigured,
   listarRecebidas,
@@ -389,7 +390,7 @@ export async function lancarNota(
       const descricao =
         `NF ${header.numero ?? ""} ${header.fornecedor ?? ""}`.trim() || "Nota fiscal";
       if (header.boleto) {
-        const due = header.vencimento || header.emissao || new Date().toISOString().slice(0, 10);
+        const due = header.vencimento || header.emissao || todayInBrazil().toISOString().slice(0, 10);
         const payable = await tx.payable.create({
           data: {
             description: descricao,
@@ -404,7 +405,7 @@ export async function lancarNota(
         });
         payableId = payable.id;
       } else if (header.jaPago) {
-        const pago = header.emissao || new Date().toISOString().slice(0, 10);
+        const pago = header.emissao || todayInBrazil().toISOString().slice(0, 10);
         const payable = await tx.payable.create({
           data: {
             description: descricao,

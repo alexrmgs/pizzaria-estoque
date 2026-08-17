@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
+import { todayInBrazil } from "@/lib/payroll";
 
 async function getOwnEmployee(userId: string) {
   const employee = await prisma.employee.findUnique({ where: { userId } });
@@ -58,7 +59,7 @@ export async function requestSwap(
     return { error: "Colega não encontrado." };
   }
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayInBrazil().toISOString().slice(0, 10);
   if (parsed.data.requesterDate < todayStr || parsed.data.targetDate < todayStr) {
     return { error: "Só dá pra trocar datas futuras." };
   }

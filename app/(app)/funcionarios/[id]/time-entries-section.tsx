@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { addTimeEntry, deleteTimeEntry } from "./actions";
 import { EditTimeEntryDialog } from "./edit-time-entry-dialog";
-import { formatShiftDuration } from "@/lib/payroll";
+import { formatShiftDuration, todayInBrazil } from "@/lib/payroll";
 
 type TimeEntry = {
   id: string;
@@ -49,7 +49,7 @@ function ProofPhoto({ photo, label }: { photo: string | null; label: string }) {
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return todayInBrazil().toISOString().slice(0, 10);
 }
 
 export function TimeEntriesSection({

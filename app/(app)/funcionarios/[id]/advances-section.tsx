@@ -16,12 +16,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { addAdvance, deleteAdvance } from "./actions";
+import { todayInBrazil } from "@/lib/payroll";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return todayInBrazil().toISOString().slice(0, 10);
 }
 
 type Advance = {

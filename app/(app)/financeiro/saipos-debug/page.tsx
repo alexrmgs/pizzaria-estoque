@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { fetchSaiposSales, saiposChannel, saiposChannelStore } from "@/lib/saipos";
+import { todayInBrazil } from "@/lib/payroll";
 import {
   Table,
   TableBody,
@@ -39,7 +40,7 @@ export default async function SaiposDebugPage({
 
   const selectedStoreId = storeId ?? stores[0]?.id ?? "";
   const selectedStore = stores.find((s) => s.id === selectedStoreId);
-  const selectedDate = isValidDate(date) ? date : new Date().toISOString().slice(0, 10);
+  const selectedDate = isValidDate(date) ? date : todayInBrazil().toISOString().slice(0, 10);
 
   let sales: Awaited<ReturnType<typeof fetchSaiposSales>> = [];
   let fetchError: string | null = null;
