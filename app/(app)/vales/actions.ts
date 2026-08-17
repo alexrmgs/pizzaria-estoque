@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
-import { SALARY_ADVANCE_RATE, SALARY_ADVANCE_TAG, todayInBrazil } from "@/lib/payroll";
+import {
+  admissionProrationFactor,
+  SALARY_ADVANCE_RATE,
+  SALARY_ADVANCE_TAG,
+  todayInBrazil,
+} from "@/lib/payroll";
 
 const advanceSchema = z.object({
   employeeId: z.string().trim().min(1, "Selecione um funcionário."),
@@ -82,13 +87,20 @@ export async function generateSalaryAdvances(): Promise<{ created: number; skipp
 
   if (toCreate.length > 0) {
     await prisma.advance.createMany({
-      data: toCreate.map((employee) => ({
-        employeeId: employee.id,
-        date: day20,
-        amount: Number(employee.baseSalary) * SALARY_ADVANCE_RATE,
-        description: SALARY_ADVANCE_TAG,
-        userId: user.id,
-      })),
+      data: toCreate.map((employee) => {
+        // Admitido no meio do mês recebe adiantamento proporcional aos dias
+        // trabalhados até agora — senão o vale de 40% saía sobre o salário
+        // cheio pra quem nem completou o mês ainda.
+        const prorated =
+          Number(employee.baseSalary) * admissionProrationFactor(employee.hireDate, monthEnd);
+        return {
+          employeeId: employee.id,
+          date: day20,
+          amount: prorated * SALARY_ADVANCE_RATE,
+          description: SALARY_ADVANCE_TAG,
+          userId: user.id,
+        };
+      }),
     });
   }
 
