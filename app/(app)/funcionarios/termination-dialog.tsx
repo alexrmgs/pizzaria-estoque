@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { getTerminationPreview, demitirComRescisao, type TerminationPreviewData } from "./actions";
 import { computeRescisao, type AvisoPrevioTipo, type TerminationReason } from "@/lib/rescisao";
 import { todayInBrazil } from "@/lib/payroll";
@@ -318,11 +319,11 @@ export function TerminationDialog({
                   </div>
                 )}
                 <div className="flex items-center justify-between gap-2">
-                  <label className="flex items-center gap-2 text-neutral-500">
-                    <input
-                      type="checkbox"
+                  <label htmlFor="applyInssDiscount-cb" className="flex items-center gap-2 text-neutral-500">
+                    <Checkbox
+                      id="applyInssDiscount-cb"
                       checked={applyInssDiscount}
-                      onChange={(e) => setApplyInssDiscount(e.target.checked)}
+                      onCheckedChange={(v) => setApplyInssDiscount(v === true)}
                     />
                     INSS (saldo + 13º)
                   </label>
@@ -331,11 +332,11 @@ export function TerminationDialog({
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <label className="flex items-center gap-2 text-neutral-500">
-                    <input
-                      type="checkbox"
+                  <label htmlFor="applyIrrfDiscount-cb" className="flex items-center gap-2 text-neutral-500">
+                    <Checkbox
+                      id="applyIrrfDiscount-cb"
                       checked={applyIrrfDiscount}
-                      onChange={(e) => setApplyIrrfDiscount(e.target.checked)}
+                      onCheckedChange={(v) => setApplyIrrfDiscount(v === true)}
                     />
                     IRRF (saldo + 13º)
                   </label>
@@ -345,11 +346,14 @@ export function TerminationDialog({
                 </div>
                 {preview.pendingAdvancesTotal > 0 && (
                   <div className="flex items-center justify-between gap-2">
-                    <label className="flex items-center gap-2 text-neutral-500">
-                      <input
-                        type="checkbox"
+                    <label
+                      htmlFor="applyPendingAdvancesDiscount-cb"
+                      className="flex items-center gap-2 text-neutral-500"
+                    >
+                      <Checkbox
+                        id="applyPendingAdvancesDiscount-cb"
                         checked={applyPendingAdvancesDiscount}
-                        onChange={(e) => setApplyPendingAdvancesDiscount(e.target.checked)}
+                        onCheckedChange={(v) => setApplyPendingAdvancesDiscount(v === true)}
                       />
                       Vales pendentes
                     </label>
@@ -360,11 +364,14 @@ export function TerminationDialog({
                 )}
                 {preview.pendingDiscountsTotal > 0 && (
                   <div className="flex items-center justify-between gap-2">
-                    <label className="flex items-center gap-2 text-neutral-500">
-                      <input
-                        type="checkbox"
+                    <label
+                      htmlFor="applyPendingDiscountsDiscount-cb"
+                      className="flex items-center gap-2 text-neutral-500"
+                    >
+                      <Checkbox
+                        id="applyPendingDiscountsDiscount-cb"
                         checked={applyPendingDiscountsDiscount}
-                        onChange={(e) => setApplyPendingDiscountsDiscount(e.target.checked)}
+                        onCheckedChange={(v) => setApplyPendingDiscountsDiscount(v === true)}
                       />
                       Descontos pendentes
                     </label>
@@ -375,11 +382,14 @@ export function TerminationDialog({
                 )}
                 {reason === "PEDIDO_DEMISSAO" && avisoPrevio === "DISPENSADO" && (
                   <div className="flex items-center justify-between gap-2">
-                    <label className="flex items-center gap-2 text-neutral-500">
-                      <input
-                        type="checkbox"
+                    <label
+                      htmlFor="applyAvisoNaoCumpridoDiscount-cb"
+                      className="flex items-center gap-2 text-neutral-500"
+                    >
+                      <Checkbox
+                        id="applyAvisoNaoCumpridoDiscount-cb"
                         checked={applyAvisoNaoCumpridoDiscount}
-                        onChange={(e) => setApplyAvisoNaoCumpridoDiscount(e.target.checked)}
+                        onCheckedChange={(v) => setApplyAvisoNaoCumpridoDiscount(v === true)}
                       />
                       Aviso prévio não cumprido
                     </label>
@@ -410,8 +420,8 @@ export function TerminationDialog({
             )}
 
             <div className="flex flex-col gap-2 rounded-lg border p-3">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={jaPago} onChange={(e) => setJaPago(e.target.checked)} />
+              <label htmlFor="jaPago-cb" className="flex items-center gap-2 text-sm">
+                <Checkbox id="jaPago-cb" checked={jaPago} onCheckedChange={(v) => setJaPago(v === true)} />
                 Já foi paga (senão vai pra Contas a Pagar, vencimento em 10 dias)
               </label>
               {jaPago && (
