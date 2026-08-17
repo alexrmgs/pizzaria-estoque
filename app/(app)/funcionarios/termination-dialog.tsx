@@ -45,6 +45,8 @@ export function TerminationDialog({
   const [avisoPrevio, setAvisoPrevio] = useState<AvisoPrevioTipo>("INDENIZADO");
   const [lastVacationDate, setLastVacationDate] = useState("");
   const [fgtsBalance, setFgtsBalance] = useState("0");
+  const [applyAvisoNaoCumpridoDiscount, setApplyAvisoNaoCumpridoDiscount] = useState(true);
+  const [applyPendingAdvancesDiscount, setApplyPendingAdvancesDiscount] = useState(true);
   const [jaPago, setJaPago] = useState(false);
   const [formaPagamento, setFormaPagamento] = useState<"DINHEIRO" | "PIX">("DINHEIRO");
   const [note, setNote] = useState("");
@@ -81,12 +83,23 @@ export function TerminationDialog({
       pendingAdvances: preview.pendingAdvancesTotal,
       pendingDiscounts: preview.pendingDiscountsTotal,
       pendingBonuses: preview.pendingBonusesTotal,
+      applyAvisoNaoCumpridoDiscount,
+      applyPendingAdvancesDiscount,
       dependents: preview.dependents,
       inssBrackets: preview.cltSettings.inssBrackets,
       irrfBrackets: preview.cltSettings.irrfBrackets,
       irrfDependentDeduction: preview.cltSettings.irrfDependentDeduction,
     });
-  }, [preview, dismissalDate, reason, avisoPrevio, lastVacationDate, fgtsBalance]);
+  }, [
+    preview,
+    dismissalDate,
+    reason,
+    avisoPrevio,
+    lastVacationDate,
+    fgtsBalance,
+    applyAvisoNaoCumpridoDiscount,
+    applyPendingAdvancesDiscount,
+  ]);
 
   function handleConfirm(formData: FormData) {
     if (
@@ -121,6 +134,8 @@ export function TerminationDialog({
           setReason("SEM_JUSTA_CAUSA");
           setAvisoPrevio("INDENIZADO");
           setFgtsBalance("0");
+          setApplyAvisoNaoCumpridoDiscount(true);
+          setApplyPendingAdvancesDiscount(true);
           setJaPago(false);
           setNote("");
           loadPreview();
@@ -153,6 +168,16 @@ export function TerminationDialog({
             <input type="hidden" name="avisoPrevio" value={reason === "JUSTA_CAUSA" ? "" : avisoPrevio} />
             <input type="hidden" name="lastVacationDate" value={lastVacationDate} />
             <input type="hidden" name="fgtsBalance" value={fgtsBalance} />
+            <input
+              type="hidden"
+              name="applyAvisoNaoCumpridoDiscount"
+              value={applyAvisoNaoCumpridoDiscount ? "on" : ""}
+            />
+            <input
+              type="hidden"
+              name="applyPendingAdvancesDiscount"
+              value={applyPendingAdvancesDiscount ? "on" : ""}
+            />
             <input type="hidden" name="jaPago" value={jaPago ? "on" : ""} />
             <input type="hidden" name="formaPagamento" value={jaPago ? formaPagamento : ""} />
             <input type="hidden" name="note" value={note} />
@@ -288,10 +313,17 @@ export function TerminationDialog({
                   </span>
                 </div>
                 {preview.pendingAdvancesTotal > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500">Vales pendentes</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="flex items-center gap-2 text-neutral-500">
+                      <input
+                        type="checkbox"
+                        checked={applyPendingAdvancesDiscount}
+                        onChange={(e) => setApplyPendingAdvancesDiscount(e.target.checked)}
+                      />
+                      Vales pendentes
+                    </label>
                     <span className="font-medium text-destructive">
-                      -{currency(preview.pendingAdvancesTotal)}
+                      -{currency(applyPendingAdvancesDiscount ? preview.pendingAdvancesTotal : 0)}
                     </span>
                   </div>
                 )}
@@ -303,9 +335,16 @@ export function TerminationDialog({
                     </span>
                   </div>
                 )}
-                {result.descontoAvisoNaoCumprido > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500">Aviso prévio não cumprido</span>
+                {reason === "PEDIDO_DEMISSAO" && avisoPrevio === "DISPENSADO" && (
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="flex items-center gap-2 text-neutral-500">
+                      <input
+                        type="checkbox"
+                        checked={applyAvisoNaoCumpridoDiscount}
+                        onChange={(e) => setApplyAvisoNaoCumpridoDiscount(e.target.checked)}
+                      />
+                      Aviso prévio não cumprido
+                    </label>
                     <span className="font-medium text-destructive">
                       -{currency(result.descontoAvisoNaoCumprido)}
                     </span>

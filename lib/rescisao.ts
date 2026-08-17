@@ -59,6 +59,10 @@ export type RescisaoInput = {
   pendingAdvances: number;
   pendingDiscounts: number;
   pendingBonuses: number;
+  /** Desconta 1 salário quando o empregado pede demissão e não cumpre o aviso — opcional, decisão do empregador. */
+  applyAvisoNaoCumpridoDiscount: boolean;
+  /** Desconta os vales/adiantamentos ainda em aberto do valor líquido — opcional, decisão do empregador. */
+  applyPendingAdvancesDiscount: boolean;
   dependents: number;
   inssBrackets: TaxBracket[];
   irrfBrackets: TaxBracket[];
@@ -127,7 +131,10 @@ export function computeRescisao(input: RescisaoInput): RescisaoResult {
 
   const projectedEndDate = avisoIndenizadoAplicavel ? addDays(dismissalDate, avisoDias) : dismissalDate;
   const avisoIndenizadoValor = avisoIndenizadoAplicavel ? (baseSalary / 30) * avisoDias : 0;
-  const descontoAvisoNaoCumprido = isPedidoDemissao && avisoPrevio === "DISPENSADO" ? baseSalary : 0;
+  const descontoAvisoNaoCumprido =
+    isPedidoDemissao && avisoPrevio === "DISPENSADO" && input.applyAvisoNaoCumpridoDiscount
+      ? baseSalary
+      : 0;
 
   const saldoSalario = (baseSalary / 30) * dismissalDate.getUTCDate();
 
@@ -172,12 +179,14 @@ export function computeRescisao(input: RescisaoInput): RescisaoResult {
     decimoTerceiroProporcional +
     input.pendingBonuses;
 
+  const pendingAdvancesApplied = input.applyPendingAdvancesDiscount ? input.pendingAdvances : 0;
+
   const totalDescontos =
     inssSaldoSalario +
     inssDecimoTerceiro +
     irrfSaldoSalario +
     irrfDecimoTerceiro +
-    input.pendingAdvances +
+    pendingAdvancesApplied +
     input.pendingDiscounts +
     descontoAvisoNaoCumprido;
 
