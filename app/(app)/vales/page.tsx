@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { ValeForm } from "./vale-form";
-import { GenerateAdvancesButton } from "./generate-advances-button";
 import { ValeMonthSection } from "./vale-month-section";
 
 export default async function ValesPage() {
@@ -10,6 +9,7 @@ export default async function ValesPage() {
   const [employees, advances] = await Promise.all([
     prisma.employee.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     prisma.advance.findMany({
+      where: { kind: "VALE" },
       orderBy: { date: "desc" },
       take: 300,
       include: { employee: true },
@@ -60,14 +60,12 @@ export default async function ValesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold uppercase">Vales</h1>
-          <p className="text-sm text-neutral-500">
-            Lançamento rápido de vales para qualquer funcionário.
-          </p>
-        </div>
-        <GenerateAdvancesButton />
+      <div>
+        <h1 className="text-2xl font-semibold uppercase">Vales</h1>
+        <p className="text-sm text-neutral-500">
+          Vale-comida — lançamento rápido pra qualquer funcionário. O adiantamento quinzenal fica
+          em Folha de Pagamento.
+        </p>
       </div>
 
       <ValeForm employees={employees.map((e) => ({ id: e.id, name: e.name }))} />

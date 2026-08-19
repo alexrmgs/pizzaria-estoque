@@ -6,7 +6,6 @@ import {
   formatShiftDuration,
   nthBusinessDayOfMonth,
   previousMonthRange,
-  SALARY_ADVANCE_TAG,
   todayInBrazil,
 } from "@/lib/payroll";
 import { computePaymentPreview } from "@/lib/payment-preview";
@@ -21,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ClosePaymentDialog } from "../funcionarios/close-payment-dialog";
-import { GenerateAdvancesButton } from "../vales/generate-advances-button";
+import { GenerateAdvancesButton } from "./generate-advances-button";
 import { DeleteValeButton } from "../vales/delete-vale-button";
 import { PaymentMonthSection } from "./payment-month-section";
 
@@ -50,7 +49,7 @@ export default async function PagamentosPage() {
         where: { paymentId: null, date: { gte: prevMonth.start, lte: prevMonth.end } },
       }),
       prisma.advance.findMany({
-        where: { description: SALARY_ADVANCE_TAG, date: { gte: monthStart, lte: monthEnd } },
+        where: { kind: "ADIANTAMENTO", date: { gte: monthStart, lte: monthEnd } },
         orderBy: { date: "desc" },
         include: { employee: { select: { name: true } } },
       }),
@@ -70,9 +69,7 @@ export default async function PagamentosPage() {
   const pendingOutrosValesByEmployee = new Map<string, number>();
   for (const advance of prevMonthPendingAdvances) {
     const map =
-      advance.description === SALARY_ADVANCE_TAG
-        ? pendingAdiantamentoByEmployee
-        : pendingOutrosValesByEmployee;
+      advance.kind === "ADIANTAMENTO" ? pendingAdiantamentoByEmployee : pendingOutrosValesByEmployee;
     map.set(advance.employeeId, (map.get(advance.employeeId) ?? 0) + Number(advance.amount));
   }
   const lastPaymentByEmployee = new Map(lastPayments.map((p) => [p.employeeId, p]));
@@ -187,7 +184,7 @@ export default async function PagamentosPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold uppercase">Pagamentos</h1>
+        <h1 className="text-2xl font-semibold uppercase">Folha de Pagamento</h1>
         <p className="text-sm text-neutral-500">
           Feche o pagamento de qualquer funcionário direto por aqui, sem precisar entrar no
           cadastro de cada um.
@@ -303,11 +300,11 @@ export default async function PagamentosPage() {
                   // lista da tabela "A pagar" (essa é só do mês anterior).
                   const adiantamento =
                     preview?.advanceItems
-                      .filter((a) => a.description === SALARY_ADVANCE_TAG)
+                      .filter((a) => a.kind === "ADIANTAMENTO")
                       .reduce((sum, a) => sum + a.amount, 0) ?? 0;
                   const outrosVales =
                     preview?.advanceItems
-                      .filter((a) => a.description !== SALARY_ADVANCE_TAG)
+                      .filter((a) => a.kind !== "ADIANTAMENTO")
                       .reduce((sum, a) => sum + a.amount, 0) ?? 0;
                   const excessHours = preview ? preview.overtimeHours + preview.bankedHours : 0;
                   const regularHours = preview ? preview.totalHours - excessHours : 0;

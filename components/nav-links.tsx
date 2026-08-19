@@ -117,7 +117,7 @@ export function NavLinks({
         { href: "/ponto-equipe", label: "Ponto da Equipe" },
         { href: "/ponto-totem", label: "Ponto por Facial" },
         { href: "/escalas", label: "Escalas" },
-        { href: "/pagamentos", label: "Pagamentos" },
+        { href: "/pagamentos", label: "Folha de Pagamento" },
         { href: "/vales", label: "Vales" },
       ]
     : [];

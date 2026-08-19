@@ -191,23 +191,54 @@ export async function addAdvance(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  await prisma.advance.create({
-    data: {
-      employeeId,
-      date: new Date(`${parsed.data.date}T00:00:00`),
-      amount: parsed.data.amount,
-      description: parsed.data.description,
-      userId: user.id,
-    },
+  const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+  if (!employee) return { error: "Funcionário não encontrado." };
+
+  const date = new Date(`${parsed.data.date}T00:00:00`);
+
+  await prisma.$transaction(async (tx) => {
+    const payable = await tx.payable.create({
+      data: {
+        description: `Vale — ${employee.name}${parsed.data.description ? ` (${parsed.data.description})` : ""}`,
+        category: "Vale-comida",
+        amount: parsed.data.amount,
+        dueDate: date,
+        status: "PAGA",
+        paidDate: date,
+        note: "Gerada pelo lançamento de vale",
+        userId: user.id,
+        companyId: user.companyId,
+      },
+    });
+    await tx.advance.create({
+      data: {
+        employeeId,
+        date,
+        amount: parsed.data.amount,
+        description: parsed.data.description,
+        kind: "VALE",
+        payableId: payable.id,
+        userId: user.id,
+      },
+    });
   });
 
   revalidatePath(`/funcionarios/${employeeId}`);
+  revalidatePath("/vales");
+  revalidatePath("/pagamentos");
+  revalidatePath("/caixa");
 }
 
 export async function deleteAdvance(employeeId: string, id: string) {
   await requirePermission("canManageFuncionarios");
-  await prisma.advance.delete({ where: { id, paymentId: null } });
+  const advance = await prisma.advance.delete({ where: { id, paymentId: null } });
+  if (advance.payableId) {
+    await prisma.payable.delete({ where: { id: advance.payableId } }).catch(() => {});
+  }
   revalidatePath(`/funcionarios/${employeeId}`);
+  revalidatePath("/vales");
+  revalidatePath("/pagamentos");
+  revalidatePath("/caixa");
 }
 
 // ---------- Bônus / Descontos ----------

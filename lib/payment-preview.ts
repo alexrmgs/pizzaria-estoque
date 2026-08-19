@@ -40,7 +40,13 @@ export type PaymentPreview = {
   netAmount: number;
   bonusItems: { id: string; date: string; amount: number; description: string | null }[];
   discountItems: { id: string; date: string; amount: number; description: string | null }[];
-  advanceItems: { id: string; date: string; amount: number; description: string | null }[];
+  advanceItems: {
+    id: string;
+    date: string;
+    amount: number;
+    description: string | null;
+    kind: "VALE" | "ADIANTAMENTO";
+  }[];
   attendanceScore: number;
   lateOccurrences: number;
   absenceCount: number;
@@ -184,6 +190,7 @@ export async function computePaymentPreview(
     date: a.date.toISOString().slice(0, 10),
     amount: Number(a.amount),
     description: a.description,
+    kind: a.kind,
   }));
 
   const bonusTotal = bonusItems.reduce((sum, i) => sum + i.amount, 0);

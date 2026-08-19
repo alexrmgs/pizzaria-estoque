@@ -55,7 +55,7 @@ export function PaymentSection({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-lg">Pagamentos</CardTitle>
+        <CardTitle className="text-lg">Folha de Pagamento</CardTitle>
         <ClosePaymentDialog
           employeeId={employeeId}
           baseSalary={baseSalary}

@@ -4,7 +4,6 @@ import {
   formatShiftDuration,
   lateMinutes,
   nightHours,
-  SALARY_ADVANCE_TAG,
   shiftHours,
   todayInBrazil,
   type AttendanceStreakTier,
@@ -92,7 +91,7 @@ export default async function MeuPontoPage() {
       take: 30,
     }),
     prisma.advance.findMany({
-      where: { employeeId: employee.id },
+      where: { employeeId: employee.id, kind: "VALE" },
       orderBy: { date: "desc" },
       take: 20,
     }),
@@ -105,10 +104,10 @@ export default async function MeuPontoPage() {
 
   const openEntry = entries.find((entry) => !entry.clockOut);
   // "Meus vales" é só vale-comida (pego na pizzaria) — o adiantamento
-  // quinzenal de 40% é outra coisa (gerado em lote pro RH) e não entra aqui,
-  // mesmo descontando do mesmo jeito no próximo pagamento.
-  const foodAdvances = advances.filter((a) => a.description !== SALARY_ADVANCE_TAG);
-  const pendingAdvancesTotal = foodAdvances
+  // quinzenal de 40% é outra coisa (gerado em lote pro RH) e já vem excluído
+  // pela busca acima (kind: "VALE"), mesmo descontando do mesmo jeito no
+  // próximo pagamento.
+  const pendingAdvancesTotal = advances
     .filter((a) => a.paymentId === null)
     .reduce((sum, a) => sum + Number(a.amount), 0);
 
@@ -594,14 +593,14 @@ export default async function MeuPontoPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {foodAdvances.length === 0 && (
+                    {advances.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={4} className="text-center text-neutral-500">
                           Nenhum vale lançado ainda.
                         </TableCell>
                       </TableRow>
                     )}
-                    {foodAdvances.map((advance) => (
+                    {advances.map((advance) => (
                       <TableRow key={advance.id}>
                         <TableCell>{advance.date.toISOString().slice(0, 10)}</TableCell>
                         <TableCell>{currency(Number(advance.amount))}</TableCell>

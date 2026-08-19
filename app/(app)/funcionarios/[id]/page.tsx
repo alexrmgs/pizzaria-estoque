@@ -44,7 +44,11 @@ export default async function FuncionarioDetalhePage({
   const [timeEntries, dayOffs, advances, adjustments, payments, users, stores] = await Promise.all([
     prisma.timeEntry.findMany({ where: { employeeId: id }, orderBy: { date: "desc" }, take: 60 }),
     prisma.dayOff.findMany({ where: { employeeId: id }, orderBy: { date: "desc" }, take: 60 }),
-    prisma.advance.findMany({ where: { employeeId: id }, orderBy: { date: "desc" }, take: 60 }),
+    prisma.advance.findMany({
+      where: { employeeId: id, kind: "VALE" },
+      orderBy: { date: "desc" },
+      take: 60,
+    }),
     prisma.payrollAdjustment.findMany({
       where: { employeeId: id },
       orderBy: { date: "desc" },

@@ -667,6 +667,14 @@ enum AdjustmentType {
   DESCONTO
 }
 
+// VALE = vale-comida pego na pizzaria; ADIANTAMENTO = adiantamento quinzenal
+// (40% do salário, gerado em lote). Os dois descontam do pagamento do mês da
+// mesma forma, mas são mostrados em lugares diferentes pro funcionário/admin.
+enum AdvanceKind {
+  VALE
+  ADIANTAMENTO
+}
+
 model PayrollAdjustment {
   id          String         @id @default(cuid())
   employee    Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -692,6 +700,7 @@ model Advance {
   date        DateTime @db.Date
   amount      Decimal  @db.Decimal(10, 2)
   description String?
+  kind          AdvanceKind  @default(VALE)
   paymentId     String?
   payment       Payment?     @relation(fields: [paymentId], references: [id])
   terminationId String?

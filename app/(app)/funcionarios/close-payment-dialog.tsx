@@ -23,7 +23,6 @@ import {
   irrfAmount,
   nthBusinessDayOfMonth,
   previousMonthRange,
-  SALARY_ADVANCE_TAG,
   valeTransporteAmount,
 } from "@/lib/payroll";
 
@@ -142,7 +141,7 @@ export function ClosePaymentDialog({
 
   const adiantamentoTotal =
     preview?.advanceItems
-      .filter((item) => item.description === SALARY_ADVANCE_TAG)
+      .filter((item) => item.kind === "ADIANTAMENTO")
       .reduce((sum, item) => sum + item.amount, 0) ?? 0;
   const outrosValesTotal = (preview?.advancesTotal ?? 0) - adiantamentoTotal;
 
