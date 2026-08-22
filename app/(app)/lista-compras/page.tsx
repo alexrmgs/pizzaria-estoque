@@ -83,6 +83,7 @@ export default async function ListaComprasPage() {
   await requirePermission("canManageEstoque");
 
   const ingredients = await prisma.ingredient.findMany({
+    where: { active: true },
     orderBy: { name: "asc" },
     include: { category: true },
   });

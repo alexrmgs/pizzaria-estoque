@@ -75,6 +75,11 @@ function IngredientsTable({
                   <Link href={`/estoque/${ingredient.id}`} className="hover:underline">
                     {ingredient.name}
                   </Link>
+                  {!ingredient.active && (
+                    <Badge variant="secondary" className="ml-2">
+                      Arquivado
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell className="text-neutral-500">{ingredient.category?.name ?? "—"}</TableCell>
                 <TableCell>{ingredient.unit}</TableCell>
@@ -118,7 +123,11 @@ function IngredientsTable({
                           correctionNetWeight: ingredient.correctionNetWeight?.toString() ?? null,
                         }}
                       />
-                      <DeleteIngredientButton id={ingredient.id} name={ingredient.name} />
+                      <DeleteIngredientButton
+                        id={ingredient.id}
+                        name={ingredient.name}
+                        active={ingredient.active}
+                      />
                     </div>
                   </TableCell>
                 )}
@@ -148,7 +157,11 @@ export default async function EstoquePage({
   if (categoryId) where.categoryId = categoryId;
 
   const [ingredientsRaw, categories] = await Promise.all([
-    prisma.ingredient.findMany({ where, orderBy: { name: "asc" }, include: { category: true } }),
+    prisma.ingredient.findMany({
+      where,
+      orderBy: [{ active: "desc" }, { name: "asc" }],
+      include: { category: true },
+    }),
     prisma.category.findMany({ orderBy: { name: "asc" } }),
   ]);
 

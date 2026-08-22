@@ -108,6 +108,7 @@ export default async function MovimentacoesPage() {
 
   const [ingredientRows, entradas, saidas, fornecedoresRaw] = await Promise.all([
     prisma.ingredient.findMany({
+      where: { active: true },
       orderBy: { name: "asc" },
       select: { id: true, name: true, unit: true, currentStock: true },
     }),

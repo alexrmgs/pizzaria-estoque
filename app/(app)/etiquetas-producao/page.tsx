@@ -33,7 +33,7 @@ export default async function EtiquetasProducaoPage() {
 
   const [ingredientsRaw, funcionarios, settings, labelsRaw] = await Promise.all([
     prisma.ingredient.findMany({
-      where: { isProduced: true },
+      where: { isProduced: true, active: true },
       orderBy: { name: "asc" },
       select: { id: true, name: true, unit: true },
     }),

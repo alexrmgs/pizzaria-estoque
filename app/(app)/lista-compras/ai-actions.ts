@@ -20,6 +20,7 @@ export async function analisarCompras(): Promise<{ text?: string; error?: string
 
     const [ingredientes, movs] = await Promise.all([
       prisma.ingredient.findMany({
+        where: { active: true },
         orderBy: { name: "asc" },
         select: {
           id: true,

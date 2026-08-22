@@ -209,6 +209,7 @@ export default async function ReceitasPage() {
       },
     }),
     prisma.ingredient.findMany({
+      where: { active: true },
       orderBy: { name: "asc" },
       select: {
         id: true,

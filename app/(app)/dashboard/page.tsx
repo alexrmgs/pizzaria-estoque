@@ -47,7 +47,7 @@ export default async function DashboardPage({
 
   const [ingredients, recentMovements, lotesVencendoRaw] = canManageEstoque
     ? await Promise.all([
-        prisma.ingredient.findMany({ orderBy: { name: "asc" } }),
+        prisma.ingredient.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
         prisma.stockMovement.findMany({
           orderBy: { createdAt: "desc" },
           take: 8,

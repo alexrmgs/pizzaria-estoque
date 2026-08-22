@@ -8,7 +8,7 @@ export default async function ProducaoPage() {
   await requirePermission("canManageEstoque");
 
   const ingredientsRaw = await prisma.ingredient.findMany({
-    where: { isProduced: true },
+    where: { isProduced: true, active: true },
     orderBy: [{ name: "asc" }],
     include: { category: true },
   });

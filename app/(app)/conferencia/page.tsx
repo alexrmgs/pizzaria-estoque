@@ -17,7 +17,7 @@ export default async function ConferenciaPage({
 
   const [ingredients, categories] = await Promise.all([
     prisma.ingredient.findMany({
-      where: categoryId ? { categoryId } : undefined,
+      where: categoryId ? { categoryId, active: true } : { active: true },
       orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
       include: { category: true },
     }),

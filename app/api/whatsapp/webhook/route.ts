@@ -111,6 +111,7 @@ export async function POST(req: NextRequest) {
     }
 
     const ingredients = await prisma.ingredient.findMany({
+      where: { active: true },
       select: { id: true, name: true, unit: true },
       orderBy: { name: "asc" },
     });

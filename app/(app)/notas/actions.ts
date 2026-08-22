@@ -87,7 +87,7 @@ export async function criarNotaDeXml(xmlText: string): Promise<{ id?: string; er
   }
   if (parsed.items.length === 0) return { error: "A nota não tem itens." };
 
-  const ingredients = await prisma.ingredient.findMany({ select: { id: true, name: true } });
+  const ingredients = await prisma.ingredient.findMany({ where: { active: true }, select: { id: true, name: true } });
 
   const nota = await prisma.notaFiscal.create({
     data: {
@@ -134,7 +134,7 @@ export async function sincronizarRecebidas(): Promise<SyncRecebidasResult> {
     return { configurado: false, error: "Integração Focus NFe não configurada." };
   }
 
-  const ingredients = await prisma.ingredient.findMany({ select: { id: true, name: true } });
+  const ingredients = await prisma.ingredient.findMany({ where: { active: true }, select: { id: true, name: true } });
 
   let novas = 0;
   let semXml = 0;
@@ -253,7 +253,7 @@ export async function criarNotaDaFoto(input: {
     return { error: "Não encontrei itens no cupom. Tente uma foto mais nítida e reta." };
   }
 
-  const ingredients = await prisma.ingredient.findMany({ select: { id: true, name: true } });
+  const ingredients = await prisma.ingredient.findMany({ where: { active: true }, select: { id: true, name: true } });
   const nota = await prisma.notaFiscal.create({
     data: {
       numero: cupom.numero,

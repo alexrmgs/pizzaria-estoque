@@ -13,7 +13,11 @@ export default async function NotaPage({ params }: { params: Promise<{ id: strin
       where: { id },
       include: { items: { orderBy: { createdAt: "asc" } } },
     }),
-    prisma.ingredient.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, unit: true } }),
+    prisma.ingredient.findMany({
+      where: { active: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, unit: true },
+    }),
   ]);
 
   if (!nota) notFound();

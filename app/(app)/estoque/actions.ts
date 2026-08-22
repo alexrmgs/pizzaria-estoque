@@ -215,7 +215,10 @@ export async function recalcularEstoqueAceitavel(): Promise<{ atualizados: numbe
   const janelaInicio = new Date();
   janelaInicio.setDate(janelaInicio.getDate() - 90);
 
-  const ingredients = await prisma.ingredient.findMany({ select: { id: true } });
+  const ingredients = await prisma.ingredient.findMany({
+    where: { active: true },
+    select: { id: true },
+  });
 
   let atualizados = 0;
   let semHistorico = 0;
@@ -248,16 +251,32 @@ export async function recalcularEstoqueAceitavel(): Promise<{ atualizados: numbe
   return { atualizados, semHistorico };
 }
 
-export async function deleteIngredient(id: string) {
+/**
+ * Ingrediente com movimentações, receitas etc. vinculadas não pode ser
+ * excluído de verdade (quebraria o histórico) — nesse caso `blocked: true`
+ * avisa o chamador pra oferecer arquivar em vez de excluir.
+ */
+export async function deleteIngredient(id: string): Promise<{ blocked?: boolean }> {
   await requirePermission("canManageEstoque");
 
   try {
     await prisma.ingredient.delete({ where: { id } });
   } catch {
-    throw new Error(
-      "Esse ingrediente já tem movimentações ou receitas vinculadas e não pode ser excluído.",
-    );
+    return { blocked: true };
   }
+
+  revalidatePath("/estoque");
+  revalidatePath("/dashboard");
+  revalidatePath("/lista-compras");
+  revalidatePath("/producao");
+  revalidatePath("/receitas");
+  return {};
+}
+
+export async function setIngredientActive(id: string, active: boolean) {
+  await requirePermission("canManageEstoque");
+
+  await prisma.ingredient.update({ where: { id }, data: { active } });
 
   revalidatePath("/estoque");
   revalidatePath("/dashboard");
