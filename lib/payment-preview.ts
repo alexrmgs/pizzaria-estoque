@@ -102,6 +102,13 @@ export async function computePaymentPreview(
   });
   const priorStreakMonths = previousPayment?.attendanceStreakMonths ?? 0;
 
+  // Dia anterior à admissão nunca conta como falta/atestado — evita zerar o
+  // bônus de quem entrou no meio do mês por um registro (manual ou de
+  // template de escala) datado de antes dele existir como funcionário.
+  const dayOffsSinceHire = employee.hireDate
+    ? dayOffs.filter((d) => d.date >= employee.hireDate!)
+    : dayOffs;
+
   const baseSalary = Number(employee.baseSalary);
   // Salário proporcional se o funcionário foi admitido no meio do mês que está
   // sendo pago (senão receberia o mês cheio sem ter trabalhado o mês todo).
@@ -130,14 +137,16 @@ export async function computePaymentPreview(
   const nightPremium = nightPremiumAmount(baseSalary, totalNightHours);
   const lateDiscountPay = lateDiscountAmount(baseSalary, lateDiscountMinutesTotal);
 
-  const absenceCount = dayOffs.filter((d) => d.type === "ATESTADO" || d.type === "FALTA").length;
+  const absenceCount = dayOffsSinceHire.filter(
+    (d) => d.type === "ATESTADO" || d.type === "FALTA",
+  ).length;
 
   // Desconto de falta conforme a CLT/Lei 605-49: 1/30 do salário por dia,
   // contando o dia da falta em si + o DSR (descanso semanal remunerado) da
   // semana em que ela ocorreu + qualquer feriado dentro dessa mesma semana
   // — detectado a partir das faltas já registradas no período (em
   // Funcionários → Folgas, atestados e faltas), sem precisar digitar de novo.
-  const faltaDatesAuto = dayOffs
+  const faltaDatesAuto = dayOffsSinceHire
     .filter((d) => d.type === "FALTA")
     .map((d) => d.date.toISOString().slice(0, 10))
     .sort();

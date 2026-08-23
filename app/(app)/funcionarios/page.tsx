@@ -51,13 +51,14 @@ export default async function FuncionariosPage() {
         id: true,
         name: true,
         scheduledStart: true,
+        hireDate: true,
         timeEntries: {
           where: { date: { gte: monthStart, lte: monthEnd } },
           select: { clockIn: true },
         },
         dayOffs: {
           where: { date: { gte: monthStart, lte: monthEnd }, type: { in: ["FALTA", "ATESTADO"] } },
-          select: { type: true },
+          select: { type: true, date: true },
         },
       },
     }),
@@ -73,7 +74,12 @@ export default async function FuncionariosPage() {
       const atrasos = emp.timeEntries.filter(
         (e) => lateMinutes(emp.scheduledStart, e.clockIn) > 0,
       ).length;
-      const faltas = emp.dayOffs.length;
+      // Dia anterior à admissão não conta falta — não zera o bônus de quem
+      // entrou no meio do mês.
+      const faltasNoMes = emp.hireDate
+        ? emp.dayOffs.filter((d) => d.date >= emp.hireDate!)
+        : emp.dayOffs;
+      const faltas = faltasNoMes.length;
       const temFaltaOuAtestado = faltas > 0;
       const pontualidade = attendanceScore(atrasos, settings.latePenaltyPoints);
       const score = Math.max(0, Math.round(pontualidade - faltas * FALTA_PENALTY));
