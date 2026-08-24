@@ -124,11 +124,22 @@ export function buildProducaoTspl(input: {
   linhas.push(`TEXT ${margem},${y},"${FONT}",0,${escProduto},${escProduto},"${produto}"`);
   y += CHAR_H * escProduto + 10;
 
-  const linhasDet: string[] = [];
-  const tempPeso = [limpar(input.temperatura), limpar(input.peso)].filter(Boolean).join("   ");
-  if (tempPeso) linhasDet.push(tempPeso);
-  linhasDet.push(`FABRIC: ${input.fabricacao}`);
-  linhasDet.push(`VALIDADE: ${input.validade}`);
+  const temperatura = limpar(input.temperatura);
+  if (temperatura) {
+    linhas.push(`TEXT ${margem},${y},"1",0,1,1,"${temperatura}"`);
+    y += 20;
+  }
+
+  // Peso/quantidade em destaque — é a informação que mais importa bater o
+  // olho na cozinha, por isso sai bem maior que o resto dos detalhes.
+  const peso = limpar(input.peso);
+  if (peso) {
+    const escPeso = escalaQueCabe(peso, disp, 2);
+    linhas.push(`TEXT ${margem},${y},"${FONT}",0,${escPeso},${escPeso},"${peso}"`);
+    y += CHAR_H * escPeso + 6;
+  }
+
+  const linhasDet: string[] = [`FABRIC: ${input.fabricacao}`, `VALIDADE: ${input.validade}`];
   if (input.responsavel.trim()) linhasDet.push(`RESP: ${limpar(input.responsavel)}`);
   for (const l of linhasDet) {
     linhas.push(`TEXT ${margem},${y},"1",0,1,1,"${l}"`);

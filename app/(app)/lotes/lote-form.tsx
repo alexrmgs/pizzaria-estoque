@@ -66,6 +66,7 @@ export function LoteForm({
   const validadeISO = /^\d{4}-\d{2}-\d{2}$/.test(producao) ? addDaysISO(producao, dias) : "";
   const titleFont = Math.max(11, Math.min(widthMm, heightMm * 1.6) * 0.14);
   const lineFont = titleFont * 0.52;
+  const qtyFont = titleFont * 0.8;
   const logoMm = Math.max(6, heightMm * 0.12);
   const qrMm = Math.max(14, Math.min(30, heightMm - 4));
 
@@ -253,9 +254,11 @@ export function LoteForm({
                 {ingredient?.name || "PRODUTO"}
               </p>
               <div className="my-0.5 border-t border-black" />
-              <div className="flex justify-between font-bold" style={{ fontSize: `${lineFont}pt` }}>
-                <span>{temperatura.trim() || "—"}</span>
-                <span>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-bold" style={{ fontSize: `${lineFont}pt` }}>
+                  {temperatura.trim() || "—"}
+                </span>
+                <span className="font-black" style={{ fontSize: `${qtyFont}pt` }}>
                   {quantidade.trim()} {ingredient?.unit ?? ""}
                 </span>
               </div>
