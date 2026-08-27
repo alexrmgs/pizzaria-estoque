@@ -7,11 +7,19 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "@/components/ui/combobox";
 import { salvarRascunho, lancarNota, type NotaItemInput } from "../actions";
 
 type Ingredient = { id: string; name: string; unit: string };
 
-type ItemRow = {
+type ItemRowInput = {
   description: string;
   unit: string | null;
   quantity: string;
@@ -19,6 +27,8 @@ type ItemRow = {
   ingredientId: string;
   qtdEstoque: string;
 };
+
+type ItemRow = ItemRowInput & { key: string };
 
 type Props = {
   notaId: string;
@@ -34,7 +44,7 @@ type Props = {
     formaPagamento: "DINHEIRO" | "PIX" | null;
     total: string;
   };
-  itens: ItemRow[];
+  itens: ItemRowInput[];
 };
 
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -52,25 +62,42 @@ export function Conferencia({ notaId, lancada, ingredients, header, itens }: Pro
     header.formaPagamento || "DINHEIRO",
   );
   const [total, setTotal] = useState(header.total);
-  const [rows, setRows] = useState<ItemRow[]>(itens);
+  const [rows, setRows] = useState<ItemRow[]>(() =>
+    itens.map((it, idx) => ({ ...it, key: `existing-${idx}` })),
+  );
   const [saving, setSaving] = useState(false);
 
   const ingUnit = useMemo(
     () => new Map(ingredients.map((i) => [i.id, i.unit])),
     [ingredients],
   );
+  const ingredientItems = useMemo(
+    () => [
+      { value: "", label: "— não dar entrada —" },
+      ...ingredients.map((i) => ({ value: i.id, label: i.name })),
+    ],
+    [ingredients],
+  );
 
-  function setRow(i: number, patch: Partial<ItemRow>) {
-    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  function setRow(key: string, patch: Partial<ItemRow>) {
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
   function addRow() {
     setRows((prev) => [
       ...prev,
-      { description: "", unit: null, quantity: "0", unitValue: "0", ingredientId: "", qtdEstoque: "0" },
+      {
+        key: `row-${prev.length}-${Date.now()}`,
+        description: "",
+        unit: null,
+        quantity: "0",
+        unitValue: "0",
+        ingredientId: "",
+        qtdEstoque: "0",
+      },
     ]);
   }
-  function removeRow(i: number) {
-    setRows((prev) => prev.filter((_, idx) => idx !== i));
+  function removeRow(key: string) {
+    setRows((prev) => prev.filter((r) => r.key !== key));
   }
 
   function toPayload(): { header: Parameters<typeof salvarRascunho>[1]; items: NotaItemInput[] } {
@@ -247,37 +274,47 @@ export function Conferencia({ notaId, lancada, ingredients, header, itens }: Pro
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => {
+              {rows.map((r) => {
                 const un = r.ingredientId ? ingUnit.get(r.ingredientId) : null;
                 const linhaTotal = (Number(r.quantity) || 0) * (Number(r.unitValue) || 0);
                 return (
-                  <tr key={i} className="border-b align-top">
+                  <tr key={r.key} className="border-b align-top">
                     <td className="p-2">
                       <Input
                         value={r.description}
-                        onChange={(e) => setRow(i, { description: e.target.value })}
+                        onChange={(e) => setRow(r.key, { description: e.target.value })}
                         disabled={lancada}
                         className="h-8"
                       />
                       {r.unit && <span className="text-[11px] text-neutral-400">un. nota: {r.unit}</span>}
                     </td>
                     <td className="p-2">
-                      <select
-                        value={r.ingredientId}
-                        onChange={(e) => setRow(i, { ingredientId: e.target.value })}
+                      <Combobox
+                        items={ingredientItems}
+                        defaultValue={ingredientItems.find((it) => it.value === r.ingredientId)}
                         disabled={lancada}
-                        className={
-                          "h-8 w-full rounded-md border px-2 text-sm " +
-                          (r.ingredientId ? "border-input" : "border-amber-400 bg-amber-50")
+                        onValueChange={(item: { value: string; label: string } | null) =>
+                          setRow(r.key, { ingredientId: item?.value ?? "" })
                         }
                       >
-                        <option value="">— não dar entrada —</option>
-                        {ingredients.map((ing) => (
-                          <option key={ing.id} value={ing.id}>
-                            {ing.name}
-                          </option>
-                        ))}
-                      </select>
+                        <ComboboxInput
+                          placeholder="Buscar produto..."
+                          autoComplete="off"
+                          className={
+                            "h-8 " + (r.ingredientId ? "" : "border-amber-400 bg-amber-50")
+                          }
+                        />
+                        <ComboboxContent>
+                          <ComboboxEmpty>Nenhum produto encontrado.</ComboboxEmpty>
+                          <ComboboxList>
+                            {(item: { value: string; label: string }) => (
+                              <ComboboxItem key={item.value} value={item}>
+                                {item.label}
+                              </ComboboxItem>
+                            )}
+                          </ComboboxList>
+                        </ComboboxContent>
+                      </Combobox>
                       {un && <span className="text-[11px] text-neutral-400">estoque em: {un}</span>}
                     </td>
                     <td className="p-2">
@@ -285,7 +322,7 @@ export function Conferencia({ notaId, lancada, ingredients, header, itens }: Pro
                         type="number"
                         step="0.001"
                         value={r.quantity}
-                        onChange={(e) => setRow(i, { quantity: e.target.value })}
+                        onChange={(e) => setRow(r.key, { quantity: e.target.value })}
                         disabled={lancada}
                         className="h-8"
                       />
@@ -296,7 +333,7 @@ export function Conferencia({ notaId, lancada, ingredients, header, itens }: Pro
                           type="number"
                           step="0.001"
                           value={r.qtdEstoque}
-                          onChange={(e) => setRow(i, { qtdEstoque: e.target.value })}
+                          onChange={(e) => setRow(r.key, { qtdEstoque: e.target.value })}
                           disabled={lancada}
                           className="h-8"
                         />
@@ -311,7 +348,7 @@ export function Conferencia({ notaId, lancada, ingredients, header, itens }: Pro
                         type="number"
                         step="0.0001"
                         value={r.unitValue}
-                        onChange={(e) => setRow(i, { unitValue: e.target.value })}
+                        onChange={(e) => setRow(r.key, { unitValue: e.target.value })}
                         disabled={lancada}
                         className="h-8"
                       />
@@ -319,7 +356,7 @@ export function Conferencia({ notaId, lancada, ingredients, header, itens }: Pro
                     <td className="p-2 text-right font-medium">{brl(linhaTotal)}</td>
                     {!lancada && (
                       <td className="p-2">
-                        <button type="button" onClick={() => removeRow(i)} className="text-red-600">
+                        <button type="button" onClick={() => removeRow(r.key)} className="text-red-600">
                           <Trash2 className="size-4" />
                         </button>
                       </td>
