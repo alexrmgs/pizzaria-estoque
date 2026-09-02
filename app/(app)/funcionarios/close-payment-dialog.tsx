@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { getPaymentPreview, closePayment, reopenPayment } from "./[id]/actions";
 import type { PaymentPreview } from "@/lib/payment-preview";
 import {
+  daysInMonthUTC,
   faltaAmount,
   inssAmount,
   irrfAmount,
@@ -293,8 +294,10 @@ export function ClosePaymentDialog({
                 </p>
                 {preview && preview.admissionUnworkedDays > 0 && (
                   <p className="text-xs text-amber-600">
-                    Já proporcional: admitido no meio do mês, {30 - preview.admissionUnworkedDays} de
-                    30 dias (salário cheio {currency(preview.baseSalary)}).
+                    Já proporcional: admitido no meio do mês,{" "}
+                    {daysInMonthUTC(new Date(`${periodEnd}T00:00:00Z`)) - preview.admissionUnworkedDays}{" "}
+                    de {daysInMonthUTC(new Date(`${periodEnd}T00:00:00Z`))} dias (salário cheio{" "}
+                    {currency(preview.baseSalary)}).
                   </p>
                 )}
               </div>
