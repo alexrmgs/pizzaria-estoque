@@ -221,6 +221,7 @@ export default async function FuncionariosPage() {
                           scheduledStart: employee.scheduledStart,
                           scheduledEnd: employee.scheduledEnd,
                           active: employee.active,
+                          carteiraAssinada: employee.carteiraAssinada,
                           userId: employee.userId,
                           storeId: employee.storeId,
                         }}

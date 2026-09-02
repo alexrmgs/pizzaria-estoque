@@ -31,11 +31,6 @@ export default async function ImprimirContrachequePage({
   const user = await requireUser();
   const { id } = await params;
   const { simples: simplesParam } = await searchParams;
-  // Versão simplificada (uso interno) — some com o detalhe de INSS/IRRF/FGTS,
-  // fica só salário, vale, bônus e outros descontos "reais". O líquido
-  // mostrado continua sendo o valor de verdade pago (com INSS/IRRF já
-  // aplicados por baixo dos panos).
-  const simples = simplesParam === "1";
 
   const payment = await prisma.payment.findUnique({
     where: { id },
@@ -45,6 +40,14 @@ export default async function ImprimirContrachequePage({
 
   const isOwner = payment.employee.userId === user.id;
   if (!user.role.canManageFuncionarios && !isOwner) redirect("/meu-ponto");
+
+  // Versão simplificada (uso interno) — some com o detalhe de INSS/IRRF/FGTS,
+  // fica só salário, vale, bônus e outros descontos "reais". O líquido
+  // mostrado continua sendo o valor de verdade pago (com INSS/IRRF já
+  // aplicados por baixo dos panos). Por padrão segue se o funcionário tem
+  // carteira assinada ou não; o link no topo permite forçar pra essa
+  // impressão específica.
+  const simples = simplesParam ? simplesParam === "1" : !payment.employee.carteiraAssinada;
 
   const [settings, advances] = await Promise.all([
     getAppSettings(user.companyId),
@@ -340,7 +343,7 @@ export default async function ImprimirContrachequePage({
         <p className="text-sm text-neutral-500">Recibo de pagamento para impressão</p>
         <div className="flex items-center gap-3">
           <Link
-            href={`?${simples ? "" : "simples=1"}`}
+            href={`?simples=${simples ? "0" : "1"}`}
             className="text-sm text-primary hover:underline"
           >
             {simples ? "Ver versão completa" : "Ver versão simplificada (sem INSS/IRRF/FGTS)"}

@@ -44,6 +44,7 @@ type Employee = {
   scheduledEnd: string | null;
   weeklyDayOff: number | null;
   active: boolean;
+  carteiraAssinada: boolean;
   userId: string | null;
   storeId: string | null;
 };
@@ -269,6 +270,20 @@ export function EmployeeDialog({
             <Checkbox id="active" name="active" defaultChecked={employee?.active ?? true} />
             <span className="text-sm font-medium">Ativo</span>
           </label>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="carteiraAssinada" className="flex items-center gap-2">
+              <Checkbox
+                id="carteiraAssinada"
+                name="carteiraAssinada"
+                defaultChecked={employee?.carteiraAssinada ?? true}
+              />
+              <span className="text-sm font-medium">Carteira assinada</span>
+            </label>
+            <p className="pl-6 text-xs text-muted-foreground">
+              Desmarcado, o contracheque dele já sai na versão simplificada (sem INSS/IRRF/FGTS).
+            </p>
+          </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
           <DialogFooter>

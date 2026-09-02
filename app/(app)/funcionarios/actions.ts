@@ -32,6 +32,7 @@ const employeeSchema = z.object({
     .nullable()
     .optional(),
   active: z.coerce.boolean(),
+  carteiraAssinada: z.coerce.boolean(),
   userId: z
     .string()
     .trim()
@@ -60,6 +61,7 @@ function parseEmployeeForm(formData: FormData) {
     scheduledEnd: formData.get("scheduledEnd") || "",
     weeklyDayOff: formData.get("weeklyDayOff"),
     active: formData.get("active") === "on",
+    carteiraAssinada: formData.get("carteiraAssinada") === "on",
     userId: formData.get("userId"),
     storeId: formData.get("storeId"),
   });
@@ -89,6 +91,7 @@ export async function createEmployee(
         scheduledEnd: parsed.data.scheduledEnd || null,
         weeklyDayOff: parsed.data.weeklyDayOff ?? null,
         active: parsed.data.active,
+        carteiraAssinada: parsed.data.carteiraAssinada,
         userId: parsed.data.userId ?? null,
         storeId: parsed.data.storeId ?? null,
       },
@@ -126,6 +129,7 @@ export async function updateEmployee(
         scheduledEnd: parsed.data.scheduledEnd || null,
         weeklyDayOff: parsed.data.weeklyDayOff ?? null,
         active: parsed.data.active,
+        carteiraAssinada: parsed.data.carteiraAssinada,
         userId: parsed.data.userId ?? null,
         storeId: parsed.data.storeId ?? null,
       },
