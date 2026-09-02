@@ -296,8 +296,8 @@ export function ClosePaymentDialog({
                   <p className="text-xs text-amber-600">
                     Já proporcional: admitido no meio do mês,{" "}
                     {daysInMonthUTC(new Date(`${periodEnd}T00:00:00Z`)) - preview.admissionUnworkedDays}{" "}
-                    de {daysInMonthUTC(new Date(`${periodEnd}T00:00:00Z`))} dias (salário cheio{" "}
-                    {currency(preview.baseSalary)}).
+                    de 30 dias (salário/dia sempre pelo referencial de 30, mesmo em mês de 31 —
+                    salário cheio {currency(preview.baseSalary)}).
                   </p>
                 )}
               </div>

@@ -189,9 +189,10 @@ export function faltaAmount(baseSalary: number, faltaDays: number): number {
   return (baseSalary / 30) * faltaDays;
 }
 
-/** Quantos dias tem o mês de `periodEnd` (28-31) — usado pra proporcionalizar
- * pelos dias reais do mês, não pelo "mês comercial" fixo de 30 dias (senão
- * quem entra perto do fim de um mês de 31 dias perde o último dia). */
+/** Quantos dias tem o mês de `periodEnd` (28-31) — usado só pra contar os
+ * dias de fato trabalhados (pra não perder o dia 31 em mês de 31 dias). O
+ * salário/dia continua sempre dividido por 30 (mês comercial), que é o
+ * referencial padrão dos pagamentos — não pelos dias reais do mês. */
 export function daysInMonthUTC(periodEnd: Date): number {
   return new Date(Date.UTC(periodEnd.getUTCFullYear(), periodEnd.getUTCMonth() + 1, 0)).getUTCDate();
 }
@@ -201,31 +202,40 @@ export function daysInMonthUTC(periodEnd: Date): number {
  * começar) — ex: admitido dia 6 -> 5 dias não trabalhados. Retorna 0 quando a
  * admissão não foi no mês que está sendo pago (periodEnd) — EXCETO se a
  * admissão for depois do fim do período: aí o funcionário não existia ainda
- * nesse período inteiro, então o mês inteiro conta como não trabalhado
- * (senão fechar um mês anterior à admissão mostrava o salário cheio, como se
- * ele tivesse trabalhado o mês todo).
+ * nesse período inteiro, então o mês inteiro (30 dias, referencial padrão)
+ * conta como não trabalhado (senão fechar um mês anterior à admissão
+ * mostrava o salário cheio, como se ele tivesse trabalhado o mês todo).
  */
 export function admissionUnworkedDays(hireDate: Date | null, periodEnd: Date): number {
   if (!hireDate) return 0;
-  const totalDays = daysInMonthUTC(periodEnd);
-  if (hireDate > periodEnd) return totalDays;
+  if (hireDate > periodEnd) return 30;
   if (
     hireDate.getUTCFullYear() !== periodEnd.getUTCFullYear() ||
     hireDate.getUTCMonth() !== periodEnd.getUTCMonth()
   ) {
     return 0;
   }
-  return Math.min(totalDays, Math.max(0, hireDate.getUTCDate() - 1));
+  return Math.max(0, hireDate.getUTCDate() - 1);
 }
 
 /**
- * Fração do salário do mês a pagar quando o funcionário foi admitido no meio do
- * mês: 1 quando trabalhou o mês todo, menos quando entrou depois do dia 1.
- * Conta 1 dia (dos dias reais do mês) não trabalhado antes da admissão.
+ * Fração do salário do mês a pagar quando o funcionário foi admitido no meio
+ * do mês: 1 quando trabalhou o mês todo, menos quando entrou depois do dia 1.
+ * Os dias trabalhados usam o fim de mês de verdade (28-31, pra não perder o
+ * dia 31 em mês longo), mas o salário/dia sempre divide por 30 — é o
+ * referencial fixo dos pagamentos, não os dias reais do mês.
  */
 export function admissionProrationFactor(hireDate: Date | null, periodEnd: Date): number {
-  const totalDays = daysInMonthUTC(periodEnd);
-  return (totalDays - admissionUnworkedDays(hireDate, periodEnd)) / totalDays;
+  if (!hireDate) return 1;
+  if (hireDate > periodEnd) return 0;
+  if (
+    hireDate.getUTCFullYear() !== periodEnd.getUTCFullYear() ||
+    hireDate.getUTCMonth() !== periodEnd.getUTCMonth()
+  ) {
+    return 1;
+  }
+  const workedDays = daysInMonthUTC(periodEnd) - (hireDate.getUTCDate() - 1);
+  return Math.max(0, workedDays) / 30;
 }
 
 function pad2(n: number) {
