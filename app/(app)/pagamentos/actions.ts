@@ -12,7 +12,7 @@ import {
 
 /**
  * Adiantamento quinzenal (40% do salário) do dia 20 — é folha de pagamento,
- * não vale-comida: fica com identidade própria (kind ADIANTAMENTO) e vira
+ * não vale: fica com identidade própria (kind ADIANTAMENTO) e vira
  * conta pendente em Contas a Pagar, vencimento no próprio dia 20.
  */
 export async function generateSalaryAdvances(): Promise<{ created: number; skipped: number }> {

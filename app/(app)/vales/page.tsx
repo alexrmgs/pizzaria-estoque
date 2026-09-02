@@ -63,8 +63,8 @@ export default async function ValesPage() {
       <div>
         <h1 className="text-2xl font-semibold uppercase">Vales</h1>
         <p className="text-sm text-neutral-500">
-          Vale-comida — lançamento rápido pra qualquer funcionário. O adiantamento quinzenal fica
-          em Folha de Pagamento.
+          Vales (produtos retirados na pizzaria) — lançamento rápido pra qualquer funcionário. O
+          adiantamento quinzenal fica em Folha de Pagamento.
         </p>
       </div>
 

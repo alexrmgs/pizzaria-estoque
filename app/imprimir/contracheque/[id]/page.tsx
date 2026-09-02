@@ -152,7 +152,7 @@ export default async function ImprimirContrachequePage({
     rows.push({ code: "107", label: "Descontos diversos", ref: "", vencimento: 0, desconto: discountTotal });
   }
   if (valeTotal > 0) {
-    rows.push({ code: "108", label: "Vale-Comida", ref: "", vencimento: 0, desconto: valeTotal });
+    rows.push({ code: "108", label: "Vale", ref: "", vencimento: 0, desconto: valeTotal });
   }
   if (adiantamentoTotal > 0) {
     rows.push({

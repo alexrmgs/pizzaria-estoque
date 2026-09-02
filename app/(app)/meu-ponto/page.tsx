@@ -105,7 +105,7 @@ export default async function MeuPontoPage() {
   ]);
 
   const openEntry = entries.find((entry) => !entry.clockOut);
-  // "Meus vales" é só vale-comida (pego na pizzaria) — o adiantamento
+  // "Meus vales" é só vale (produto pego na pizzaria) — o adiantamento
   // quinzenal de 40% é outra coisa (gerado em lote pro RH) e já vem excluído
   // pela busca acima (kind: "VALE"), mesmo descontando do mesmo jeito no
   // próximo pagamento.

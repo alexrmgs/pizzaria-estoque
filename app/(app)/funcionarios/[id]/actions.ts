@@ -200,7 +200,7 @@ export async function addAdvance(
     const payable = await tx.payable.create({
       data: {
         description: `Vale — ${employee.name}${parsed.data.description ? ` (${parsed.data.description})` : ""}`,
-        category: "Vale-comida",
+        category: "Vale",
         amount: parsed.data.amount,
         dueDate: date,
         status: "PAGA",
