@@ -233,7 +233,7 @@ export default async function ImprimirContrachequePage({
           </div>
         </div>
 
-        <table className="w-full border-collapse">
+        <table className="w-full table-fixed border-collapse">
           <thead>
             <tr className="border-b border-black bg-neutral-100">
               <th className="w-10 border-r border-black px-1 py-0.5 text-left font-semibold">Código</th>
@@ -294,7 +294,7 @@ export default async function ImprimirContrachequePage({
             <span>{num(netAmount)}</span>
           </div>
         </div>
-        <table className="w-full border-collapse border-t border-black text-center">
+        <table className="w-full table-fixed border-collapse border-t border-black text-center">
           <thead>
             <tr className="bg-neutral-100">
               <th className="border-r border-black px-1 py-0.5 font-semibold">Salário Base</th>
