@@ -327,11 +327,11 @@ export default async function ImprimirContrachequePage({
           </tbody>
         </table>
 
-        <div className="flex items-end justify-between gap-4 border-t border-black px-2 py-2">
+        <div className="border-t border-black px-2 py-2">
           <p className="text-[9px] leading-tight text-neutral-600">
             Declaro ter recebido a importância líquida discriminada neste recibo.
           </p>
-          <div className="flex shrink-0 gap-6 text-center text-[9px]">
+          <div className="mt-8 flex justify-end gap-6 text-center text-[9px]">
             <div className="w-40 border-t border-black pt-0.5">Assinatura do Funcionário</div>
             <div className="w-20 border-t border-black pt-0.5">Data ___/___/____</div>
           </div>
