@@ -294,36 +294,38 @@ export default async function ImprimirContrachequePage({
             <span>{num(netAmount)}</span>
           </div>
         </div>
-        {simples && Math.abs(totalVencimentos - totalDescontos - netAmount) > 0.01 && (
-          <p className="border-t border-black px-2 py-1 text-[9px] text-neutral-500">
-            * Via simplificada — INSS e IRRF já aplicados no valor líquido, não detalhados aqui.
-          </p>
-        )}
-
-        {!simples && (
-          <table className="w-full border-collapse border-t border-black text-center">
-            <thead>
-              <tr className="bg-neutral-100">
-                <th className="border-r border-black px-1 py-0.5 font-semibold">Salário Base</th>
-                <th className="border-r border-black px-1 py-0.5 font-semibold">Sal. Contr. INSS</th>
-                <th className="border-r border-black px-1 py-0.5 font-semibold">Base Cálc. FGTS</th>
-                <th className="border-r border-black px-1 py-0.5 font-semibold">F.G.T.S do Mês</th>
-                <th className="border-r border-black px-1 py-0.5 font-semibold">Base Cálc. IRRF</th>
-                <th className="px-1 py-0.5 font-semibold">Faixa IRRF</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="border-r border-black px-1 py-0.5">{num(salarioContratual)}</td>
-                <td className="border-r border-black px-1 py-0.5">{num(grossForTax)}</td>
-                <td className="border-r border-black px-1 py-0.5">{num(grossForTax)}</td>
-                <td className="border-r border-black px-1 py-0.5">{num(fgtsMes)}</td>
-                <td className="border-r border-black px-1 py-0.5">{num(irrfBase)}</td>
-                <td className="px-1 py-0.5">{num(bracketRate(irrfBase, irrfBrackets) * 100)}</td>
-              </tr>
-            </tbody>
-          </table>
-        )}
+        <table className="w-full border-collapse border-t border-black text-center">
+          <thead>
+            <tr className="bg-neutral-100">
+              <th className="border-r border-black px-1 py-0.5 font-semibold">Salário Base</th>
+              {!simples && (
+                <>
+                  <th className="border-r border-black px-1 py-0.5 font-semibold">Sal. Contr. INSS</th>
+                  <th className="border-r border-black px-1 py-0.5 font-semibold">Base Cálc. FGTS</th>
+                  <th className="border-r border-black px-1 py-0.5 font-semibold">F.G.T.S do Mês</th>
+                  <th className="border-r border-black px-1 py-0.5 font-semibold">Base Cálc. IRRF</th>
+                  <th className="px-1 py-0.5 font-semibold">Faixa IRRF</th>
+                </>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className={simples ? "px-1 py-0.5" : "border-r border-black px-1 py-0.5"}>
+                {num(salarioContratual)}
+              </td>
+              {!simples && (
+                <>
+                  <td className="border-r border-black px-1 py-0.5">{num(grossForTax)}</td>
+                  <td className="border-r border-black px-1 py-0.5">{num(grossForTax)}</td>
+                  <td className="border-r border-black px-1 py-0.5">{num(fgtsMes)}</td>
+                  <td className="border-r border-black px-1 py-0.5">{num(irrfBase)}</td>
+                  <td className="px-1 py-0.5">{num(bracketRate(irrfBase, irrfBrackets) * 100)}</td>
+                </>
+              )}
+            </tr>
+          </tbody>
+        </table>
 
         <div className="flex items-end justify-between gap-4 border-t border-black px-2 py-2">
           <p className="text-[9px] leading-tight text-neutral-600">
