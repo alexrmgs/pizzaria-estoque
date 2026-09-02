@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
@@ -22,11 +23,19 @@ type Row = { code: string; label: string; ref: string; vencimento: number; desco
 
 export default async function ImprimirContrachequePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const user = await requireUser();
   const { id } = await params;
+  const { simples: simplesParam } = await searchParams;
+  // Versão simplificada (uso interno) — some com o detalhe de INSS/IRRF/FGTS,
+  // fica só salário, vale, bônus e outros descontos "reais". O líquido
+  // mostrado continua sendo o valor de verdade pago (com INSS/IRRF já
+  // aplicados por baixo dos panos).
+  const simples = simplesParam === "1";
 
   const payment = await prisma.payment.findUnique({
     where: { id },
@@ -121,7 +130,7 @@ export default async function ImprimirContrachequePage({
       desconto: lateDiscountAmount,
     });
   }
-  if (inssAmount > 0) {
+  if (inssAmount > 0 && !simples) {
     rows.push({
       code: "998",
       label: "I.N.S.S.",
@@ -130,7 +139,7 @@ export default async function ImprimirContrachequePage({
       desconto: inssAmount,
     });
   }
-  if (irrfAmount > 0) {
+  if (irrfAmount > 0 && !simples) {
     rows.push({
       code: "999",
       label: "I.R.R.F.",
@@ -282,29 +291,36 @@ export default async function ImprimirContrachequePage({
             <span>{num(netAmount)}</span>
           </div>
         </div>
+        {simples && Math.abs(totalVencimentos - totalDescontos - netAmount) > 0.01 && (
+          <p className="border-t border-black px-2 py-1 text-[9px] text-neutral-500">
+            * Via simplificada — INSS e IRRF já aplicados no valor líquido, não detalhados aqui.
+          </p>
+        )}
 
-        <table className="w-full border-collapse border-t border-black text-center">
-          <thead>
-            <tr className="bg-neutral-100">
-              <th className="border-r border-black px-1 py-0.5 font-semibold">Salário Base</th>
-              <th className="border-r border-black px-1 py-0.5 font-semibold">Sal. Contr. INSS</th>
-              <th className="border-r border-black px-1 py-0.5 font-semibold">Base Cálc. FGTS</th>
-              <th className="border-r border-black px-1 py-0.5 font-semibold">F.G.T.S do Mês</th>
-              <th className="border-r border-black px-1 py-0.5 font-semibold">Base Cálc. IRRF</th>
-              <th className="px-1 py-0.5 font-semibold">Faixa IRRF</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className="border-r border-black px-1 py-0.5">{num(salarioContratual)}</td>
-              <td className="border-r border-black px-1 py-0.5">{num(grossForTax)}</td>
-              <td className="border-r border-black px-1 py-0.5">{num(grossForTax)}</td>
-              <td className="border-r border-black px-1 py-0.5">{num(fgtsMes)}</td>
-              <td className="border-r border-black px-1 py-0.5">{num(irrfBase)}</td>
-              <td className="px-1 py-0.5">{num(bracketRate(irrfBase, irrfBrackets) * 100)}</td>
-            </tr>
-          </tbody>
-        </table>
+        {!simples && (
+          <table className="w-full border-collapse border-t border-black text-center">
+            <thead>
+              <tr className="bg-neutral-100">
+                <th className="border-r border-black px-1 py-0.5 font-semibold">Salário Base</th>
+                <th className="border-r border-black px-1 py-0.5 font-semibold">Sal. Contr. INSS</th>
+                <th className="border-r border-black px-1 py-0.5 font-semibold">Base Cálc. FGTS</th>
+                <th className="border-r border-black px-1 py-0.5 font-semibold">F.G.T.S do Mês</th>
+                <th className="border-r border-black px-1 py-0.5 font-semibold">Base Cálc. IRRF</th>
+                <th className="px-1 py-0.5 font-semibold">Faixa IRRF</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="border-r border-black px-1 py-0.5">{num(salarioContratual)}</td>
+                <td className="border-r border-black px-1 py-0.5">{num(grossForTax)}</td>
+                <td className="border-r border-black px-1 py-0.5">{num(grossForTax)}</td>
+                <td className="border-r border-black px-1 py-0.5">{num(fgtsMes)}</td>
+                <td className="border-r border-black px-1 py-0.5">{num(irrfBase)}</td>
+                <td className="px-1 py-0.5">{num(bracketRate(irrfBase, irrfBrackets) * 100)}</td>
+              </tr>
+            </tbody>
+          </table>
+        )}
 
         <div className="flex items-end justify-between gap-4 border-t border-black px-2 py-2">
           <p className="text-[9px] leading-tight text-neutral-600">
@@ -322,7 +338,15 @@ export default async function ImprimirContrachequePage({
     <div className="mx-auto flex max-w-2xl flex-col gap-4 p-8 print:p-0">
       <div className="flex items-center justify-between print:hidden">
         <p className="text-sm text-neutral-500">Recibo de pagamento para impressão</p>
-        <PrintButton />
+        <div className="flex items-center gap-3">
+          <Link
+            href={`?${simples ? "" : "simples=1"}`}
+            className="text-sm text-primary hover:underline"
+          >
+            {simples ? "Ver versão completa" : "Ver versão simplificada (sem INSS/IRRF/FGTS)"}
+          </Link>
+          <PrintButton />
+        </div>
       </div>
 
       {payslip}
