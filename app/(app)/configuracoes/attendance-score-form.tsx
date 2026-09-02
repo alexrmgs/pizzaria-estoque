@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { updateAttendanceScoreSettings } from "./actions";
 
 type BonusTier = { minScore: number; bonus: number };
@@ -40,15 +41,18 @@ export function AttendanceScoreForm({
   latePenaltyPoints,
   attendanceBonusTiers,
   attendanceStreakTiers,
+  attendanceBonusVisible,
 }: {
   latePenaltyPoints: string;
   attendanceBonusTiers: BonusTier[];
   attendanceStreakTiers: StreakTier[];
+  attendanceBonusVisible: boolean;
 }) {
   const [bonusRows, setBonusRows] = useState<BonusRow[]>(() => bonusTiersToRows(attendanceBonusTiers));
   const [streakRows, setStreakRows] = useState<StreakRow[]>(() =>
     streakTiersToRows(attendanceStreakTiers),
   );
+  const [bonusVisible, setBonusVisible] = useState(attendanceBonusVisible);
   const [isPending, startTransition] = useTransition();
 
   function updateBonusRow(key: string, patch: Partial<BonusRow>) {
@@ -211,6 +215,23 @@ export function AttendanceScoreForm({
         >
           + Adicionar faixa
         </Button>
+      </div>
+
+      <div className="flex flex-col gap-2 rounded-lg border p-3">
+        <input type="hidden" name="attendanceBonusVisible" value={bonusVisible ? "on" : ""} />
+        <label htmlFor="attendanceBonusVisible-cb" className="flex items-center gap-2 text-sm">
+          <Checkbox
+            id="attendanceBonusVisible-cb"
+            checked={bonusVisible}
+            onCheckedChange={(v) => setBonusVisible(v === true)}
+          />
+          Mostrar o bônus estimado pro funcionário em Meu Ponto
+        </label>
+        <p className="pl-6 text-xs text-muted-foreground">
+          Desligado, o funcionário deixa de ver a pontuação/sequência/bônus estimado na tela dele
+          — o cálculo continua rodando por trás e valendo no fechamento do pagamento, só some da
+          visão dele até você religar.
+        </p>
       </div>
 
       <div>

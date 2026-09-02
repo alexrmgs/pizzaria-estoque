@@ -183,6 +183,7 @@ const attendanceScoreSchema = z.object({
   tierBonus: z.array(z.coerce.number().min(0)),
   streakMonths: z.array(z.coerce.number().int().min(0)),
   streakMultiplier: z.array(z.coerce.number().min(0)),
+  attendanceBonusVisible: z.coerce.boolean(),
 });
 
 export type AttendanceScoreFormState = { error?: string } | undefined;
@@ -199,6 +200,7 @@ export async function updateAttendanceScoreSettings(
     tierBonus: formData.getAll("tierBonus"),
     streakMonths: formData.getAll("streakMonths"),
     streakMultiplier: formData.getAll("streakMultiplier"),
+    attendanceBonusVisible: formData.get("attendanceBonusVisible") === "on",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -225,14 +227,17 @@ export async function updateAttendanceScoreSettings(
       latePenaltyPoints: parsed.data.latePenaltyPoints,
       attendanceBonusTiers,
       attendanceStreakTiers,
+      attendanceBonusVisible: parsed.data.attendanceBonusVisible,
     },
     create: {
       companyId: user.companyId,
       latePenaltyPoints: parsed.data.latePenaltyPoints,
       attendanceBonusTiers,
       attendanceStreakTiers,
+      attendanceBonusVisible: parsed.data.attendanceBonusVisible,
     },
   });
 
   revalidatePath("/configuracoes");
+  revalidatePath("/meu-ponto");
 }

@@ -341,30 +341,34 @@ export default async function MeuPontoPage() {
                     <p className="text-xs text-destructive">Zera o bônus e a sequência</p>
                   )}
                 </div>
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-neutral-500">Sequência sem zerar</p>
-                  <p className="text-lg font-semibold">
-                    {preview.attendanceStreakMonths} mês
-                    {preview.attendanceStreakMonths === 1 ? "" : "es"}
-                  </p>
-                  {preview.attendanceStreakMultiplier > 1 ? (
-                    <p className="text-xs text-primary">
-                      Bônus multiplicado por {preview.attendanceStreakMultiplier}x
-                    </p>
-                  ) : nextStreakTier ? (
-                    <p className="text-xs text-neutral-500">
-                      Faltam {nextStreakTier.months - preview.attendanceStreakMonths} mês
-                      {nextStreakTier.months - preview.attendanceStreakMonths === 1 ? "" : "es"} pra
-                      bônus x{nextStreakTier.multiplier}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-neutral-500">Bônus estimado</p>
-                  <p className="text-lg font-semibold text-primary">
-                    {currency(preview.attendanceBonusAmount)}
-                  </p>
-                </div>
+                {settings.attendanceBonusVisible && (
+                  <>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-neutral-500">Sequência sem zerar</p>
+                      <p className="text-lg font-semibold">
+                        {preview.attendanceStreakMonths} mês
+                        {preview.attendanceStreakMonths === 1 ? "" : "es"}
+                      </p>
+                      {preview.attendanceStreakMultiplier > 1 ? (
+                        <p className="text-xs text-primary">
+                          Bônus multiplicado por {preview.attendanceStreakMultiplier}x
+                        </p>
+                      ) : nextStreakTier ? (
+                        <p className="text-xs text-neutral-500">
+                          Faltam {nextStreakTier.months - preview.attendanceStreakMonths} mês
+                          {nextStreakTier.months - preview.attendanceStreakMonths === 1 ? "" : "es"} pra
+                          bônus x{nextStreakTier.multiplier}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-neutral-500">Bônus estimado</p>
+                      <p className="text-lg font-semibold text-primary">
+                        {currency(preview.attendanceBonusAmount)}
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
               <p className="text-xs text-neutral-400">
                 Valores estimados com base no que já foi batido no ponto neste período — o valor
@@ -384,8 +388,12 @@ export default async function MeuPontoPage() {
                     <TableRow>
                       <TableHead>Período</TableHead>
                       <TableHead>Pontualidade</TableHead>
-                      <TableHead>Sequência</TableHead>
-                      <TableHead>Bônus recebido</TableHead>
+                      {settings.attendanceBonusVisible && (
+                        <>
+                          <TableHead>Sequência</TableHead>
+                          <TableHead>Bônus recebido</TableHead>
+                        </>
+                      )}
                       <TableHead>Líquido</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -393,7 +401,10 @@ export default async function MeuPontoPage() {
                   <TableBody>
                     {pastPayments.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-neutral-500">
+                        <TableCell
+                          colSpan={settings.attendanceBonusVisible ? 6 : 4}
+                          className="text-center text-neutral-500"
+                        >
                           Nenhum mês fechado ainda.
                         </TableCell>
                       </TableRow>
@@ -405,13 +416,17 @@ export default async function MeuPontoPage() {
                           {payment.periodEnd.toISOString().slice(0, 10)}
                         </TableCell>
                         <TableCell>{payment.attendanceScore}/100</TableCell>
-                        <TableCell>
-                          {payment.attendanceStreakMonths} mês
-                          {payment.attendanceStreakMonths === 1 ? "" : "es"}
-                        </TableCell>
-                        <TableCell className="font-medium text-primary">
-                          {currency(Number(payment.attendanceBonusAmount))}
-                        </TableCell>
+                        {settings.attendanceBonusVisible && (
+                          <>
+                            <TableCell>
+                              {payment.attendanceStreakMonths} mês
+                              {payment.attendanceStreakMonths === 1 ? "" : "es"}
+                            </TableCell>
+                            <TableCell className="font-medium text-primary">
+                              {currency(Number(payment.attendanceBonusAmount))}
+                            </TableCell>
+                          </>
+                        )}
                         <TableCell className="font-medium">
                           {currency(Number(payment.netAmount))}
                         </TableCell>

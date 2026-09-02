@@ -239,6 +239,7 @@ export default async function ConfiguracoesPage() {
                     latePenaltyPoints={settings.latePenaltyPoints.toString()}
                     attendanceBonusTiers={settings.attendanceBonusTiers as unknown as Tier[]}
                     attendanceStreakTiers={settings.attendanceStreakTiers as unknown as StreakTier[]}
+                    attendanceBonusVisible={settings.attendanceBonusVisible}
                   />
                 </CardContent>
               </Card>
