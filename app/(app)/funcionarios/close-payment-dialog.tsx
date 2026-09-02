@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { getPaymentPreview, closePayment } from "./[id]/actions";
+import { getPaymentPreview, closePayment, reopenPayment } from "./[id]/actions";
 import type { PaymentPreview } from "@/lib/payment-preview";
 import {
   faltaAmount,
@@ -57,6 +57,7 @@ export function ClosePaymentDialog({
   dependents,
   cltSettings,
   onClosed,
+  editingPayment,
 }: {
   employeeId: string;
   employeeName?: string;
@@ -64,13 +65,22 @@ export function ClosePaymentDialog({
   dependents: number;
   cltSettings: CltSettings;
   onClosed?: () => void;
+  /** Presente = "Editar": reabre esse pagamento (como o botão Reabrir já faz)
+   * assim que o diálogo abre, e já carrega o cálculo pro período dele, em
+   * vez de partir do zero com o mês passado. */
+  editingPayment?: { id: string; periodStart: string; periodEnd: string };
 }) {
   const [open, setOpen] = useState(false);
-  const [periodStart, setPeriodStart] = useState(() => defaultPeriod().periodStart);
-  const [periodEnd, setPeriodEnd] = useState(() => defaultPeriod().periodEnd);
+  const [periodStart, setPeriodStart] = useState(
+    () => editingPayment?.periodStart ?? defaultPeriod().periodStart,
+  );
+  const [periodEnd, setPeriodEnd] = useState(
+    () => editingPayment?.periodEnd ?? defaultPeriod().periodEnd,
+  );
   const [preview, setPreview] = useState<PaymentPreview | null>(null);
   const [salaryOverride, setSalaryOverride] = useState(baseSalary.toFixed(2));
   const [error, setError] = useState<string | undefined>();
+  const [reopening, setReopening] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const [applyInss, setApplyInss] = useState(false);
@@ -83,9 +93,9 @@ export function ClosePaymentDialog({
   const [formaPagamento, setFormaPagamento] = useState<"DINHEIRO" | "PIX">("PIX");
   const [dataPagamento, setDataPagamento] = useState("");
 
-  function loadPreview() {
+  function loadPreview(start = periodStart, end = periodEnd) {
     startTransition(async () => {
-      const result = await getPaymentPreview(employeeId, periodStart, periodEnd);
+      const result = await getPaymentPreview(employeeId, start, end);
       if ("error" in result) {
         setError(result.error);
         setPreview(null);
@@ -99,6 +109,19 @@ export function ClosePaymentDialog({
         setFaltaDays(String(result.faltaDaysAuto));
       }
     });
+  }
+
+  async function reopenThenLoad() {
+    if (!editingPayment) return;
+    setReopening(true);
+    try {
+      await reopenPayment(employeeId, editingPayment.id);
+      loadPreview(editingPayment.periodStart, editingPayment.periodEnd);
+    } catch {
+      setError("Não foi possível reabrir esse pagamento pra editar. Tente de novo.");
+    } finally {
+      setReopening(false);
+    }
   }
 
   function handleConfirm(formData: FormData) {
@@ -162,17 +185,31 @@ export function ClosePaymentDialog({
           setJaPago(false);
           setFormaPagamento("PIX");
           setDataPagamento("");
+          if (editingPayment) reopenThenLoad();
         }
       }}
     >
-      <DialogTrigger render={<Button size="sm">Fechar pagamento</Button>} />
+      <DialogTrigger
+        render={
+          <Button size="sm" variant={editingPayment ? "outline" : "default"}>
+            {editingPayment ? "Editar" : "Fechar pagamento"}
+          </Button>
+        }
+      />
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            Fechar pagamento{employeeName ? ` — ${employeeName}` : ""}
+            {editingPayment ? "Editar pagamento" : "Fechar pagamento"}
+            {employeeName ? ` — ${employeeName}` : ""}
           </DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
+          {editingPayment && (
+            <p className="text-xs text-muted-foreground">
+              Reabrindo e recalculando esse pagamento — os vales/bônus/descontos vinculados a ele
+              voltam a pendente até você confirmar de novo.
+            </p>
+          )}
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1">
               <Label htmlFor="periodStart" className="text-xs">
@@ -198,8 +235,14 @@ export function ClosePaymentDialog({
                 className="h-9"
               />
             </div>
-            <Button type="button" size="sm" variant="outline" onClick={loadPreview} disabled={isPending}>
-              Calcular
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => loadPreview()}
+              disabled={isPending || reopening}
+            >
+              {reopening ? "Reabrindo..." : "Calcular"}
             </Button>
           </div>
           <p className="-mt-2 text-xs text-muted-foreground">

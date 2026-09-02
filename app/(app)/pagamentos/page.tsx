@@ -81,6 +81,12 @@ export default async function PagamentosPage() {
     map.set(advance.employeeId, (map.get(advance.employeeId) ?? 0) + Number(advance.amount));
   }
   const lastPaymentByEmployee = new Map(lastPayments.map((p) => [p.employeeId, p]));
+  const employeesById = new Map(
+    employees.map((e) => [
+      e.id,
+      { baseSalary: Number(e.baseSalary), dependents: e.dependents },
+    ]),
+  );
 
   // Prévia do mês corrente (1º dia até hoje) pra cada funcionário — sempre
   // só o mês em andamento, mesmo que o mês anterior ainda não tenha sido
@@ -535,6 +541,8 @@ export default async function PagamentosPage() {
                 payments={group.payments}
                 totalNet={group.totalNet}
                 defaultOpen={index === 0}
+                employeesById={employeesById}
+                cltSettings={cltSettings}
               />
             ))}
           </div>

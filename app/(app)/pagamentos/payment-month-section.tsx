@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ReopenPaymentButton } from "../funcionarios/reopen-payment-button";
+import { ClosePaymentDialog, type CltSettings } from "../funcionarios/close-payment-dialog";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -36,11 +37,15 @@ export function PaymentMonthSection({
   payments,
   totalNet,
   defaultOpen,
+  employeesById,
+  cltSettings,
 }: {
   monthLabel: string;
   payments: Payment[];
   totalNet: number;
   defaultOpen: boolean;
+  employeesById: Map<string, { baseSalary: number; dependents: number }>;
+  cltSettings: CltSettings;
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -75,7 +80,9 @@ export function PaymentMonthSection({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {payments.map((payment) => (
+                {payments.map((payment) => {
+                  const emp = employeesById.get(payment.employeeId);
+                  return (
                   <TableRow key={payment.id}>
                     <TableCell className="font-medium">
                       <Link href={`/funcionarios/${payment.employeeId}`} className="hover:underline">
@@ -107,11 +114,24 @@ export function PaymentMonthSection({
                         >
                           Contracheque
                         </Button>
+                        <ClosePaymentDialog
+                          employeeId={payment.employeeId}
+                          employeeName={payment.employeeName}
+                          baseSalary={emp?.baseSalary ?? 0}
+                          dependents={emp?.dependents ?? 0}
+                          cltSettings={cltSettings}
+                          editingPayment={{
+                            id: payment.id,
+                            periodStart: payment.periodStart,
+                            periodEnd: payment.periodEnd,
+                          }}
+                        />
                         <ReopenPaymentButton employeeId={payment.employeeId} paymentId={payment.id} />
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

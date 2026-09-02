@@ -141,6 +141,17 @@ export function PaymentSection({
                         >
                           Contracheque
                         </Button>
+                        <ClosePaymentDialog
+                          employeeId={employeeId}
+                          baseSalary={baseSalary}
+                          dependents={dependents}
+                          cltSettings={cltSettings}
+                          editingPayment={{
+                            id: payment.id,
+                            periodStart: payment.periodStart,
+                            periodEnd: payment.periodEnd,
+                          }}
+                        />
                         <ReopenPaymentButton employeeId={employeeId} paymentId={payment.id} />
                       </div>
                     </TableCell>
