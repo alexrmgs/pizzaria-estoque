@@ -26,6 +26,13 @@ type Fornecedor = {
 };
 type Product = { id: string; name: string };
 
+const normalize = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+
 export function FornecedorDialog({
   fornecedor,
   products,
@@ -38,7 +45,11 @@ export function FornecedorDialog({
   const [error, setError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(new Set(fornecedor?.productIds ?? []));
+  const [productSearch, setProductSearch] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
+  const filteredProducts = productSearch.trim()
+    ? products.filter((p) => normalize(p.name).includes(normalize(productSearch)))
+    : products;
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -72,6 +83,7 @@ export function FornecedorDialog({
         if (next) {
           setError(undefined);
           setSelected(new Set(fornecedor?.productIds ?? []));
+          setProductSearch("");
         }
       }}
     >
@@ -113,19 +125,33 @@ export function FornecedorDialog({
             {products.length === 0 ? (
               <p className="text-xs text-neutral-500">Nenhum ingrediente cadastrado ainda.</p>
             ) : (
-              <div className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-md border p-2">
-                {products.map((p) => (
-                  <label key={p.id} className="flex cursor-pointer items-center gap-2 text-sm">
-                    <Checkbox
-                      name="productIds"
-                      value={p.id}
-                      checked={selected.has(p.id)}
-                      onCheckedChange={() => toggle(p.id)}
-                    />
-                    {p.name}
-                  </label>
-                ))}
-              </div>
+              <>
+                <Input
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="Buscar produto..."
+                  className="h-9"
+                />
+                <div className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-md border p-2">
+                  {filteredProducts.length === 0 && (
+                    <p className="text-xs text-neutral-500">Nenhum produto encontrado.</p>
+                  )}
+                  {filteredProducts.map((p) => (
+                    <label key={p.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                      <Checkbox
+                        name="productIds"
+                        value={p.id}
+                        checked={selected.has(p.id)}
+                        onCheckedChange={() => toggle(p.id)}
+                      />
+                      {p.name}
+                    </label>
+                  ))}
+                </div>
+                {selected.size > 0 && (
+                  <p className="text-xs text-neutral-500">{selected.size} selecionado(s)</p>
+                )}
+              </>
             )}
           </div>
 
