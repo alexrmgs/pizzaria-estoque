@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
 import {
@@ -12,6 +13,7 @@ import { computePaymentPreview } from "@/lib/payment-preview";
 import { getAppSettings } from "@/lib/settings";
 import { upcomingFolgas } from "@/lib/schedule";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -384,12 +386,14 @@ export default async function MeuPontoPage() {
                       <TableHead>Pontualidade</TableHead>
                       <TableHead>Sequência</TableHead>
                       <TableHead>Bônus recebido</TableHead>
+                      <TableHead>Líquido</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {pastPayments.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-neutral-500">
+                        <TableCell colSpan={6} className="text-center text-neutral-500">
                           Nenhum mês fechado ainda.
                         </TableCell>
                       </TableRow>
@@ -407,6 +411,21 @@ export default async function MeuPontoPage() {
                         </TableCell>
                         <TableCell className="font-medium text-primary">
                           {currency(Number(payment.attendanceBonusAmount))}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {currency(Number(payment.netAmount))}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            nativeButton={false}
+                            render={
+                              <Link href={`/imprimir/contracheque/${payment.id}`} target="_blank" />
+                            }
+                          >
+                            Contracheque
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

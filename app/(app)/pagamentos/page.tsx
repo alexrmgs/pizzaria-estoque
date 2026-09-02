@@ -10,6 +10,7 @@ import {
 } from "@/lib/payroll";
 import { computePaymentPreview } from "@/lib/payment-preview";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -56,7 +57,14 @@ export default async function PagamentosPage() {
       prisma.payment.findMany({
         orderBy: { periodEnd: "desc" },
         distinct: ["employeeId"],
-        select: { employeeId: true, periodStart: true, periodEnd: true, netAmount: true, paidAt: true },
+        select: {
+          id: true,
+          employeeId: true,
+          periodStart: true,
+          periodEnd: true,
+          netAmount: true,
+          paidAt: true,
+        },
       }),
       prisma.payment.findMany({
         orderBy: { periodStart: "desc" },
@@ -461,12 +469,13 @@ export default async function PagamentosPage() {
                 <TableHead>Período pago</TableHead>
                 <TableHead>Valor líquido</TableHead>
                 <TableHead>Fechado em</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {employeesPaid.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-neutral-500">
+                  <TableCell colSpan={6} className="text-center text-neutral-500">
                     Ninguém ainda com a folha de {prevMonthLabel} fechada.
                   </TableCell>
                 </TableRow>
@@ -490,6 +499,20 @@ export default async function PagamentosPage() {
                     </TableCell>
                     <TableCell className="text-neutral-500">
                       {lastPayment && lastPayment.paidAt.toLocaleDateString("pt-BR")}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {lastPayment && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          nativeButton={false}
+                          render={
+                            <Link href={`/imprimir/contracheque/${lastPayment.id}`} target="_blank" />
+                          }
+                        >
+                          Contracheque
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -95,7 +96,19 @@ export function PaymentMonthSection({
                     </TableCell>
                     <TableCell className="text-neutral-500">{payment.paidAt}</TableCell>
                     <TableCell className="text-right">
-                      <ReopenPaymentButton employeeId={payment.employeeId} paymentId={payment.id} />
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          nativeButton={false}
+                          render={
+                            <Link href={`/imprimir/contracheque/${payment.id}`} target="_blank" />
+                          }
+                        >
+                          Contracheque
+                        </Button>
+                        <ReopenPaymentButton employeeId={payment.employeeId} paymentId={payment.id} />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
