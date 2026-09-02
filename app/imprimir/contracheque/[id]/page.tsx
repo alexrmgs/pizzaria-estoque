@@ -194,7 +194,7 @@ export default async function ImprimirContrachequePage({
   const periodEndDate = payment.periodEnd;
 
   const payslip = (
-      <div className="border border-black text-[11px]">
+      <div className="w-full border border-black text-[11px]">
         <div className="flex items-start justify-between border-b border-black px-2 py-1">
           <div>
             <p className="font-bold uppercase">{settings.labelEmpresa || "Empresa"}</p>
