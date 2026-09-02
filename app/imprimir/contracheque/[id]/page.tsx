@@ -4,21 +4,21 @@ import { requireUser } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import { PrintButton } from "@/components/print-button";
 
-const currency = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const num = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const brDate = (d: Date) => d.toLocaleDateString("pt-BR", { timeZone: "UTC" });
 
-function Linha({ label, value, sub }: { label: string; value: number; sub?: string }) {
-  if (value <= 0) return null;
-  return (
-    <div className="flex items-baseline justify-between border-b border-dashed py-1 text-sm">
-      <span>
-        {label}
-        {sub && <span className="ml-1 text-xs text-neutral-500">({sub})</span>}
-      </span>
-      <span className="font-medium">{currency(value)}</span>
-    </div>
-  );
+type Bracket = { upTo: number | null; rate: number };
+
+/** Alíquota da faixa que essa base atinge (a mesma info que um holerite
+ * chama de "Referência"/"Faixa" ao lado do valor de INSS/IRRF). */
+function bracketRate(base: number, brackets: Bracket[]): number {
+  for (const b of brackets) {
+    if (b.upTo === null || base <= b.upTo) return b.rate;
+  }
+  return brackets[brackets.length - 1]?.rate ?? 0;
 }
+
+type Row = { code: string; label: string; ref: string; vencimento: number; desconto: number };
 
 export default async function ImprimirContrachequePage({
   params,
@@ -30,7 +30,7 @@ export default async function ImprimirContrachequePage({
 
   const payment = await prisma.payment.findUnique({
     where: { id },
-    include: { employee: true },
+    include: { employee: { include: { store: true } } },
   });
   if (!payment) notFound();
 
@@ -38,142 +38,285 @@ export default async function ImprimirContrachequePage({
   if (!user.role.canManageFuncionarios && !isOwner) redirect("/meu-ponto");
 
   const settings = await getAppSettings(user.companyId);
+  const inssBrackets = settings.inssBrackets as unknown as Bracket[];
+  const irrfBrackets = settings.irrfBrackets as unknown as Bracket[];
 
   const baseSalary = Number(payment.baseSalary);
   const nightPremium = Number(payment.nightPremium);
   const overtimeAmount = Number(payment.overtimeAmount);
+  const overtimeHours = Number(payment.overtimeHours);
   const bonusTotal = Number(payment.bonusTotal);
   const attendanceBonusAmount = Number(payment.attendanceBonusAmount);
-  const totalProventos =
-    baseSalary + nightPremium + overtimeAmount + bonusTotal + attendanceBonusAmount;
-
   const lateDiscountAmount = Number(payment.lateDiscountAmount);
+  const lateDiscountMinutes = Number(payment.lateDiscountMinutes);
   const faltaAmount = Number(payment.faltaAmount);
+  const faltaDays = Number(payment.faltaDays);
   const inssAmount = Number(payment.inssAmount);
   const irrfAmount = Number(payment.irrfAmount);
   const valeTransporteAmount = Number(payment.valeTransporteAmount);
   const discountTotal = Number(payment.discountTotal);
   const advancesTotal = Number(payment.advancesTotal);
-  const totalDescontos =
-    lateDiscountAmount +
-    faltaAmount +
-    inssAmount +
-    irrfAmount +
-    valeTransporteAmount +
-    discountTotal +
-    advancesTotal;
-
   const netAmount = Number(payment.netAmount);
-  const overtimeHours = Number(payment.overtimeHours);
-  const bankedHours = Number(payment.bankedHours);
-  const faltaDays = Number(payment.faltaDays);
-  const lateDiscountMinutes = Number(payment.lateDiscountMinutes);
+
+  // Base de cálculo padrão (salário + adicional noturno + hora extra) — a
+  // mesma usada no fechamento do pagamento pra INSS/IRRF/FGTS.
+  const grossForTax = baseSalary + nightPremium + overtimeAmount;
+  const irrfBase = Math.max(
+    0,
+    grossForTax - inssAmount - payment.employee.dependents * Number(settings.irrfDependentDeduction),
+  );
+  const fgtsMes = grossForTax * 0.08;
+
+  // "Dias normais" — 30 se o mês foi trabalhado inteiro (convenção do
+  // mensalista); proporcional se o salário do período veio menor que o
+  // salário contratual atual (admitido no meio do mês).
+  const salarioContratual = Number(payment.employee.baseSalary);
+  const diasNormais =
+    salarioContratual > 0 ? Math.min(30, Math.round((baseSalary / salarioContratual) * 30)) : 30;
+
+  const rows: Row[] = [
+    { code: "001", label: "Salário Base", ref: `${num(diasNormais)}`, vencimento: baseSalary, desconto: 0 },
+  ];
+  if (nightPremium > 0) {
+    rows.push({ code: "002", label: "Adicional Noturno (20%)", ref: "", vencimento: nightPremium, desconto: 0 });
+  }
+  if (overtimeAmount > 0) {
+    rows.push({
+      code: "003",
+      label: "Horas Extras",
+      ref: `${overtimeHours.toFixed(2)}h`,
+      vencimento: overtimeAmount,
+      desconto: 0,
+    });
+  }
+  if (bonusTotal > 0) {
+    rows.push({ code: "004", label: "Bônus", ref: "", vencimento: bonusTotal, desconto: 0 });
+  }
+  if (attendanceBonusAmount > 0) {
+    rows.push({
+      code: "005",
+      label: "Bônus Assiduidade/Pontualidade",
+      ref: "",
+      vencimento: attendanceBonusAmount,
+      desconto: 0,
+    });
+  }
+  if (faltaAmount > 0) {
+    rows.push({ code: "101", label: "Faltas", ref: `${num(faltaDays)}`, vencimento: 0, desconto: faltaAmount });
+  }
+  if (lateDiscountAmount > 0) {
+    rows.push({
+      code: "102",
+      label: "Atraso",
+      ref: `${lateDiscountMinutes.toFixed(0)}min`,
+      vencimento: 0,
+      desconto: lateDiscountAmount,
+    });
+  }
+  if (inssAmount > 0) {
+    rows.push({
+      code: "998",
+      label: "I.N.S.S.",
+      ref: `${num(bracketRate(grossForTax, inssBrackets) * 100)}`,
+      vencimento: 0,
+      desconto: inssAmount,
+    });
+  }
+  if (irrfAmount > 0) {
+    rows.push({
+      code: "999",
+      label: "I.R.R.F.",
+      ref: `${num(bracketRate(irrfBase, irrfBrackets) * 100)}`,
+      vencimento: 0,
+      desconto: irrfAmount,
+    });
+  }
+  if (valeTransporteAmount > 0) {
+    rows.push({
+      code: "106",
+      label: "Vale-Transporte",
+      ref: `${num(Number(settings.valeTransporteRate))}`,
+      vencimento: 0,
+      desconto: valeTransporteAmount,
+    });
+  }
+  if (discountTotal > 0) {
+    rows.push({ code: "107", label: "Descontos diversos", ref: "", vencimento: 0, desconto: discountTotal });
+  }
+  if (advancesTotal > 0) {
+    rows.push({ code: "108", label: "Vales/Adiantamentos", ref: "", vencimento: 0, desconto: advancesTotal });
+  }
+
+  const totalVencimentos = rows.reduce((s, r) => s + r.vencimento, 0);
+  const totalDescontos = rows.reduce((s, r) => s + r.desconto, 0);
+
+  const competencia = payment.periodEnd.toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+
+  const employeeName = payment.employee.name;
+  const employeeRole = payment.employee.role;
+  const employeeHireDate = payment.employee.hireDate;
+  const employeeDependents = payment.employee.dependents;
+  const employeeStoreName = payment.employee.store?.name ?? null;
+  const periodStartDate = payment.periodStart;
+  const periodEndDate = payment.periodEnd;
+
+  const payslip = (
+      <div className="border border-black text-[11px]">
+        <div className="flex items-start justify-between border-b border-black px-2 py-1">
+          <div>
+            <p className="font-bold uppercase">{settings.labelEmpresa || "Empresa"}</p>
+            <p>
+              CNPJ: {settings.labelCnpj || "—"}
+              {employeeStoreName && <> &nbsp;&nbsp;CC: {employeeStoreName}</>}
+            </p>
+            <p>Mensalista</p>
+          </div>
+          <div className="text-right">
+            <p className="font-bold">Folha Mensal</p>
+            <p className="capitalize">{competencia}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 border-b border-black px-2 py-1">
+          <div>
+            <p className="text-[9px] text-neutral-500">Nome do Funcionário</p>
+            <p className="font-medium uppercase">{employeeName}</p>
+            <p className="uppercase text-neutral-600">
+              {employeeRole ?? "—"}
+              {employeeHireDate && (
+                <span className="ml-3">Admissão: {brDate(employeeHireDate)}</span>
+              )}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-[9px] text-neutral-500">Dependentes IRRF</p>
+            <p>{employeeDependents}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[9px] text-neutral-500">Período</p>
+            <p>
+              {brDate(periodStartDate)} a {brDate(periodEndDate)}
+            </p>
+          </div>
+        </div>
+
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b border-black bg-neutral-100">
+              <th className="w-10 border-r border-black px-1 py-0.5 text-left font-semibold">Código</th>
+              <th className="border-r border-black px-1 py-0.5 text-left font-semibold">Descrição</th>
+              <th className="w-16 border-r border-black px-1 py-0.5 text-right font-semibold">Referência</th>
+              <th className="w-20 border-r border-black px-1 py-0.5 text-right font-semibold">Vencimentos</th>
+              <th className="w-20 px-1 py-0.5 text-right font-semibold">Descontos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.code} className="border-b border-neutral-300">
+                <td className="border-r border-black px-1 py-0.5">{r.code}</td>
+                <td className="border-r border-black px-1 py-0.5 uppercase">{r.label}</td>
+                <td className="border-r border-black px-1 py-0.5 text-right">{r.ref}</td>
+                <td className="border-r border-black px-1 py-0.5 text-right">
+                  {r.vencimento > 0 ? num(r.vencimento) : ""}
+                </td>
+                <td className="px-1 py-0.5 text-right">{r.desconto > 0 ? num(r.desconto) : ""}</td>
+              </tr>
+            ))}
+            {/* Preenche até um mínimo de linhas, como no formulário impresso. */}
+            {Array.from({ length: Math.max(0, 6 - rows.length) }).map((_, i) => (
+              <tr key={`blank-${i}`} className="border-b border-neutral-300">
+                <td className="border-r border-black px-1 py-2">&nbsp;</td>
+                <td className="border-r border-black px-1 py-2"></td>
+                <td className="border-r border-black px-1 py-2"></td>
+                <td className="border-r border-black px-1 py-2"></td>
+                <td className="px-1 py-2"></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="flex justify-end border-t border-black">
+          <table className="border-collapse">
+            <thead>
+              <tr>
+                <th className="w-24 border-b border-l border-black px-2 py-0.5 text-right font-semibold">
+                  Total de Vencimentos
+                </th>
+                <th className="w-24 border-b border-l border-black px-2 py-0.5 text-right font-semibold">
+                  Total de Descontos
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="border-l border-black px-2 py-0.5 text-right">{num(totalVencimentos)}</td>
+                <td className="border-l border-black px-2 py-0.5 text-right">{num(totalDescontos)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="flex justify-end border-t border-black">
+          <div className="flex w-48 items-center justify-between border-l border-black px-2 py-1 font-bold">
+            <span>Valor Líquido</span>
+            <span>{num(netAmount)}</span>
+          </div>
+        </div>
+
+        <table className="w-full border-collapse border-t border-black text-center">
+          <thead>
+            <tr className="bg-neutral-100">
+              <th className="border-r border-black px-1 py-0.5 font-semibold">Salário Base</th>
+              <th className="border-r border-black px-1 py-0.5 font-semibold">Sal. Contr. INSS</th>
+              <th className="border-r border-black px-1 py-0.5 font-semibold">Base Cálc. FGTS</th>
+              <th className="border-r border-black px-1 py-0.5 font-semibold">F.G.T.S do Mês</th>
+              <th className="border-r border-black px-1 py-0.5 font-semibold">Base Cálc. IRRF</th>
+              <th className="px-1 py-0.5 font-semibold">Faixa IRRF</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border-r border-black px-1 py-0.5">{num(salarioContratual)}</td>
+              <td className="border-r border-black px-1 py-0.5">{num(grossForTax)}</td>
+              <td className="border-r border-black px-1 py-0.5">{num(grossForTax)}</td>
+              <td className="border-r border-black px-1 py-0.5">{num(fgtsMes)}</td>
+              <td className="border-r border-black px-1 py-0.5">{num(irrfBase)}</td>
+              <td className="px-1 py-0.5">{num(bracketRate(irrfBase, irrfBrackets) * 100)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="flex items-end justify-between gap-4 border-t border-black px-2 py-2">
+          <p className="text-[9px] leading-tight text-neutral-600">
+            Declaro ter recebido a importância líquida discriminada neste recibo.
+          </p>
+          <div className="flex shrink-0 gap-6 text-center text-[9px]">
+            <div className="w-40 border-t border-black pt-0.5">Assinatura do Funcionário</div>
+            <div className="w-20 border-t border-black pt-0.5">Data ___/___/____</div>
+          </div>
+        </div>
+      </div>
+  );
 
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-6 p-8 print:p-0">
+    <div className="mx-auto flex max-w-2xl flex-col gap-4 p-8 print:p-0">
       <div className="flex items-center justify-between print:hidden">
         <p className="text-sm text-neutral-500">Recibo de pagamento para impressão</p>
         <PrintButton />
       </div>
 
-      <div className="flex flex-col gap-1 border-b border-dashed pb-4 text-center">
-        {settings.labelEmpresa && (
-          <p className="text-sm font-bold uppercase">{settings.labelEmpresa}</p>
-        )}
-        <p className="text-xs text-neutral-500">
-          {[
-            settings.labelCnpj ? `CNPJ ${settings.labelCnpj}` : null,
-            settings.labelEndereco,
-            settings.labelCidade,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
-        <h1 className="mt-2 text-lg font-bold uppercase">Recibo de Pagamento de Salário</h1>
-        <p className="text-sm text-neutral-600">
-          Período: {brDate(payment.periodStart)} a {brDate(payment.periodEnd)}
-        </p>
+      {payslip}
+      <div className="my-1 border-t border-dashed border-neutral-400 text-center text-[9px] text-neutral-400">
+        ✂ via da empresa
       </div>
+      {payslip}
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-        <div>
-          <span className="text-neutral-500">Funcionário: </span>
-          <span className="font-medium">{payment.employee.name}</span>
-        </div>
-        <div>
-          <span className="text-neutral-500">Cargo: </span>
-          <span className="font-medium">{payment.employee.role ?? "—"}</span>
-        </div>
-        {payment.employee.hireDate && (
-          <div>
-            <span className="text-neutral-500">Admissão: </span>
-            <span className="font-medium">{brDate(payment.employee.hireDate)}</span>
-          </div>
-        )}
-        <div>
-          <span className="text-neutral-500">Pago em: </span>
-          <span className="font-medium">{brDate(payment.paidAt)}</span>
-        </div>
-      </div>
-
-      <div>
-        <h2 className="mb-1 text-sm font-semibold uppercase text-neutral-500">Proventos</h2>
-        <Linha label="Salário base" value={baseSalary} />
-        <Linha label="Adicional noturno" value={nightPremium} />
-        <Linha
-          label="Horas extras"
-          value={overtimeAmount}
-          sub={overtimeHours > 0 ? `${overtimeHours.toFixed(2)}h` : undefined}
-        />
-        <Linha label="Bônus" value={bonusTotal} />
-        <Linha label="Bônus de assiduidade/pontualidade" value={attendanceBonusAmount} />
-        <div className="flex justify-between pt-1 text-sm font-semibold">
-          <span>Total de proventos</span>
-          <span>{currency(totalProventos)}</span>
-        </div>
-      </div>
-
-      <div>
-        <h2 className="mb-1 text-sm font-semibold uppercase text-neutral-500">Descontos</h2>
-        <Linha
-          label="Atraso"
-          value={lateDiscountAmount}
-          sub={lateDiscountMinutes > 0 ? `${lateDiscountMinutes} min` : undefined}
-        />
-        <Linha label="Faltas" value={faltaAmount} sub={faltaDays > 0 ? `${faltaDays} dia(s)` : undefined} />
-        <Linha label="INSS" value={inssAmount} />
-        <Linha label="IRRF" value={irrfAmount} />
-        <Linha label="Vale-transporte" value={valeTransporteAmount} />
-        <Linha label="Descontos diversos" value={discountTotal} />
-        <Linha label="Vales/adiantamentos" value={advancesTotal} />
-        <div className="flex justify-between pt-1 text-sm font-semibold">
-          <span>Total de descontos</span>
-          <span>{currency(totalDescontos)}</span>
-        </div>
-      </div>
-
-      <div className="flex justify-between border-y-2 border-black py-2 text-base font-bold">
-        <span>Líquido a receber</span>
-        <span>{currency(netAmount)}</span>
-      </div>
-
-      <p className="text-xs text-neutral-500">
-        Pontuação de assiduidade/pontualidade no período: {payment.attendanceScore}/100
-        {payment.attendanceStreakMonths > 0 &&
-          ` · ${payment.attendanceStreakMonths} mês(es) seguido(s) sem falta`}
-        {bankedHours > 0 && ` · ${bankedHours.toFixed(2)}h em banco de horas`}
-        {payment.note && (
-          <>
-            <br />
-            Observação: {payment.note}
-          </>
-        )}
-      </p>
-
-      <div className="mt-8 grid grid-cols-2 gap-8 text-center text-xs text-neutral-500">
-        <div className="border-t pt-1">Assinatura do funcionário</div>
-        <div className="border-t pt-1">Assinatura da empresa</div>
-      </div>
+      {payment.note && (
+        <p className="text-xs text-neutral-500 print:hidden">Observação: {payment.note}</p>
+      )}
     </div>
   );
 }
