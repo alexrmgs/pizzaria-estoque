@@ -256,13 +256,13 @@ export default async function ImprimirContrachequePage({
               </tr>
             ))}
             {/* Preenche até um mínimo de linhas, como no formulário impresso. */}
-            {Array.from({ length: Math.max(0, 6 - rows.length) }).map((_, i) => (
+            {Array.from({ length: Math.max(0, 3 - rows.length) }).map((_, i) => (
               <tr key={`blank-${i}`} className="border-b border-neutral-300">
-                <td className="border-r border-black px-1 py-2">&nbsp;</td>
-                <td className="border-r border-black px-1 py-2"></td>
-                <td className="border-r border-black px-1 py-2"></td>
-                <td className="border-r border-black px-1 py-2"></td>
-                <td className="px-1 py-2"></td>
+                <td className="border-r border-black px-1 py-1">&nbsp;</td>
+                <td className="border-r border-black px-1 py-1"></td>
+                <td className="border-r border-black px-1 py-1"></td>
+                <td className="border-r border-black px-1 py-1"></td>
+                <td className="px-1 py-1"></td>
               </tr>
             ))}
           </tbody>
@@ -331,7 +331,7 @@ export default async function ImprimirContrachequePage({
           <p className="text-[9px] leading-tight text-neutral-600">
             Declaro ter recebido a importância líquida discriminada neste recibo.
           </p>
-          <div className="mt-8 flex justify-end gap-6 text-center text-[9px]">
+          <div className="mt-5 flex justify-end gap-6 text-center text-[9px]">
             <div className="w-40 border-t border-black pt-0.5">Assinatura do Funcionário</div>
             <div className="w-20 border-t border-black pt-0.5">Data ___/___/____</div>
           </div>
@@ -340,7 +340,12 @@ export default async function ImprimirContrachequePage({
   );
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4 p-8 print:p-0">
+    <div className="mx-auto flex max-w-2xl flex-col gap-4 p-8 print:gap-2 print:p-0">
+      <style
+        dangerouslySetInnerHTML={{
+          __html: "@media print { @page { size: A4; margin: 8mm; } }",
+        }}
+      />
       <div className="flex items-center justify-between print:hidden">
         <p className="text-sm text-neutral-500">Recibo de pagamento para impressão</p>
         <div className="flex items-center gap-3">
@@ -355,7 +360,7 @@ export default async function ImprimirContrachequePage({
       </div>
 
       {payslip}
-      <div className="my-1 border-t border-dashed border-neutral-400 text-center text-[9px] text-neutral-400">
+      <div className="my-0.5 border-t border-dashed border-neutral-400 text-center text-[9px] text-neutral-400">
         ✂ via da empresa
       </div>
       {payslip}
