@@ -303,6 +303,16 @@ export async function getPaymentPreview(
     return { error: "O período final deve ser depois do inicial." };
   }
 
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { hireDate: true },
+  });
+  if (employee?.hireDate && employee.hireDate > periodEnd) {
+    return {
+      error: `Esse funcionário foi admitido em ${employee.hireDate.toLocaleDateString("pt-BR", { timeZone: "UTC" })}, depois do fim desse período. Ajuste as datas pra incluir a admissão.`,
+    };
+  }
+
   return computePaymentPreview(employeeId, periodStart, periodEnd, user.companyId);
 }
 

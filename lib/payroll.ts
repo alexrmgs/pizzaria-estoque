@@ -192,10 +192,15 @@ export function faltaAmount(baseSalary: number, faltaDays: number): number {
 /**
  * Dias não trabalhados no início do mês de admissão (os dias antes de começar),
  * em avos de 30 — ex: admitido dia 6 -> 5 dias não trabalhados. Retorna 0
- * quando a admissão não foi no mês que está sendo pago (periodEnd).
+ * quando a admissão não foi no mês que está sendo pago (periodEnd) — EXCETO
+ * se a admissão for depois do fim do período: aí o funcionário não existia
+ * ainda nesse período inteiro, então os 30 dias contam como não trabalhados
+ * (senão fechar um mês anterior à admissão mostrava o salário cheio, como se
+ * ele tivesse trabalhado o mês todo).
  */
 export function admissionUnworkedDays(hireDate: Date | null, periodEnd: Date): number {
   if (!hireDate) return 0;
+  if (hireDate > periodEnd) return 30;
   if (
     hireDate.getUTCFullYear() !== periodEnd.getUTCFullYear() ||
     hireDate.getUTCMonth() !== periodEnd.getUTCMonth()
