@@ -1,7 +1,25 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsappMessage, parseWhatsappWebhookPayload } from "@/lib/whatsapp";
 import { interpretStockMessage } from "@/lib/whatsapp-ai";
+
+/**
+ * A Meta assina todo POST com HMAC-SHA256 do corpo cru usando o App Secret
+ * (header `X-Hub-Signature-256: sha256=...`). Sem checar isso, qualquer um
+ * na internet que descobrir a URL do webhook consegue forjar mensagens e
+ * mexer no estoque em nome de um número cadastrado.
+ */
+function isValidSignature(rawBody: string, signatureHeader: string | null): boolean {
+  const secret = process.env.WHATSAPP_APP_SECRET;
+  if (!secret || !signatureHeader?.startsWith("sha256=")) return false;
+
+  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const expectedBuf = Buffer.from(expected, "hex");
+  const providedBuf = Buffer.from(signatureHeader.slice("sha256=".length), "hex");
+  if (expectedBuf.length !== providedBuf.length) return false;
+  return crypto.timingSafeEqual(expectedBuf, providedBuf);
+}
 
 /** Meta chama esse endpoint uma vez, na hora de configurar o webhook, pra
  * confirmar que o dono do domínio é quem está registrando ele. */
@@ -26,7 +44,12 @@ const CANCEL_WORDS = ["nao", "não", "cancela", "cancelar"];
  * negócio (número não cadastrado, sem permissão, etc.) viram uma resposta
  * pro próprio funcionário no WhatsApp, não um erro HTTP. */
 export async function POST(req: NextRequest) {
-  const payload = await req.json();
+  const rawBody = await req.text();
+  if (!isValidSignature(rawBody, req.headers.get("x-hub-signature-256"))) {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
+
+  const payload = JSON.parse(rawBody);
   const incoming = parseWhatsappWebhookPayload(payload);
   if (!incoming) return NextResponse.json({ ok: true });
 
