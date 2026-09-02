@@ -37,7 +37,16 @@ export default async function ImprimirContrachequePage({
   const isOwner = payment.employee.userId === user.id;
   if (!user.role.canManageFuncionarios && !isOwner) redirect("/meu-ponto");
 
-  const settings = await getAppSettings(user.companyId);
+  const [settings, advances] = await Promise.all([
+    getAppSettings(user.companyId),
+    prisma.advance.findMany({ where: { paymentId: payment.id } }),
+  ]);
+  const valeTotal = advances
+    .filter((a) => a.kind === "VALE")
+    .reduce((s, a) => s + Number(a.amount), 0);
+  const adiantamentoTotal = advances
+    .filter((a) => a.kind === "ADIANTAMENTO")
+    .reduce((s, a) => s + Number(a.amount), 0);
   const inssBrackets = settings.inssBrackets as unknown as Bracket[];
   const irrfBrackets = settings.irrfBrackets as unknown as Bracket[];
 
@@ -55,7 +64,6 @@ export default async function ImprimirContrachequePage({
   const irrfAmount = Number(payment.irrfAmount);
   const valeTransporteAmount = Number(payment.valeTransporteAmount);
   const discountTotal = Number(payment.discountTotal);
-  const advancesTotal = Number(payment.advancesTotal);
   const netAmount = Number(payment.netAmount);
 
   // Base de cálculo padrão (salário + adicional noturno + hora extra) — a
@@ -143,8 +151,17 @@ export default async function ImprimirContrachequePage({
   if (discountTotal > 0) {
     rows.push({ code: "107", label: "Descontos diversos", ref: "", vencimento: 0, desconto: discountTotal });
   }
-  if (advancesTotal > 0) {
-    rows.push({ code: "108", label: "Vales/Adiantamentos", ref: "", vencimento: 0, desconto: advancesTotal });
+  if (valeTotal > 0) {
+    rows.push({ code: "108", label: "Vale-Comida", ref: "", vencimento: 0, desconto: valeTotal });
+  }
+  if (adiantamentoTotal > 0) {
+    rows.push({
+      code: "109",
+      label: "Adiantamento Quinzenal (40%)",
+      ref: "",
+      vencimento: 0,
+      desconto: adiantamentoTotal,
+    });
   }
 
   const totalVencimentos = rows.reduce((s, r) => s + r.vencimento, 0);
