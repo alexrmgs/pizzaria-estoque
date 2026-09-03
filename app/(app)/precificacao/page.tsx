@@ -169,6 +169,12 @@ export default async function PrecificacaoPage({
     };
   });
 
+  const priceRowsByType = {
+    PIZZA: priceRows.filter((r) => r.type === "PIZZA"),
+    ESFIHA: priceRows.filter((r) => r.type === "ESFIHA"),
+    BEIRUTE: priceRows.filter((r) => r.type === "BEIRUTE"),
+  };
+
   const validMargins = priceRows.filter((r) => r.contribMarginPercent !== null);
   const avgContribMarginPercent =
     validMargins.length > 0
@@ -431,79 +437,94 @@ export default async function PrecificacaoPage({
             </>
           )}
 
-          <div className="rounded-lg border bg-white">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Receita</TableHead>
-                  <TableHead>Custo unitário</TableHead>
-                  <TableHead>
-                    Preço sugerido ({pricingMethod === "MARKUP" ? "markup" : "margem"})
-                  </TableHead>
-                  <TableHead>Seu preço hoje</TableHead>
-                  <TableHead>Ajuste necessário</TableHead>
-                  <TableHead>Margem de contribuição</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {priceRows.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-neutral-500">
-                      Nenhuma pizza, esfiha ou beirute cadastrada.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {priceRows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="text-neutral-500">{RECIPE_TYPE_LABELS[row.type]}</TableCell>
-                    <TableCell className="font-medium">{row.name}</TableCell>
-                    <TableCell>{row.costPerUnit !== null ? currency(row.costPerUnit) : "—"}</TableCell>
-                    <TableCell className="font-semibold text-primary">
-                      {row.suggestedPrice !== null ? currency(row.suggestedPrice) : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <RecipePriceInput recipeId={row.id} initialPrice={row.currentPrice} />
-                    </TableCell>
-                    <TableCell>
-                      {row.adjustmentPercent === null ? (
-                        "—"
-                      ) : row.adjustmentPercent > 1 ? (
-                        <span className="text-destructive">
-                          ▲ subir {row.adjustmentPercent.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
-                        </span>
-                      ) : (
-                        <span className="text-emerald-600">✓ dentro da margem</span>
+          <Tabs defaultValue="PIZZA">
+            <TabsList>
+              <TabsTrigger value="PIZZA">Pizza ({priceRowsByType.PIZZA.length})</TabsTrigger>
+              <TabsTrigger value="ESFIHA">Esfiha ({priceRowsByType.ESFIHA.length})</TabsTrigger>
+              <TabsTrigger value="BEIRUTE">Beirute ({priceRowsByType.BEIRUTE.length})</TabsTrigger>
+            </TabsList>
+            {(["PIZZA", "ESFIHA", "BEIRUTE"] as const).map((type) => (
+              <TabsContent key={type} value={type} className="pt-4">
+                <div className="rounded-lg border bg-white">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Receita</TableHead>
+                        <TableHead>Custo unitário</TableHead>
+                        <TableHead>
+                          Preço sugerido ({pricingMethod === "MARKUP" ? "markup" : "margem"})
+                        </TableHead>
+                        <TableHead>Seu preço hoje</TableHead>
+                        <TableHead>Ajuste necessário</TableHead>
+                        <TableHead>Margem de contribuição</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {priceRowsByType[type].length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-neutral-500">
+                            Nenhuma receita de {RECIPE_TYPE_LABELS[type].toLowerCase()} cadastrada.
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      {row.contribMargin === null ? (
-                        "—"
-                      ) : (
-                        <div>
-                          <span
-                            className={
-                              "font-semibold " +
-                              (row.contribMargin >= 0 ? "text-emerald-600" : "text-destructive")
-                            }
-                          >
-                            {currency(row.contribMargin)} (
-                            {row.contribMarginPercent!.toLocaleString("pt-BR", {
-                              maximumFractionDigits: 1,
-                            })}
-                            %)
-                          </span>
-                          {row.usaPrecoSugerido && (
-                            <p className="text-xs text-neutral-400">sobre o preço sugerido</p>
-                          )}
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                      {priceRowsByType[type].map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell className="font-medium">{row.name}</TableCell>
+                          <TableCell>
+                            {row.costPerUnit !== null ? currency(row.costPerUnit) : "—"}
+                          </TableCell>
+                          <TableCell className="font-semibold text-primary">
+                            {row.suggestedPrice !== null ? currency(row.suggestedPrice) : "—"}
+                          </TableCell>
+                          <TableCell>
+                            <RecipePriceInput recipeId={row.id} initialPrice={row.currentPrice} />
+                          </TableCell>
+                          <TableCell>
+                            {row.adjustmentPercent === null ? (
+                              "—"
+                            ) : row.adjustmentPercent > 1 ? (
+                              <span className="text-destructive">
+                                ▲ subir{" "}
+                                {row.adjustmentPercent.toLocaleString("pt-BR", {
+                                  maximumFractionDigits: 1,
+                                })}
+                                %
+                              </span>
+                            ) : (
+                              <span className="text-emerald-600">✓ dentro da margem</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {row.contribMargin === null ? (
+                              "—"
+                            ) : (
+                              <div>
+                                <span
+                                  className={
+                                    "font-semibold " +
+                                    (row.contribMargin >= 0 ? "text-emerald-600" : "text-destructive")
+                                  }
+                                >
+                                  {currency(row.contribMargin)} (
+                                  {row.contribMarginPercent!.toLocaleString("pt-BR", {
+                                    maximumFractionDigits: 1,
+                                  })}
+                                  %)
+                                </span>
+                                {row.usaPrecoSugerido && (
+                                  <p className="text-xs text-neutral-400">sobre o preço sugerido</p>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+            ))}
+          </Tabs>
         </TabsContent>
       </Tabs>
     </div>
