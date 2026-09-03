@@ -157,7 +157,7 @@ export function IngredientDialog({
                 id="unitPrice"
                 name="unitPrice"
                 type="number"
-                step="0.01"
+                step="0.0001"
                 min="0"
                 value={unitPrice}
                 onChange={(e) => setUnitPrice(e.target.value)}

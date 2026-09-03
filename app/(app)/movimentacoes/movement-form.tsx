@@ -244,7 +244,7 @@ export function MovementForm({
                   id={`unitPrice-${type}`}
                   name="unitPrice"
                   type="number"
-                  step="0.01"
+                  step="0.0001"
                   min="0"
                   placeholder="Deixe em branco pra manter o preço já cadastrado"
                 />
