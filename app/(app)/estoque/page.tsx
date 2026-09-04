@@ -18,6 +18,7 @@ import { IngredientDialog } from "./ingredient-dialog";
 import { DeleteIngredientButton } from "./delete-ingredient-button";
 import { ExcludeProducedFromCmvButton } from "./exclude-produced-from-cmv-button";
 import { RecalcularEstoqueAceitavelButton } from "./recalcular-estoque-aceitavel-button";
+import { ExportCsvButton } from "./export-csv-button";
 import type { Prisma } from "@/lib/generated/prisma/client";
 
 const currency = (value: number) =>
@@ -195,6 +196,7 @@ export default async function EstoquePage({
               Fornecedores
             </Button>
             <RecalcularEstoqueAceitavelButton />
+            <ExportCsvButton names={ingredients.map((i) => i.name)} />
             <IngredientDialog categories={categories} />
           </div>
         )}
