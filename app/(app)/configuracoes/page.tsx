@@ -240,6 +240,7 @@ export default async function ConfiguracoesPage() {
                     attendanceBonusTiers={settings.attendanceBonusTiers as unknown as Tier[]}
                     attendanceStreakTiers={settings.attendanceStreakTiers as unknown as StreakTier[]}
                     attendanceBonusVisible={settings.attendanceBonusVisible}
+                    desempenhoTabVisible={settings.desempenhoTabVisible}
                   />
                 </CardContent>
               </Card>

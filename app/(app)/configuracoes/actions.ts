@@ -184,6 +184,7 @@ const attendanceScoreSchema = z.object({
   streakMonths: z.array(z.coerce.number().int().min(0)),
   streakMultiplier: z.array(z.coerce.number().min(0)),
   attendanceBonusVisible: z.coerce.boolean(),
+  desempenhoTabVisible: z.coerce.boolean(),
 });
 
 export type AttendanceScoreFormState = { error?: string } | undefined;
@@ -201,6 +202,7 @@ export async function updateAttendanceScoreSettings(
     streakMonths: formData.getAll("streakMonths"),
     streakMultiplier: formData.getAll("streakMultiplier"),
     attendanceBonusVisible: formData.get("attendanceBonusVisible") === "on",
+    desempenhoTabVisible: formData.get("desempenhoTabVisible") === "on",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -228,6 +230,7 @@ export async function updateAttendanceScoreSettings(
       attendanceBonusTiers,
       attendanceStreakTiers,
       attendanceBonusVisible: parsed.data.attendanceBonusVisible,
+      desempenhoTabVisible: parsed.data.desempenhoTabVisible,
     },
     create: {
       companyId: user.companyId,
@@ -235,6 +238,7 @@ export async function updateAttendanceScoreSettings(
       attendanceBonusTiers,
       attendanceStreakTiers,
       attendanceBonusVisible: parsed.data.attendanceBonusVisible,
+      desempenhoTabVisible: parsed.data.desempenhoTabVisible,
     },
   });
 

@@ -42,17 +42,20 @@ export function AttendanceScoreForm({
   attendanceBonusTiers,
   attendanceStreakTiers,
   attendanceBonusVisible,
+  desempenhoTabVisible,
 }: {
   latePenaltyPoints: string;
   attendanceBonusTiers: BonusTier[];
   attendanceStreakTiers: StreakTier[];
   attendanceBonusVisible: boolean;
+  desempenhoTabVisible: boolean;
 }) {
   const [bonusRows, setBonusRows] = useState<BonusRow[]>(() => bonusTiersToRows(attendanceBonusTiers));
   const [streakRows, setStreakRows] = useState<StreakRow[]>(() =>
     streakTiersToRows(attendanceStreakTiers),
   );
   const [bonusVisible, setBonusVisible] = useState(attendanceBonusVisible);
+  const [tabVisible, setTabVisible] = useState(desempenhoTabVisible);
   const [isPending, startTransition] = useTransition();
 
   function updateBonusRow(key: string, patch: Partial<BonusRow>) {
@@ -231,6 +234,23 @@ export function AttendanceScoreForm({
           Desligado, o funcionário deixa de ver a pontuação/sequência/bônus estimado na tela dele
           — o cálculo continua rodando por trás e valendo no fechamento do pagamento, só some da
           visão dele até você religar.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2 rounded-lg border p-3">
+        <input type="hidden" name="desempenhoTabVisible" value={tabVisible ? "on" : ""} />
+        <label htmlFor="desempenhoTabVisible-cb" className="flex items-center gap-2 text-sm">
+          <Checkbox
+            id="desempenhoTabVisible-cb"
+            checked={tabVisible}
+            onCheckedChange={(v) => setTabVisible(v === true)}
+          />
+          Mostrar a aba &quot;Desempenho&quot; pro funcionário em Meu Ponto
+        </label>
+        <p className="pl-6 text-xs text-muted-foreground">
+          Desligado, some a aba inteira (pontuação, sequência e bônus) da tela do funcionário. O
+          contracheque e o histórico de meses fechados continuam disponíveis em &quot;Salário e
+          Vales&quot;, independente dessa opção.
         </p>
       </div>
 

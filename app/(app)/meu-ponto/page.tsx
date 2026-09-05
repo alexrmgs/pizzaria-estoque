@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
@@ -113,6 +114,33 @@ export default async function MeuPontoPage() {
     .filter((a) => a.paymentId === null)
     .reduce((sum, a) => sum + Number(a.amount), 0);
 
+  // Agrupa os vales por mês (já vêm ordenados por data desc, então os grupos
+  // saem naturalmente do mês mais recente pro mais antigo).
+  type AdvanceMonthGroup = {
+    key: string;
+    label: string;
+    totalAmount: number;
+    advances: typeof advances;
+  };
+  const advanceMonthGroups: AdvanceMonthGroup[] = [];
+  const advanceMonthGroupByKey = new Map<string, AdvanceMonthGroup>();
+  for (const advance of advances) {
+    const key = `${advance.date.getUTCFullYear()}-${String(advance.date.getUTCMonth() + 1).padStart(2, "0")}`;
+    let group = advanceMonthGroupByKey.get(key);
+    if (!group) {
+      const label = advance.date.toLocaleDateString("pt-BR", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      });
+      group = { key, label, totalAmount: 0, advances: [] };
+      advanceMonthGroupByKey.set(key, group);
+      advanceMonthGroups.push(group);
+    }
+    group.totalAmount += Number(advance.amount);
+    group.advances.push(advance);
+  }
+
   const scheduleWindowStart = brazilToday;
   const scheduleWindowEnd = new Date(
     Date.UTC(
@@ -203,7 +231,9 @@ export default async function MeuPontoPage() {
       <Tabs defaultValue="ponto">
         <TabsList>
           <TabsTrigger value="ponto">Ponto</TabsTrigger>
-          <TabsTrigger value="desempenho">Desempenho</TabsTrigger>
+          {settings.desempenhoTabVisible && (
+            <TabsTrigger value="desempenho">Desempenho</TabsTrigger>
+          )}
           <TabsTrigger value="escala">Escala</TabsTrigger>
           <TabsTrigger value="salario">Salário e Vales</TabsTrigger>
         </TabsList>
@@ -312,6 +342,7 @@ export default async function MeuPontoPage() {
           </Card>
         </TabsContent>
 
+        {settings.desempenhoTabVisible && (
         <TabsContent value="desempenho" className="flex flex-col gap-6 pt-4">
           <Card>
             <CardHeader>
@@ -376,80 +407,8 @@ export default async function MeuPontoPage() {
               </p>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Histórico de meses fechados</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Período</TableHead>
-                      <TableHead>Pontualidade</TableHead>
-                      {settings.attendanceBonusVisible && (
-                        <>
-                          <TableHead>Sequência</TableHead>
-                          <TableHead>Bônus recebido</TableHead>
-                        </>
-                      )}
-                      <TableHead>Líquido</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pastPayments.length === 0 && (
-                      <TableRow>
-                        <TableCell
-                          colSpan={settings.attendanceBonusVisible ? 6 : 4}
-                          className="text-center text-neutral-500"
-                        >
-                          Nenhum mês fechado ainda.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {pastPayments.map((payment) => (
-                      <TableRow key={payment.id}>
-                        <TableCell className="text-neutral-500">
-                          {payment.periodStart.toISOString().slice(0, 10)} a{" "}
-                          {payment.periodEnd.toISOString().slice(0, 10)}
-                        </TableCell>
-                        <TableCell>{payment.attendanceScore}/100</TableCell>
-                        {settings.attendanceBonusVisible && (
-                          <>
-                            <TableCell>
-                              {payment.attendanceStreakMonths} mês
-                              {payment.attendanceStreakMonths === 1 ? "" : "es"}
-                            </TableCell>
-                            <TableCell className="font-medium text-primary">
-                              {currency(Number(payment.attendanceBonusAmount))}
-                            </TableCell>
-                          </>
-                        )}
-                        <TableCell className="font-medium">
-                          {currency(Number(payment.netAmount))}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            nativeButton={false}
-                            render={
-                              <Link href={`/imprimir/contracheque/${payment.id}`} target="_blank" />
-                            }
-                          >
-                            Contracheque
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
+        )}
 
         <TabsContent value="escala" className="pt-4">
           <EscalaSection
@@ -634,19 +593,105 @@ export default async function MeuPontoPage() {
                         </TableCell>
                       </TableRow>
                     )}
-                    {advances.map((advance) => (
-                      <TableRow key={advance.id}>
-                        <TableCell>{advance.date.toISOString().slice(0, 10)}</TableCell>
-                        <TableCell>{currency(Number(advance.amount))}</TableCell>
-                        <TableCell className="text-neutral-500">
-                          {advance.description ?? "—"}
+                    {advanceMonthGroups.map((group) => (
+                      <Fragment key={group.key}>
+                        <TableRow className="bg-neutral-50 hover:bg-neutral-50">
+                          <TableCell colSpan={4} className="font-medium capitalize">
+                            {group.label}{" "}
+                            <span className="font-normal text-neutral-500">
+                              ({group.advances.length} vale{group.advances.length === 1 ? "" : "s"} ·{" "}
+                              {currency(group.totalAmount)})
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                        {group.advances.map((advance) => (
+                          <TableRow key={advance.id}>
+                            <TableCell>{advance.date.toISOString().slice(0, 10)}</TableCell>
+                            <TableCell>{currency(Number(advance.amount))}</TableCell>
+                            <TableCell className="text-neutral-500">
+                              {advance.description ?? "—"}
+                            </TableCell>
+                            <TableCell>
+                              {advance.paymentId ? (
+                                <Badge variant="secondary">Pago</Badge>
+                              ) : (
+                                <Badge variant="destructive">Pendente</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </Fragment>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Histórico de meses fechados</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Período</TableHead>
+                      <TableHead>Pontualidade</TableHead>
+                      {settings.attendanceBonusVisible && (
+                        <>
+                          <TableHead>Sequência</TableHead>
+                          <TableHead>Bônus recebido</TableHead>
+                        </>
+                      )}
+                      <TableHead>Líquido</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pastPayments.length === 0 && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={settings.attendanceBonusVisible ? 6 : 4}
+                          className="text-center text-neutral-500"
+                        >
+                          Nenhum mês fechado ainda.
                         </TableCell>
-                        <TableCell>
-                          {advance.paymentId ? (
-                            <Badge variant="secondary">Pago</Badge>
-                          ) : (
-                            <Badge variant="destructive">Pendente</Badge>
-                          )}
+                      </TableRow>
+                    )}
+                    {pastPayments.map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="text-neutral-500">
+                          {payment.periodStart.toISOString().slice(0, 10)} a{" "}
+                          {payment.periodEnd.toISOString().slice(0, 10)}
+                        </TableCell>
+                        <TableCell>{payment.attendanceScore}/100</TableCell>
+                        {settings.attendanceBonusVisible && (
+                          <>
+                            <TableCell>
+                              {payment.attendanceStreakMonths} mês
+                              {payment.attendanceStreakMonths === 1 ? "" : "es"}
+                            </TableCell>
+                            <TableCell className="font-medium text-primary">
+                              {currency(Number(payment.attendanceBonusAmount))}
+                            </TableCell>
+                          </>
+                        )}
+                        <TableCell className="font-medium">
+                          {currency(Number(payment.netAmount))}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            nativeButton={false}
+                            render={
+                              <Link href={`/imprimir/contracheque/${payment.id}`} target="_blank" />
+                            }
+                          >
+                            Contracheque
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

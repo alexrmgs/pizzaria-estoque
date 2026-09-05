@@ -191,6 +191,7 @@ model AppSettings {
   attendanceBonusTiers   Json         @default("[{\"minScore\":100,\"bonus\":0}]")
   attendanceStreakTiers  Json         @default("[{\"months\":6,\"multiplier\":3},{\"months\":3,\"multiplier\":2},{\"months\":0,\"multiplier\":1}]")
   attendanceBonusVisible Boolean      @default(true)
+  desempenhoTabVisible   Boolean      @default(true)
   updatedAt              DateTime     @updatedAt
 }
 
