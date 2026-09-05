@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireUser } from "@/lib/dal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -108,43 +108,45 @@ function RecipeGrid({
                 ))}
               </ul>
 
-              <div className="mt-3 flex flex-col gap-0.5 border-t pt-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-neutral-500">Custo total (com perdas)</span>
-                  <span className="font-medium">{currency(totalCost)}</span>
+              {canManage && (
+                <div className="mt-3 flex flex-col gap-0.5 border-t pt-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500">Custo total (com perdas)</span>
+                    <span className="font-medium">{currency(totalCost)}</span>
+                  </div>
+                  {isUnitYield ? (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-500">Rendimento</span>
+                        <span className="font-medium">
+                          {yieldUnits !== null ? `${yieldUnits} un.` : "—"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-500">Custo por unidade</span>
+                        <span className="font-medium">
+                          {costPerUnit !== null ? currency(costPerUnit) : "—"}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-500">Rendimento real</span>
+                        <span className="font-medium">
+                          {yieldKg !== null ? `${yieldKg.toFixed(3)} kg` : "—"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-500">Custo por kg</span>
+                        <span className="font-medium">
+                          {costPerKg !== null ? `${currency(costPerKg)}/kg` : "—"}
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
-                {isUnitYield ? (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-neutral-500">Rendimento</span>
-                      <span className="font-medium">
-                        {yieldUnits !== null ? `${yieldUnits} un.` : "—"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-neutral-500">Custo por unidade</span>
-                      <span className="font-medium">
-                        {costPerUnit !== null ? currency(costPerUnit) : "—"}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-neutral-500">Rendimento real</span>
-                      <span className="font-medium">
-                        {yieldKg !== null ? `${yieldKg.toFixed(3)} kg` : "—"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-neutral-500">Custo por kg</span>
-                      <span className="font-medium">
-                        {costPerKg !== null ? `${currency(costPerKg)}/kg` : "—"}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
+              )}
 
               <div className="mt-4 flex flex-wrap justify-end gap-2">
                 <Button
@@ -197,7 +199,7 @@ function RecipeGrid({
 }
 
 export default async function ReceitasPage() {
-  const user = await requirePermission("canManageReceitas");
+  const user = await requireUser();
   const canManage = user.role.canManageReceitas;
   const canManageEstoque = user.role.canManageEstoque;
 

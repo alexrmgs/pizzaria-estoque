@@ -91,6 +91,7 @@ export function NavLinks({
         {permissions.canPrintProducao && (
           <NavLink href="/etiquetas-producao" label="Etiquetas / Lotes (Validade)" />
         )}
+        <NavLink href="/receitas" label="Receitas" />
       </nav>
     );
   }
@@ -107,7 +108,6 @@ export function NavLinks({
           { href: "/etiquetas-producao", label: "Etiquetas / Lotes (Validade)" },
         ]
       : []),
-    ...(permissions.canManageReceitas ? [{ href: "/receitas", label: "Receitas" }] : []),
     ...(permissions.canViewRelatorios ? [{ href: "/relatorios", label: "Relatórios" }] : []),
   ];
 
@@ -141,6 +141,7 @@ export function NavLinks({
         <NavLink href="/dashboard" label="Dashboard" />
       )}
       <NavLink href="/meu-ponto" label="Meu Ponto" />
+      <NavLink href="/receitas" label="Receitas" />
 
       <NavGroup title="Gestão de Estoque" items={estoqueItems} />
       <NavGroup title="Gestão de RH" items={rhItems} />

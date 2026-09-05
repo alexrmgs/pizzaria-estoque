@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireUser } from "@/lib/dal";
 import { PrintButton } from "@/components/print-button";
 import { RECIPE_TYPE_LABELS } from "@/lib/recipe-cost";
 
@@ -10,7 +10,7 @@ export default async function ImprimirReceitaPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePermission("canManageReceitas");
+  await requireUser();
   const { id } = await params;
 
   const recipe = await prisma.recipe.findUnique({
