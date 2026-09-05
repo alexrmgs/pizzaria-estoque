@@ -29,20 +29,19 @@ export default async function ImprimirReceitaPage({
     return 0;
   };
 
-  // Mostra o total (ex: 17,5 kg de frango) em kg quando >= 1, senão em gramas
+  // Mostra o total (ex: 18 kg de frango) em kg quando >= 1, senão em gramas
   // (ex: 175 g de sal). Assim a ficha "por 1 kg" fica: 1 kg de frango, 10 g de sal.
+  // Sempre arredonda pro número fechado — mais fácil de pesar na cozinha.
   const fmt = (q: number, unit: string) => {
     const u = unit.toUpperCase();
     if (u === "KG" || u === "L") {
       if (q >= 1) {
-        return `${q.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} ${u === "KG" ? "kg" : "L"}`;
+        return `${Math.round(q).toLocaleString("pt-BR")} ${u === "KG" ? "kg" : "L"}`;
       }
-      const small = Math.round(q * 1000 * 10) / 10;
-      return `${small.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${u === "KG" ? "g" : "ml"}`;
+      const small = Math.round(q * 1000);
+      return `${small.toLocaleString("pt-BR")} ${u === "KG" ? "g" : "ml"}`;
     }
-    if (u === "G") return `${q.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} g`;
-    if (u === "ML") return `${q.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ml`;
-    return `${q.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} ${unit}`;
+    return `${Math.round(q).toLocaleString("pt-BR")} ${unit}`;
   };
 
   // Ingrediente principal = o de maior peso. A ficha "por 1 kg" divide tudo por

@@ -37,15 +37,16 @@ const SMALLER_UNIT: Record<string, string> = { KG: "g", L: "ml" };
  * Formata a quantidade de um item de receita pra exibição — quilos viram
  * gramas e litros viram mililitros (ex: 0.15 KG -> "150 g", 0.5 L ->
  * "500 ml"), porque fica mais fácil de visualizar na ficha impressa do que
- * uma fração de quilo/litro. Outras unidades ficam como estão.
+ * uma fração de quilo/litro. Sempre arredonda pro número fechado (sem casas
+ * decimais) — o valor exato continua guardado no banco, só a exibição muda.
  */
 export function formatRecipeQuantity(quantity: number, unit: string): string {
   const smaller = SMALLER_UNIT[unit];
   if (smaller) {
-    const converted = Math.round(quantity * 1000 * 10) / 10;
-    return `${converted.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${smaller}`;
+    const converted = Math.round(quantity * 1000);
+    return `${converted.toLocaleString("pt-BR")} ${smaller}`;
   }
-  return `${quantity.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} ${unit}`;
+  return `${Math.round(quantity).toLocaleString("pt-BR")} ${unit}`;
 }
 
 export const RECIPE_TYPE_LABELS: Record<string, string> = {
