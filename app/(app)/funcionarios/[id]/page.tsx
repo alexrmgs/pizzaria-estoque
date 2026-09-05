@@ -50,7 +50,7 @@ export default async function FuncionarioDetalhePage({
       take: 60,
     }),
     prisma.payrollAdjustment.findMany({
-      where: { employeeId: id },
+      where: { employeeId: id, type: { in: ["BONUS", "DESCONTO"] } },
       orderBy: { date: "desc" },
       take: 60,
     }),
@@ -272,7 +272,7 @@ export default async function FuncionarioDetalhePage({
         employeeId={id}
         adjustments={adjustments.map((adjustment) => ({
           id: adjustment.id,
-          type: adjustment.type,
+          type: adjustment.type as "BONUS" | "DESCONTO",
           date: adjustment.date.toISOString().slice(0, 10),
           amount: Number(adjustment.amount),
           description: adjustment.description,

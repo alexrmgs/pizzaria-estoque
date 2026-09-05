@@ -105,11 +105,13 @@ export function CltDeductionsForm({
   irrfBrackets,
   irrfDependentDeduction,
   valeTransporteRate,
+  valorFixoMadrugada,
 }: {
   inssBrackets: Bracket[];
   irrfBrackets: Bracket[];
   irrfDependentDeduction: string;
   valeTransporteRate: string;
+  valorFixoMadrugada: string;
 }) {
   const [inssRows, setInssRows] = useState<Row[]>(() => bracketsToRows(inssBrackets));
   const [irrfRows, setIrrfRows] = useState<Row[]>(() => bracketsToRows(irrfBrackets));
@@ -150,7 +152,7 @@ export function CltDeductionsForm({
         lastRowHint="sem teto"
       />
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div className="flex flex-col gap-2">
           <Label htmlFor="irrfDependentDeduction">Dedução por dependente (R$)</Label>
           <Input
@@ -176,7 +178,23 @@ export function CltDeductionsForm({
             required
           />
         </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="valorFixoMadrugada">Valor fixo por madrugada (R$)</Label>
+          <Input
+            id="valorFixoMadrugada"
+            name="valorFixoMadrugada"
+            type="number"
+            step="0.01"
+            min="0"
+            defaultValue={valorFixoMadrugada}
+            required
+          />
+        </div>
       </div>
+      <p className="-mt-3 text-xs text-muted-foreground">
+        Usado como valor padrão ao lançar um pagamento de madrugada em &quot;Madrugada&quot; — dá
+        pra editar em cada lançamento se precisar.
+      </p>
 
       <div>
         <Button type="submit" disabled={isPending}>

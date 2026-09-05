@@ -118,6 +118,7 @@ const cltDeductionsSchema = z.object({
   irrfRate: z.array(bracketRateSchema),
   irrfDependentDeduction: z.coerce.number().min(0),
   valeTransporteRate: z.coerce.number().min(0).max(100),
+  valorFixoMadrugada: z.coerce.number().min(0),
 });
 
 export type CltDeductionsFormState = { error?: string } | undefined;
@@ -142,6 +143,7 @@ export async function updateCltDeductions(
     irrfRate: formData.getAll("irrfRate"),
     irrfDependentDeduction: formData.get("irrfDependentDeduction"),
     valeTransporteRate: formData.get("valeTransporteRate"),
+    valorFixoMadrugada: formData.get("valorFixoMadrugada"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -164,6 +166,7 @@ export async function updateCltDeductions(
       irrfBrackets,
       irrfDependentDeduction: parsed.data.irrfDependentDeduction,
       valeTransporteRate: parsed.data.valeTransporteRate,
+      valorFixoMadrugada: parsed.data.valorFixoMadrugada,
     },
     create: {
       companyId: user.companyId,
@@ -171,10 +174,12 @@ export async function updateCltDeductions(
       irrfBrackets,
       irrfDependentDeduction: parsed.data.irrfDependentDeduction,
       valeTransporteRate: parsed.data.valeTransporteRate,
+      valorFixoMadrugada: parsed.data.valorFixoMadrugada,
     },
   });
 
   revalidatePath("/configuracoes");
+  revalidatePath("/madrugada");
 }
 
 const attendanceScoreSchema = z.object({

@@ -119,6 +119,7 @@ export function NavLinks({
         { href: "/escalas", label: "Escalas" },
         { href: "/pagamentos", label: "Folha de Pagamento" },
         { href: "/vales", label: "Vales" },
+        { href: "/madrugada", label: "Madrugada" },
       ]
     : [];
 

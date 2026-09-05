@@ -76,6 +76,7 @@ export default async function ImprimirContrachequePage({
   const irrfAmount = Number(payment.irrfAmount);
   const valeTransporteAmount = Number(payment.valeTransporteAmount);
   const discountTotal = Number(payment.discountTotal);
+  const madrugadaTotal = Number(payment.madrugadaTotal);
   const netAmount = Number(payment.netAmount);
 
   // Base de cálculo padrão (salário + adicional noturno + hora extra) — a
@@ -120,6 +121,9 @@ export default async function ImprimirContrachequePage({
       vencimento: attendanceBonusAmount,
       desconto: 0,
     });
+  }
+  if (madrugadaTotal > 0) {
+    rows.push({ code: "006", label: "Pagamento Madrugada", ref: "", vencimento: madrugadaTotal, desconto: 0 });
   }
   if (faltaAmount > 0) {
     rows.push({ code: "101", label: "Faltas", ref: `${num(faltaDays)}`, vencimento: 0, desconto: faltaAmount });

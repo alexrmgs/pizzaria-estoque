@@ -37,9 +37,11 @@ export type PaymentPreview = {
   bonusTotal: number;
   discountTotal: number;
   advancesTotal: number;
+  madrugadaTotal: number;
   netAmount: number;
   bonusItems: { id: string; date: string; amount: number; description: string | null }[];
   discountItems: { id: string; date: string; amount: number; description: string | null }[];
+  madrugadaItems: { id: string; date: string; amount: number; description: string | null }[];
   advanceItems: {
     id: string;
     date: string;
@@ -194,6 +196,14 @@ export async function computePaymentPreview(
       amount: Number(a.amount),
       description: a.description,
     }));
+  const madrugadaItems = adjustments
+    .filter((a) => a.type === "MADRUGADA")
+    .map((a) => ({
+      id: a.id,
+      date: a.date.toISOString().slice(0, 10),
+      amount: Number(a.amount),
+      description: a.description,
+    }));
   const advanceItems = advances.map((a) => ({
     id: a.id,
     date: a.date.toISOString().slice(0, 10),
@@ -205,11 +215,13 @@ export async function computePaymentPreview(
   const bonusTotal = bonusItems.reduce((sum, i) => sum + i.amount, 0);
   const discountTotal = discountItems.reduce((sum, i) => sum + i.amount, 0);
   const advancesTotal = advanceItems.reduce((sum, i) => sum + i.amount, 0);
+  const madrugadaTotal = madrugadaItems.reduce((sum, i) => sum + i.amount, 0);
   const netAmount =
     proratedBaseSalary +
     nightPremium +
     overtimePay +
-    bonusTotal -
+    bonusTotal +
+    madrugadaTotal -
     discountTotal -
     advancesTotal -
     lateDiscountPay;
@@ -231,9 +243,11 @@ export async function computePaymentPreview(
     bonusTotal,
     discountTotal,
     advancesTotal,
+    madrugadaTotal,
     netAmount,
     bonusItems,
     discountItems,
+    madrugadaItems,
     advanceItems,
     attendanceScore: scoreVal,
     lateOccurrences,

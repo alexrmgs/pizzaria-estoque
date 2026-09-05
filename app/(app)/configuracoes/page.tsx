@@ -224,6 +224,7 @@ export default async function ConfiguracoesPage() {
                     irrfBrackets={settings.irrfBrackets as unknown as Bracket[]}
                     irrfDependentDeduction={settings.irrfDependentDeduction.toString()}
                     valeTransporteRate={settings.valeTransporteRate.toString()}
+                    valorFixoMadrugada={settings.valorFixoMadrugada.toString()}
                   />
                 </CardContent>
               </Card>

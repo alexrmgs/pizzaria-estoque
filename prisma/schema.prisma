@@ -192,6 +192,7 @@ model AppSettings {
   attendanceStreakTiers  Json         @default("[{\"months\":6,\"multiplier\":3},{\"months\":3,\"multiplier\":2},{\"months\":0,\"multiplier\":1}]")
   attendanceBonusVisible Boolean      @default(true)
   desempenhoTabVisible   Boolean      @default(true)
+  valorFixoMadrugada     Decimal      @default(0) @db.Decimal(10, 2)
   updatedAt              DateTime     @updatedAt
 }
 
@@ -669,6 +670,7 @@ model ShiftSwapRequest {
 enum AdjustmentType {
   BONUS
   DESCONTO
+  MADRUGADA
 }
 
 // VALE = vale-comida pego na pizzaria; ADIANTAMENTO = adiantamento quinzenal
@@ -739,6 +741,7 @@ model Payment {
   bonusTotal             Decimal  @db.Decimal(10, 2)
   discountTotal          Decimal  @db.Decimal(10, 2)
   advancesTotal          Decimal  @db.Decimal(10, 2)
+  madrugadaTotal         Decimal  @default(0) @db.Decimal(10, 2)
   attendanceScore        Int      @default(100)
   attendanceStreakMonths Int      @default(0)
   attendanceBonusAmount  Decimal  @default(0) @db.Decimal(10, 2)

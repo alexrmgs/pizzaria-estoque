@@ -409,6 +409,7 @@ export async function closePayment(
     preview.nightPremium +
     preview.overtimeAmount +
     preview.bonusTotal +
+    preview.madrugadaTotal +
     attendanceBonusVal -
     preview.discountTotal -
     preview.advancesTotal -
@@ -472,6 +473,7 @@ export async function closePayment(
           bonusTotal: preview.bonusTotal,
           discountTotal: preview.discountTotal,
           advancesTotal: preview.advancesTotal,
+          madrugadaTotal: preview.madrugadaTotal,
           attendanceScore: preview.attendanceScore,
           attendanceStreakMonths: preview.attendanceStreakMonths,
           attendanceBonusAmount: attendanceBonusVal,
@@ -482,7 +484,9 @@ export async function closePayment(
         },
       });
 
-      const adjustmentIds = [...preview.bonusItems, ...preview.discountItems].map((i) => i.id);
+      const adjustmentIds = [...preview.bonusItems, ...preview.discountItems, ...preview.madrugadaItems].map(
+        (i) => i.id,
+      );
       if (adjustmentIds.length > 0) {
         await tx.payrollAdjustment.updateMany({
           where: { id: { in: adjustmentIds } },
