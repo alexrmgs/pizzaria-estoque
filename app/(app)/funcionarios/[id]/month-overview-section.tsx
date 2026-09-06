@@ -71,16 +71,9 @@ export function MonthOverviewSection({
           <ChevronDown className={cn("size-4 transition-transform", !open && "-rotate-90")} />
           Visualizar ganhos e vales
         </CardTitle>
-        <div className="text-right text-sm text-neutral-500">
-          <div>
-            Líquido previsto (folha): <span className="font-semibold text-primary">{currency(netAmount)}</span>
-          </div>
-          {madrugadaTotal > 0 && (
-            <div className="text-xs">
-              + madrugada (paga à parte): {currency(madrugadaTotal)} · Total:{" "}
-              <span className="font-semibold text-primary">{currency(netAmount + madrugadaTotal)}</span>
-            </div>
-          )}
+        <div className="text-sm text-neutral-500">
+          Total no mês:{" "}
+          <span className="font-semibold text-primary">{currency(netAmount + madrugadaTotal)}</span>
         </div>
       </CardHeader>
       {open && (
@@ -110,9 +103,22 @@ export function MonthOverviewSection({
                 </div>
               )}
               <div className="rounded-lg border p-3">
-                <p className="text-xs text-neutral-500">Líquido previsto</p>
+                <p className="text-xs text-neutral-500">Líquido da folha</p>
                 <p className="text-lg font-semibold text-primary">{currency(netAmount)}</p>
               </div>
+            </div>
+
+            <div className="mt-3 rounded-lg border-2 border-primary/30 bg-primary/5 p-3">
+              <p className="text-xs text-neutral-500">
+                Total no mês (líquido da folha + madrugada pendente)
+              </p>
+              <p className="text-xl font-bold text-primary">{currency(netAmount + madrugadaTotal)}</p>
+              {madrugadaTotal > 0 && (
+                <p className="text-xs text-neutral-500">
+                  {currency(netAmount)} de folha + {currency(madrugadaTotal)} de madrugada (pago à
+                  parte em &quot;Madrugada&quot;, não junto do salário)
+                </p>
+              )}
             </div>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
