@@ -71,8 +71,16 @@ export function MonthOverviewSection({
           <ChevronDown className={cn("size-4 transition-transform", !open && "-rotate-90")} />
           Visualizar ganhos e vales
         </CardTitle>
-        <div className="text-sm text-neutral-500">
-          Líquido previsto: <span className="font-semibold text-primary">{currency(netAmount)}</span>
+        <div className="text-right text-sm text-neutral-500">
+          <div>
+            Líquido previsto (folha): <span className="font-semibold text-primary">{currency(netAmount)}</span>
+          </div>
+          {madrugadaTotal > 0 && (
+            <div className="text-xs">
+              + madrugada (paga à parte): {currency(madrugadaTotal)} · Total:{" "}
+              <span className="font-semibold text-primary">{currency(netAmount + madrugadaTotal)}</span>
+            </div>
+          )}
         </div>
       </CardHeader>
       {open && (

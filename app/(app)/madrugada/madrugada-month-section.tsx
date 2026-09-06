@@ -24,7 +24,7 @@ type Payment = {
   date: string;
   amount: number;
   description: string | null;
-  paymentId: string | null;
+  paid: boolean;
 };
 
 export function MadrugadaMonthSection({
@@ -85,14 +85,14 @@ export function MadrugadaMonthSection({
                     <TableCell>{currency(payment.amount)}</TableCell>
                     <TableCell className="text-neutral-500">{payment.description ?? "—"}</TableCell>
                     <TableCell>
-                      {payment.paymentId ? (
+                      {payment.paid ? (
                         <Badge variant="secondary">Pago</Badge>
                       ) : (
                         <Badge variant="destructive">Pendente</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {!payment.paymentId && <DeleteMadrugadaButton id={payment.id} />}
+                      {!payment.paid && <DeleteMadrugadaButton id={payment.id} />}
                     </TableCell>
                   </TableRow>
                 ))}

@@ -343,14 +343,6 @@ export function ClosePaymentDialog({
                   <span className="text-neutral-500">Bônus</span>
                   <span className="font-medium text-primary">{currency(preview.bonusTotal)}</span>
                 </div>
-                {preview.madrugadaTotal > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500">Pagamento madrugada</span>
-                    <span className="font-medium text-primary">
-                      {currency(preview.madrugadaTotal)}
-                    </span>
-                  </div>
-                )}
                 <div className="flex justify-between">
                   <span className="text-neutral-500">
                     Pontuação de assiduidade/pontualidade ({preview.lateOccurrences} atraso
@@ -512,7 +504,6 @@ export function ClosePaymentDialog({
                       preview.nightPremium +
                       preview.overtimeAmount +
                       preview.bonusTotal +
-                      preview.madrugadaTotal +
                       (applyAttendanceBonus ? preview.attendanceBonusAmount : 0) -
                       preview.discountTotal -
                       preview.advancesTotal -

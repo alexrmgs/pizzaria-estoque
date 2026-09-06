@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
-import { todayInBrazil } from "@/lib/payroll";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -13,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { MadrugadaForm } from "./madrugada-form";
 import { MadrugadaMonthSection } from "./madrugada-month-section";
+import { PayMadrugadaButton } from "./pay-madrugada-button";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -42,7 +42,7 @@ export default async function MadrugadaPage() {
       date: string;
       amount: number;
       description: string | null;
-      paymentId: string | null;
+      paid: boolean;
     }[];
   };
   const monthGroups: MonthGroup[] = [];
@@ -61,30 +61,28 @@ export default async function MadrugadaPage() {
       monthGroups.push(group);
     }
     const amount = Number(adjustment.amount);
+    const paid = adjustment.paidAt !== null || adjustment.paymentId !== null;
     group.totalAmount += amount;
-    if (!adjustment.paymentId) group.pendingAmount += amount;
+    if (!paid) group.pendingAmount += amount;
     group.payments.push({
       id: adjustment.id,
       employeeName: adjustment.employee.name,
       date: adjustment.date.toISOString().slice(0, 10),
       amount,
       description: adjustment.description,
-      paymentId: adjustment.paymentId,
+      paid,
     });
   }
 
-  // Resumo rápido: quanto cada funcionário já acumulou no mês corrente (o
-  // que ele vai receber a mais na próxima folha), sem precisar abrir o card
-  // do mês lá embaixo.
-  const today = todayInBrazil();
-  const currentMonthKey = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, "0")}`;
+  // Resumo: quanto cada funcionário tem PENDENTE de receber agora (qualquer
+  // mês, não só o atual) — some ao clicar em "Pagar", que marca tudo como
+  // pago de uma vez e some daqui.
   const summaryByEmployee = new Map<
     string,
     { employeeId: string; name: string; count: number; total: number }
   >();
   for (const adjustment of payments) {
-    const key = `${adjustment.date.getUTCFullYear()}-${String(adjustment.date.getUTCMonth() + 1).padStart(2, "0")}`;
-    if (key !== currentMonthKey) continue;
+    if (adjustment.paidAt !== null || adjustment.paymentId !== null) continue;
     const entry = summaryByEmployee.get(adjustment.employeeId) ?? {
       employeeId: adjustment.employeeId,
       name: adjustment.employee.name,
@@ -96,11 +94,6 @@ export default async function MadrugadaPage() {
     summaryByEmployee.set(adjustment.employeeId, entry);
   }
   const summaryRows = [...summaryByEmployee.values()].sort((a, b) => b.total - a.total);
-  const currentMonthLabel = today.toLocaleDateString("pt-BR", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -110,9 +103,11 @@ export default async function MadrugadaPage() {
           Toda vez que um funcionário fizer um turno extra de madrugada, lance aqui o dia e o
           valor combinado (já vem preenchido com o valor fixo cadastrado, mas dá pra mudar). Isso
           NÃO tem nada a ver com o adicional noturno automático (que já sai sozinho do ponto
-          batido) — é um valor à parte, que soma no salário quando você fechar o pagamento do mês
-          desse funcionário, e aparece como uma linha separada no contracheque dele. O funcionário
-          também consegue ver os próprios lançamentos em &quot;Meu Ponto → Salário e Vales&quot;.
+          batido) e NÃO entra na folha de pagamento mensal — é um pagamento à parte. Vá
+          acumulando os lançamentos e, quando for pagar o funcionário, aperte &quot;Pagar&quot; no
+          resumo abaixo: isso gera uma conta já paga em Contas Pagas e zera o pendente dele. Isso
+          só aparece aqui pra quem gerencia — o funcionário não vê nada disso, só o salário normal
+          dele.
         </p>
       </div>
 
@@ -123,21 +118,20 @@ export default async function MadrugadaPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg capitalize">Resumo de {currentMonthLabel}</CardTitle>
+          <CardTitle className="text-lg">Pendente de pagar</CardTitle>
         </CardHeader>
         <CardContent>
           {summaryRows.length === 0 ? (
-            <p className="text-sm text-neutral-500">
-              Nenhuma madrugada lançada esse mês ainda.
-            </p>
+            <p className="text-sm text-neutral-500">Nada pendente no momento.</p>
           ) : (
             <div className="rounded-lg border">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Funcionário</TableHead>
-                    <TableHead>Madrugadas no mês</TableHead>
-                    <TableHead>Total a receber</TableHead>
+                    <TableHead>Madrugadas pendentes</TableHead>
+                    <TableHead>Total a pagar</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -147,6 +141,13 @@ export default async function MadrugadaPage() {
                       <TableCell>{row.count}</TableCell>
                       <TableCell className="font-medium text-primary">
                         {currency(row.total)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <PayMadrugadaButton
+                          employeeId={row.employeeId}
+                          employeeName={row.name}
+                          amount={row.total}
+                        />
                       </TableCell>
                     </TableRow>
                   ))}

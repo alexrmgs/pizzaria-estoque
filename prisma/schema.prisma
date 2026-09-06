@@ -693,6 +693,8 @@ model PayrollAdjustment {
   payment       Payment?       @relation(fields: [paymentId], references: [id])
   terminationId String?
   termination   Termination?   @relation(fields: [terminationId], references: [id])
+  paidAt      DateTime?
+  payableId   String?
   createdAt   DateTime       @default(now())
 
   @@index([employeeId])

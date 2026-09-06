@@ -82,7 +82,7 @@ export async function computePaymentPreview(
       where: { employeeId, date: { gte: periodStart, lte: periodEnd }, clockOut: { not: null } },
     }),
     prisma.payrollAdjustment.findMany({
-      where: { employeeId, date: { gte: periodStart, lte: periodEnd }, paymentId: null },
+      where: { employeeId, date: { gte: periodStart, lte: periodEnd }, paymentId: null, paidAt: null },
       orderBy: { date: "asc" },
     }),
     prisma.advance.findMany({
@@ -216,12 +216,14 @@ export async function computePaymentPreview(
   const discountTotal = discountItems.reduce((sum, i) => sum + i.amount, 0);
   const advancesTotal = advanceItems.reduce((sum, i) => sum + i.amount, 0);
   const madrugadaTotal = madrugadaItems.reduce((sum, i) => sum + i.amount, 0);
+  // Madrugada é um canal de pagamento à parte (pago avulso pelo botão
+  // "Pagar" em /madrugada) — não entra na conta do líquido da folha normal,
+  // só é exibido informativamente pra quem gerencia.
   const netAmount =
     proratedBaseSalary +
     nightPremium +
     overtimePay +
-    bonusTotal +
-    madrugadaTotal -
+    bonusTotal -
     discountTotal -
     advancesTotal -
     lateDiscountPay;
