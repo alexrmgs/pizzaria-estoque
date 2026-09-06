@@ -1,8 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
+import { todayInBrazil } from "@/lib/payroll";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { MadrugadaForm } from "./madrugada-form";
 import { MadrugadaMonthSection } from "./madrugada-month-section";
+
+const currency = (value: number) =>
+  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export default async function MadrugadaPage() {
   const user = await requirePermission("canManageFuncionarios");
@@ -60,13 +73,46 @@ export default async function MadrugadaPage() {
     });
   }
 
+  // Resumo rápido: quanto cada funcionário já acumulou no mês corrente (o
+  // que ele vai receber a mais na próxima folha), sem precisar abrir o card
+  // do mês lá embaixo.
+  const today = todayInBrazil();
+  const currentMonthKey = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, "0")}`;
+  const summaryByEmployee = new Map<
+    string,
+    { employeeId: string; name: string; count: number; total: number }
+  >();
+  for (const adjustment of payments) {
+    const key = `${adjustment.date.getUTCFullYear()}-${String(adjustment.date.getUTCMonth() + 1).padStart(2, "0")}`;
+    if (key !== currentMonthKey) continue;
+    const entry = summaryByEmployee.get(adjustment.employeeId) ?? {
+      employeeId: adjustment.employeeId,
+      name: adjustment.employee.name,
+      count: 0,
+      total: 0,
+    };
+    entry.count += 1;
+    entry.total += Number(adjustment.amount);
+    summaryByEmployee.set(adjustment.employeeId, entry);
+  }
+  const summaryRows = [...summaryByEmployee.values()].sort((a, b) => b.total - a.total);
+  const currentMonthLabel = today.toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold uppercase">Madrugada</h1>
         <p className="text-sm text-neutral-500">
-          Pagamento fixo pra quem faz extra na madrugada — separado do adicional noturno
-          automático, entra no fechamento do pagamento do mês do funcionário.
+          Toda vez que um funcionário fizer um turno extra de madrugada, lance aqui o dia e o
+          valor combinado (já vem preenchido com o valor fixo cadastrado, mas dá pra mudar). Isso
+          NÃO tem nada a ver com o adicional noturno automático (que já sai sozinho do ponto
+          batido) — é um valor à parte, que soma no salário quando você fechar o pagamento do mês
+          desse funcionário, e aparece como uma linha separada no contracheque dele. O funcionário
+          também consegue ver os próprios lançamentos em &quot;Meu Ponto → Salário e Vales&quot;.
         </p>
       </div>
 
@@ -74,6 +120,42 @@ export default async function MadrugadaPage() {
         employees={employees.map((e) => ({ id: e.id, name: e.name }))}
         valorFixo={settings.valorFixoMadrugada.toString()}
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg capitalize">Resumo de {currentMonthLabel}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {summaryRows.length === 0 ? (
+            <p className="text-sm text-neutral-500">
+              Nenhuma madrugada lançada esse mês ainda.
+            </p>
+          ) : (
+            <div className="rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Funcionário</TableHead>
+                    <TableHead>Madrugadas no mês</TableHead>
+                    <TableHead>Total a receber</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {summaryRows.map((row) => (
+                    <TableRow key={row.employeeId}>
+                      <TableCell className="font-medium">{row.name}</TableCell>
+                      <TableCell>{row.count}</TableCell>
+                      <TableCell className="font-medium text-primary">
+                        {currency(row.total)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {monthGroups.length === 0 ? (
         <p className="text-sm text-neutral-500">Nenhum pagamento de madrugada lançado ainda.</p>

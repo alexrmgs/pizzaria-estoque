@@ -35,6 +35,8 @@ export function MonthOverviewSection({
   bonusItems,
   discountTotal,
   discountItems,
+  madrugadaTotal,
+  madrugadaItems,
   advancesTotal,
   advanceItems,
 }: {
@@ -52,6 +54,8 @@ export function MonthOverviewSection({
   bonusItems: AdjustmentItem[];
   discountTotal: number;
   discountItems: AdjustmentItem[];
+  madrugadaTotal: number;
+  madrugadaItems: AdjustmentItem[];
   advancesTotal: number;
   advanceItems: AdvanceItem[];
 }) {
@@ -103,7 +107,7 @@ export function MonthOverviewSection({
               </div>
             </div>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <div className="rounded-lg border p-3">
                 <p className="mb-2 text-xs font-medium text-neutral-500">Bônus ({currency(bonusTotal)})</p>
                 {bonusItems.length === 0 ? (
@@ -135,6 +139,25 @@ export function MonthOverviewSection({
                           {item.date} {item.description ? `· ${item.description}` : ""}
                         </span>
                         <span className="font-medium text-destructive">-{currency(item.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="mb-2 text-xs font-medium text-neutral-500">
+                  Madrugada ({currency(madrugadaTotal)})
+                </p>
+                {madrugadaItems.length === 0 ? (
+                  <p className="text-sm text-neutral-400">Nenhum pagamento de madrugada no período.</p>
+                ) : (
+                  <ul className="flex flex-col gap-1 text-sm">
+                    {madrugadaItems.map((item) => (
+                      <li key={item.id} className="flex justify-between gap-2">
+                        <span className="text-neutral-500">
+                          {item.date} {item.description ? `· ${item.description}` : ""}
+                        </span>
+                        <span className="font-medium text-primary">{currency(item.amount)}</span>
                       </li>
                     ))}
                   </ul>

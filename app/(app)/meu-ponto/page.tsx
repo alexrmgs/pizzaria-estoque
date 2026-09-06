@@ -513,7 +513,7 @@ export default async function MeuPontoPage() {
                 </div>
               )}
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-lg border p-3">
                   <p className="mb-2 text-xs font-medium text-neutral-500">
                     Bônus ({currency(preview.bonusTotal)})
@@ -550,6 +550,29 @@ export default async function MeuPontoPage() {
                           </span>
                           <span className="font-medium text-destructive">
                             -{currency(item.amount)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="mb-2 text-xs font-medium text-neutral-500">
+                    Madrugada ({currency(preview.madrugadaTotal)})
+                  </p>
+                  {preview.madrugadaItems.length === 0 ? (
+                    <p className="text-sm text-neutral-400">
+                      Nenhum pagamento de madrugada no período.
+                    </p>
+                  ) : (
+                    <ul className="flex flex-col gap-1 text-sm">
+                      {preview.madrugadaItems.map((item) => (
+                        <li key={item.id} className="flex justify-between gap-2">
+                          <span className="text-neutral-500">
+                            {item.date} {item.description ? `· ${item.description}` : ""}
+                          </span>
+                          <span className="font-medium text-primary">
+                            {currency(item.amount)}
                           </span>
                         </li>
                       ))}

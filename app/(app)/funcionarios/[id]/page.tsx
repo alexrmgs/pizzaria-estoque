@@ -222,6 +222,8 @@ export default async function FuncionarioDetalhePage({
         bonusItems={hoursPreview.bonusItems}
         discountTotal={hoursPreview.discountTotal}
         discountItems={hoursPreview.discountItems}
+        madrugadaTotal={hoursPreview.madrugadaTotal}
+        madrugadaItems={hoursPreview.madrugadaItems}
         advancesTotal={hoursPreview.advancesTotal}
         advanceItems={hoursPreview.advanceItems}
       />
