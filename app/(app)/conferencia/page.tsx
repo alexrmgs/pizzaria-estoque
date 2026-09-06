@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { Button } from "@/components/ui/button";
@@ -26,12 +27,28 @@ export default async function ConferenciaPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold uppercase">Conferência de Estoque</h1>
-        <p className="text-sm text-neutral-500">
-          Digite a quantidade que você contou fisicamente. Só os itens com diferença geram
-          ajuste — o sistema atualiza o estoque e registra o motivo automaticamente.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold uppercase">Conferência de Estoque</h1>
+          <p className="text-sm text-neutral-500">
+            Digite a quantidade que você contou fisicamente. Só os itens com diferença geram
+            ajuste — o sistema atualiza o estoque e registra o motivo automaticamente.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          nativeButton={false}
+          render={
+            <Link
+              href={`/imprimir/conferencia${categoryId ? `?categoria=${categoryId}` : ""}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            />
+          }
+        >
+          Guia de impressão
+        </Button>
       </div>
 
       <form className="flex flex-wrap items-end gap-3 rounded-lg border bg-white p-4">
