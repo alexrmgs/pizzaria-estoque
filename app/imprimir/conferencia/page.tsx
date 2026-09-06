@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
@@ -47,9 +48,12 @@ export default async function ImprimirConferenciaPage({
       </div>
 
       <div className="flex items-center justify-between border-b border-black pb-2">
-        <div>
-          <p className="text-lg font-bold uppercase">{settings.labelEmpresa || "Empresa"}</p>
-          <p className="text-sm text-neutral-600">Guia de Conferência de Estoque</p>
+        <div className="flex items-center gap-3">
+          <Image src="/logo.png" alt={settings.labelEmpresa || "Empresa"} width={48} height={47} />
+          <div>
+            <p className="text-lg font-bold uppercase">{settings.labelEmpresa || "Empresa"}</p>
+            <p className="text-sm text-neutral-600">Guia de Conferência de Estoque</p>
+          </div>
         </div>
         <div className="text-right text-sm text-neutral-600">
           <p>Data da contagem: ___/___/____</p>
@@ -68,7 +72,7 @@ export default async function ImprimirConferenciaPage({
           <thead>
             <tr className="border-b border-black bg-neutral-100">
               <th
-                colSpan={4}
+                colSpan={3}
                 className="border border-black px-2 py-1 text-left font-semibold uppercase"
               >
                 {categoryName}
@@ -82,9 +86,6 @@ export default async function ImprimirConferenciaPage({
                 Unidade
               </th>
               <th className="border border-black px-2 py-1 text-left font-semibold">
-                Estoque no sistema (referência)
-              </th>
-              <th className="border border-black px-2 py-1 text-left font-semibold">
                 Contagem física
               </th>
             </tr>
@@ -94,9 +95,6 @@ export default async function ImprimirConferenciaPage({
               <tr key={ingredient.id} className="border-b border-neutral-300">
                 <td className="border border-black px-2 py-2">{ingredient.name}</td>
                 <td className="border border-black px-2 py-2">{ingredient.unit}</td>
-                <td className="border border-black px-2 py-2 text-neutral-500">
-                  {ingredient.currentStock.toString()}
-                </td>
                 <td className="border border-black px-2 py-2">&nbsp;</td>
               </tr>
             ))}
