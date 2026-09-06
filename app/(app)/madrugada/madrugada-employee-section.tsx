@@ -20,6 +20,8 @@ import { PayMadrugadaButton } from "./pay-madrugada-button";
 
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const weekday = (iso: string) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString("pt-BR", { weekday: "short", timeZone: "UTC" });
 
 type Entry = {
   id: string;
@@ -101,7 +103,10 @@ export function MadrugadaEmployeeSection({
               <TableBody>
                 {entries.map((entry) => (
                   <TableRow key={entry.id}>
-                    <TableCell>{entry.date}</TableCell>
+                    <TableCell>
+                      {entry.date.split("-").reverse().join("/")}{" "}
+                      <span className="text-neutral-500">({weekday(entry.date)})</span>
+                    </TableCell>
                     <TableCell>{currency(entry.amount)}</TableCell>
                     <TableCell className="text-neutral-500">{entry.description ?? "—"}</TableCell>
                     <TableCell>

@@ -8,6 +8,8 @@ import { PrintButton } from "@/components/print-button";
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const brDate = (iso: string) => iso.split("-").reverse().join("/");
+const weekday = (iso: string) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString("pt-BR", { weekday: "short", timeZone: "UTC" });
 
 export default async function ComprovanteMadrugadaPage({
   params,
@@ -70,17 +72,20 @@ export default async function ComprovanteMadrugadaPage({
                 </td>
               </tr>
             )}
-            {entries.map((entry) => (
+            {entries.map((entry) => {
+              const iso = entry.date.toISOString().slice(0, 10);
+              return (
               <tr key={entry.id} className="border-b border-neutral-300">
                 <td className="border-r border-black px-2 py-1">
-                  {brDate(entry.date.toISOString().slice(0, 10))}
+                  {brDate(iso)} ({weekday(iso)})
                 </td>
                 <td className="border-r border-black px-2 py-1 text-neutral-600">
                   {entry.description ?? "—"}
                 </td>
                 <td className="px-2 py-1 text-right">{currency(Number(entry.amount))}</td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
 
