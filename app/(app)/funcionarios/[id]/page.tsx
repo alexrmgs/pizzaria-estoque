@@ -41,31 +41,56 @@ export default async function FuncionarioDetalhePage({
   const employee = await prisma.employee.findUnique({ where: { id } });
   if (!employee) notFound();
 
-  const [timeEntries, dayOffs, advances, adjustments, payments, users, stores] = await Promise.all([
-    prisma.timeEntry.findMany({ where: { employeeId: id }, orderBy: { date: "desc" }, take: 60 }),
-    prisma.dayOff.findMany({ where: { employeeId: id }, orderBy: { date: "desc" }, take: 60 }),
-    prisma.advance.findMany({
-      where: { employeeId: id, kind: "VALE" },
-      orderBy: { date: "desc" },
-      take: 60,
-    }),
-    prisma.payrollAdjustment.findMany({
-      where: { employeeId: id, type: { in: ["BONUS", "DESCONTO"] } },
-      orderBy: { date: "desc" },
-      take: 60,
-    }),
-    prisma.payment.findMany({ where: { employeeId: id }, orderBy: { periodStart: "desc" } }),
-    prisma.user.findMany({
-      where: { companyId: currentUser.companyId },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, email: true, employee: { select: { id: true } } },
-    }),
-    prisma.store.findMany({
-      where: { companyId: currentUser.companyId },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-  ]);
+  const brazilTodayForMonth = todayInBrazil();
+  const monthStart = new Date(
+    Date.UTC(brazilTodayForMonth.getUTCFullYear(), brazilTodayForMonth.getUTCMonth(), 1),
+  );
+  const monthEnd = new Date(
+    Date.UTC(brazilTodayForMonth.getUTCFullYear(), brazilTodayForMonth.getUTCMonth() + 1, 0, 23, 59, 59),
+  );
+
+  const [timeEntries, dayOffs, advances, adjustments, madrugadaThisMonth, payments, users, stores] =
+    await Promise.all([
+      prisma.timeEntry.findMany({ where: { employeeId: id }, orderBy: { date: "desc" }, take: 60 }),
+      prisma.dayOff.findMany({ where: { employeeId: id }, orderBy: { date: "desc" }, take: 60 }),
+      prisma.advance.findMany({
+        where: { employeeId: id, kind: "VALE" },
+        orderBy: { date: "desc" },
+        take: 60,
+      }),
+      prisma.payrollAdjustment.findMany({
+        where: { employeeId: id, type: { in: ["BONUS", "DESCONTO"] } },
+        orderBy: { date: "desc" },
+        take: 60,
+      }),
+      // Todo lançamento de madrugada do mês calendário atual, pago ou não —
+      // é o que mostra "quanto está saindo por mês" de verdade, diferente do
+      // preview (que só conta o que ainda tá pendente de pagar).
+      prisma.payrollAdjustment.findMany({
+        where: { employeeId: id, type: "MADRUGADA", date: { gte: monthStart, lte: monthEnd } },
+        orderBy: { date: "asc" },
+      }),
+      prisma.payment.findMany({ where: { employeeId: id }, orderBy: { periodStart: "desc" } }),
+      prisma.user.findMany({
+        where: { companyId: currentUser.companyId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, email: true, employee: { select: { id: true } } },
+      }),
+      prisma.store.findMany({
+        where: { companyId: currentUser.companyId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
+    ]);
+
+  const madrugadaMonthItems = madrugadaThisMonth.map((a) => ({
+    id: a.id,
+    date: a.date.toISOString().slice(0, 10),
+    amount: Number(a.amount),
+    description: a.description,
+    paid: a.paidAt !== null || a.paymentId !== null,
+  }));
+  const madrugadaMonthTotal = madrugadaMonthItems.reduce((sum, i) => sum + i.amount, 0);
 
   const availableUsers = users
     .filter((u) => !u.employee || u.employee.id === id)
@@ -222,8 +247,8 @@ export default async function FuncionarioDetalhePage({
         bonusItems={hoursPreview.bonusItems}
         discountTotal={hoursPreview.discountTotal}
         discountItems={hoursPreview.discountItems}
-        madrugadaTotal={hoursPreview.madrugadaTotal}
-        madrugadaItems={hoursPreview.madrugadaItems}
+        madrugadaTotal={madrugadaMonthTotal}
+        madrugadaItems={madrugadaMonthItems}
         advancesTotal={hoursPreview.advancesTotal}
         advanceItems={hoursPreview.advanceItems}
       />

@@ -19,6 +19,13 @@ const currency = (value: number) =>
 
 type AdjustmentItem = { id: string; date: string; amount: number; description: string | null };
 type AdvanceItem = { id: string; date: string; amount: number; description: string | null };
+type MadrugadaItem = {
+  id: string;
+  date: string;
+  amount: number;
+  description: string | null;
+  paid: boolean;
+};
 
 export function MonthOverviewSection({
   periodStart,
@@ -55,7 +62,7 @@ export function MonthOverviewSection({
   discountTotal: number;
   discountItems: AdjustmentItem[];
   madrugadaTotal: number;
-  madrugadaItems: AdjustmentItem[];
+  madrugadaItems: MadrugadaItem[];
   advancesTotal: number;
   advanceItems: AdvanceItem[];
 }) {
@@ -110,12 +117,12 @@ export function MonthOverviewSection({
 
             <div className="mt-3 rounded-lg border-2 border-primary/30 bg-primary/5 p-3">
               <p className="text-xs text-neutral-500">
-                Total no mês (líquido da folha + madrugada pendente)
+                Total no mês (líquido da folha + toda madrugada do mês, paga ou não)
               </p>
               <p className="text-xl font-bold text-primary">{currency(netAmount + madrugadaTotal)}</p>
               {madrugadaTotal > 0 && (
                 <p className="text-xs text-neutral-500">
-                  {currency(netAmount)} de folha + {currency(madrugadaTotal)} de madrugada (pago à
+                  {currency(netAmount)} de folha + {currency(madrugadaTotal)} de madrugada (paga à
                   parte em &quot;Madrugada&quot;, não junto do salário)
                 </p>
               )}
@@ -160,18 +167,25 @@ export function MonthOverviewSection({
               </div>
               <div className="rounded-lg border p-3">
                 <p className="mb-2 text-xs font-medium text-neutral-500">
-                  Madrugada ({currency(madrugadaTotal)})
+                  Madrugada no mês ({currency(madrugadaTotal)})
                 </p>
                 {madrugadaItems.length === 0 ? (
-                  <p className="text-sm text-neutral-400">Nenhum pagamento de madrugada no período.</p>
+                  <p className="text-sm text-neutral-400">Nenhum pagamento de madrugada esse mês.</p>
                 ) : (
                   <ul className="flex flex-col gap-1 text-sm">
                     {madrugadaItems.map((item) => (
-                      <li key={item.id} className="flex justify-between gap-2">
+                      <li key={item.id} className="flex items-center justify-between gap-2">
                         <span className="text-neutral-500">
                           {item.date} {item.description ? `· ${item.description}` : ""}
                         </span>
-                        <span className="font-medium text-primary">{currency(item.amount)}</span>
+                        <span className="flex items-center gap-2">
+                          <span className="font-medium text-primary">{currency(item.amount)}</span>
+                          {item.paid ? (
+                            <Badge variant="secondary">Pago</Badge>
+                          ) : (
+                            <Badge variant="destructive">Pendente</Badge>
+                          )}
+                        </span>
                       </li>
                     ))}
                   </ul>
