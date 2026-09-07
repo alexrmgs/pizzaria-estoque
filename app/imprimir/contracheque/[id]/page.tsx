@@ -72,6 +72,8 @@ export default async function ImprimirContrachequePage({
   const lateDiscountMinutes = Number(payment.lateDiscountMinutes);
   const faltaAmount = Number(payment.faltaAmount);
   const faltaDays = Number(payment.faltaDays);
+  const holidayBonusAmount = Number(payment.holidayBonusAmount);
+  const holidayWorkedDays = Number(payment.holidayWorkedDays);
   const inssAmount = Number(payment.inssAmount);
   const irrfAmount = Number(payment.irrfAmount);
   const valeTransporteAmount = Number(payment.valeTransporteAmount);
@@ -118,6 +120,15 @@ export default async function ImprimirContrachequePage({
       label: "Bônus Assiduidade/Pontualidade",
       ref: "",
       vencimento: attendanceBonusAmount,
+      desconto: 0,
+    });
+  }
+  if (holidayBonusAmount > 0) {
+    rows.push({
+      code: "006",
+      label: "Feriado Trabalhado",
+      ref: `${num(holidayWorkedDays)}`,
+      vencimento: holidayBonusAmount,
       desconto: 0,
     });
   }

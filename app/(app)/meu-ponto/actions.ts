@@ -87,15 +87,20 @@ export async function clockIn(coords: Coords) {
     );
   }
 
-  const todaysDayOff = await prisma.dayOff.findUnique({
-    where: { employeeId_date: { employeeId: employee.id, date } },
-  });
+  const [todaysDayOff, todaysHoliday] = await Promise.all([
+    prisma.dayOff.findUnique({
+      where: { employeeId_date: { employeeId: employee.id, date } },
+    }),
+    prisma.holiday.findUnique({ where: { date } }),
+  ]);
   // Só bloqueia em folga de verdade (fixa semanal ou avulsa). Atestado e
   // falta são registros administrativos (geralmente lançados depois do
-  // fato) e não devem impedir o funcionário de bater ponto.
+  // fato) e não devem impedir o funcionário de bater ponto. Feriado
+  // cadastrado também libera o ponto normalmente (a pizzaria funciona em
+  // feriado) — e ainda soma uma diária a mais no fechamento do pagamento.
   const isWeeklyDayOff =
     employee.weeklyDayOff !== null && weekdayInBrazil(now) === employee.weeklyDayOff;
-  const isWorkOverride = todaysDayOff?.type === "TRABALHA";
+  const isWorkOverride = todaysDayOff?.type === "TRABALHA" || todaysHoliday !== null;
   const isFolga = !isWorkOverride && (todaysDayOff?.type === "FOLGA" || isWeeklyDayOff);
   if (isFolga) {
     throw new Error(

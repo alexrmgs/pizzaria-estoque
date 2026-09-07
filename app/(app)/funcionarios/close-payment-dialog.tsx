@@ -20,6 +20,7 @@ import type { PaymentPreview } from "@/lib/payment-preview";
 import {
   daysInMonthUTC,
   faltaAmount,
+  holidayWorkedBonusAmount,
   inssAmount,
   irrfAmount,
   nthBusinessDayOfMonth,
@@ -90,6 +91,8 @@ export function ClosePaymentDialog({
   const [applyFalta, setApplyFalta] = useState(false);
   const [faltaDays, setFaltaDays] = useState("0");
   const [applyAttendanceBonus, setApplyAttendanceBonus] = useState(false);
+  const [applyHolidayBonus, setApplyHolidayBonus] = useState(false);
+  const [holidayWorkedDays, setHolidayWorkedDays] = useState("0");
   const [jaPago, setJaPago] = useState(false);
   const [formaPagamento, setFormaPagamento] = useState<"DINHEIRO" | "PIX">("PIX");
   const [dataPagamento, setDataPagamento] = useState("");
@@ -108,6 +111,8 @@ export function ClosePaymentDialog({
         setApplyAttendanceBonus(result.attendanceBonusAmount > 0);
         setApplyFalta(result.faltaDaysAuto > 0);
         setFaltaDays(String(result.faltaDaysAuto));
+        setApplyHolidayBonus(result.holidayWorkedDaysAuto > 0);
+        setHolidayWorkedDays(String(result.holidayWorkedDaysAuto));
       }
     });
   }
@@ -141,6 +146,9 @@ export function ClosePaymentDialog({
 
   const salaryNum = Number(salaryOverride || 0);
   const faltaVal = applyFalta ? faltaAmount(salaryNum, Number(faltaDays || 0)) : 0;
+  const holidayVal = applyHolidayBonus
+    ? holidayWorkedBonusAmount(salaryNum, Number(holidayWorkedDays || 0))
+    : 0;
   const grossForTax = preview
     ? salaryNum + preview.nightPremium + preview.overtimeAmount
     : salaryNum;
@@ -270,6 +278,11 @@ export function ClosePaymentDialog({
               <input type="hidden" name="faltaDays" value={applyFalta ? faltaDays : "0"} />
               <input
                 type="hidden"
+                name="holidayWorkedDays"
+                value={applyHolidayBonus ? holidayWorkedDays : "0"}
+              />
+              <input
+                type="hidden"
                 name="applyAttendanceBonus"
                 value={applyAttendanceBonus ? "on" : ""}
               />
@@ -381,6 +394,44 @@ export function ClosePaymentDialog({
                     </span>
                   </div>
                 )}
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <label htmlFor="applyHolidayBonus-cb" className="flex items-center gap-2 text-sm text-neutral-500">
+                      <Checkbox
+                        id="applyHolidayBonus-cb"
+                        checked={applyHolidayBonus}
+                        onCheckedChange={(v) => setApplyHolidayBonus(v === true)}
+                      />
+                      Feriado trabalhado
+                    </label>
+                    {applyHolidayBonus && (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          value={holidayWorkedDays}
+                          onChange={(e) => setHolidayWorkedDays(e.target.value)}
+                          className="h-8 w-20"
+                        />
+                        <span className="text-sm font-medium text-primary">
+                          +{currency(holidayVal)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {preview.holidayWorkedDatesAuto.length > 0 && (
+                    <p className="pl-6 text-xs text-muted-foreground">
+                      Bateu ponto em feriado nas datas:{" "}
+                      {preview.holidayWorkedDatesAuto
+                        .map((d) => d.split("-").reverse().join("/"))
+                        .join(", ")}{" "}
+                      ({preview.holidayWorkedDaysAuto} dia
+                      {preview.holidayWorkedDaysAuto === 1 ? "" : "s"} a mais, 1/30 do salário
+                      cada). Ajuste o número acima se precisar.
+                    </p>
+                  )}
+                </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Descontos</span>
                   <span className="font-medium text-destructive">
@@ -504,7 +555,8 @@ export function ClosePaymentDialog({
                       preview.nightPremium +
                       preview.overtimeAmount +
                       preview.bonusTotal +
-                      (applyAttendanceBonus ? preview.attendanceBonusAmount : 0) -
+                      (applyAttendanceBonus ? preview.attendanceBonusAmount : 0) +
+                      holidayVal -
                       preview.discountTotal -
                       preview.advancesTotal -
                       preview.lateDiscountAmount -

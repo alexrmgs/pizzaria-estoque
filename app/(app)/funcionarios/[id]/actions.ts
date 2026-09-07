@@ -8,6 +8,7 @@ import { computePaymentPreview, type PaymentPreview } from "@/lib/payment-previe
 import { getAppSettings } from "@/lib/settings";
 import {
   faltaAmount,
+  holidayWorkedBonusAmount,
   inssAmount,
   irrfAmount,
   nthBusinessDayOfMonth,
@@ -324,6 +325,7 @@ const closePaymentSchema = z.object({
   applyIrrf: z.coerce.boolean(),
   applyVt: z.coerce.boolean(),
   faltaDays: z.coerce.number().min(0).default(0),
+  holidayWorkedDays: z.coerce.number().min(0).default(0),
   applyAttendanceBonus: z.coerce.boolean(),
   note: z.string().trim().max(500).optional(),
   jaPago: z.coerce.boolean(),
@@ -348,6 +350,7 @@ export async function closePayment(
     applyIrrf: formData.get("applyIrrf"),
     applyVt: formData.get("applyVt"),
     faltaDays: formData.get("faltaDays") || 0,
+    holidayWorkedDays: formData.get("holidayWorkedDays") || 0,
     applyAttendanceBonus: formData.get("applyAttendanceBonus"),
     note: formData.get("note") || undefined,
     jaPago: formData.get("jaPago") === "on",
@@ -387,6 +390,10 @@ export async function closePayment(
 
   const grossForTax = baseSalary + preview.nightPremium + preview.overtimeAmount;
   const faltaVal = parsed.data.faltaDays > 0 ? faltaAmount(baseSalary, parsed.data.faltaDays) : 0;
+  const holidayVal =
+    parsed.data.holidayWorkedDays > 0
+      ? holidayWorkedBonusAmount(baseSalary, parsed.data.holidayWorkedDays)
+      : 0;
   const inssVal = parsed.data.applyInss
     ? inssAmount(grossForTax, settings.inssBrackets as unknown as { upTo: number | null; rate: number }[])
     : 0;
@@ -409,7 +416,8 @@ export async function closePayment(
     preview.nightPremium +
     preview.overtimeAmount +
     preview.bonusTotal +
-    attendanceBonusVal -
+    attendanceBonusVal +
+    holidayVal -
     preview.discountTotal -
     preview.advancesTotal -
     preview.lateDiscountAmount -
@@ -466,6 +474,8 @@ export async function closePayment(
           lateDiscountAmount: preview.lateDiscountAmount,
           faltaDays: parsed.data.faltaDays,
           faltaAmount: faltaVal,
+          holidayWorkedDays: parsed.data.holidayWorkedDays,
+          holidayBonusAmount: holidayVal,
           inssAmount: inssVal,
           irrfAmount: irrfVal,
           valeTransporteAmount: vtVal,

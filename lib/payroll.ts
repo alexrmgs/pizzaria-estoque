@@ -189,6 +189,13 @@ export function faltaAmount(baseSalary: number, faltaDays: number): number {
   return (baseSalary / 30) * faltaDays;
 }
 
+/** Um dia a mais de salário (1/30) por feriado efetivamente trabalhado —
+ * detectado automaticamente quando o funcionário bate ponto num dia
+ * cadastrado em Feriados. */
+export function holidayWorkedBonusAmount(baseSalary: number, holidayWorkedDays: number): number {
+  return (baseSalary / 30) * holidayWorkedDays;
+}
+
 /** Quantos dias tem o mês de `periodEnd` (28-31) — usado só pra contar os
  * dias de fato trabalhados (pra não perder o dia 31 em mês de 31 dias). O
  * salário/dia continua sempre dividido por 30 (mês comercial), que é o

@@ -737,6 +737,8 @@ model Payment {
   lateDiscountAmount     Decimal  @default(0) @db.Decimal(10, 2)
   faltaDays              Decimal  @default(0) @db.Decimal(4, 1)
   faltaAmount            Decimal  @default(0) @db.Decimal(10, 2)
+  holidayWorkedDays      Decimal  @default(0) @db.Decimal(4, 1)
+  holidayBonusAmount     Decimal  @default(0) @db.Decimal(10, 2)
   inssAmount             Decimal  @default(0) @db.Decimal(10, 2)
   irrfAmount             Decimal  @default(0) @db.Decimal(10, 2)
   valeTransporteAmount   Decimal  @default(0) @db.Decimal(10, 2)

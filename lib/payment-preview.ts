@@ -10,6 +10,7 @@ import {
   excessHoursByDay,
   faltaAmount,
   faltaDeductionDays,
+  holidayWorkedBonusAmount,
   lateDiscountAmount,
   lateMinutes,
   nightHours,
@@ -60,6 +61,9 @@ export type PaymentPreview = {
   faltaDsrDaysAuto: number;
   faltaHolidayDaysAuto: number;
   faltaAmountAuto: number;
+  holidayWorkedDatesAuto: string[];
+  holidayWorkedDaysAuto: number;
+  holidayBonusAmountAuto: number;
 };
 
 export async function computePaymentPreview(
@@ -156,6 +160,17 @@ export async function computePaymentPreview(
   const faltaDeduction = faltaDeductionDays(faltaDatesAuto, employee.weeklyDayOff, holidayDates);
   const faltaDaysAuto = faltaDeduction.totalDays;
   const faltaAmountAutoVal = faltaAmount(baseSalary, faltaDaysAuto);
+
+  // Feriado trabalhado: dia cadastrado em Feriados dentro do período em que
+  // o funcionário efetivamente bateu ponto (com saída registrada) — soma
+  // 1 dia a mais de salário (1/30) por dia, automaticamente.
+  const periodStartISO = periodStart.toISOString().slice(0, 10);
+  const periodEndISO = periodEnd.toISOString().slice(0, 10);
+  const holidayWorkedDatesAuto = [...holidayDates]
+    .filter((d) => d >= periodStartISO && d <= periodEndISO && hoursByDay.has(d))
+    .sort();
+  const holidayWorkedDaysAuto = holidayWorkedDatesAuto.length;
+  const holidayBonusAmountAutoVal = holidayWorkedBonusAmount(baseSalary, holidayWorkedDaysAuto);
   const scoreVal = attendanceScore(lateOccurrences, settings.latePenaltyPoints);
   const baseBonusVal = attendanceBonusAmount(
     scoreVal,
@@ -219,6 +234,10 @@ export async function computePaymentPreview(
   // Madrugada é um canal de pagamento à parte (pago avulso pelo botão
   // "Pagar" em /madrugada) — não entra na conta do líquido da folha normal,
   // só é exibido informativamente pra quem gerencia.
+  // Feriado trabalhado (como falta e bônus de assiduidade) fica de fora do
+  // netAmount "base" daqui — é um valor sugerido/editável, aplicado de
+  // verdade só no fechamento do pagamento (closePayment), com o mesmo
+  // padrão do desconto de falta.
   const netAmount =
     proratedBaseSalary +
     nightPremium +
@@ -262,5 +281,8 @@ export async function computePaymentPreview(
     faltaDsrDaysAuto: faltaDeduction.dsrDaysLost,
     faltaHolidayDaysAuto: faltaDeduction.holidayDaysLost,
     faltaAmountAuto: faltaAmountAutoVal,
+    holidayWorkedDatesAuto,
+    holidayWorkedDaysAuto,
+    holidayBonusAmountAuto: holidayBonusAmountAutoVal,
   };
 }
