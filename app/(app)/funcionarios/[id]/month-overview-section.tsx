@@ -44,6 +44,8 @@ export function MonthOverviewSection({
   discountItems,
   madrugadaTotal,
   madrugadaItems,
+  holidayWorkedDatesAuto,
+  holidayBonusAmountAuto,
   advancesTotal,
   advanceItems,
 }: {
@@ -63,6 +65,8 @@ export function MonthOverviewSection({
   discountItems: AdjustmentItem[];
   madrugadaTotal: number;
   madrugadaItems: MadrugadaItem[];
+  holidayWorkedDatesAuto: string[];
+  holidayBonusAmountAuto: number;
   advancesTotal: number;
   advanceItems: AdvanceItem[];
 }) {
@@ -80,7 +84,9 @@ export function MonthOverviewSection({
         </CardTitle>
         <div className="text-sm text-neutral-500">
           Total no mês:{" "}
-          <span className="font-semibold text-primary">{currency(netAmount + madrugadaTotal)}</span>
+          <span className="font-semibold text-primary">
+            {currency(netAmount + madrugadaTotal + holidayBonusAmountAuto)}
+          </span>
         </div>
       </CardHeader>
       {open && (
@@ -117,18 +123,23 @@ export function MonthOverviewSection({
 
             <div className="mt-3 rounded-lg border-2 border-primary/30 bg-primary/5 p-3">
               <p className="text-xs text-neutral-500">
-                Total no mês (líquido da folha + toda madrugada do mês, paga ou não)
+                Total no mês (líquido da folha + madrugada do mês + feriado trabalhado)
               </p>
-              <p className="text-xl font-bold text-primary">{currency(netAmount + madrugadaTotal)}</p>
-              {madrugadaTotal > 0 && (
+              <p className="text-xl font-bold text-primary">
+                {currency(netAmount + madrugadaTotal + holidayBonusAmountAuto)}
+              </p>
+              {(madrugadaTotal > 0 || holidayBonusAmountAuto > 0) && (
                 <p className="text-xs text-neutral-500">
-                  {currency(netAmount)} de folha + {currency(madrugadaTotal)} de madrugada (paga à
-                  parte em &quot;Madrugada&quot;, não junto do salário)
+                  {currency(netAmount)} de folha
+                  {madrugadaTotal > 0 &&
+                    ` + ${currency(madrugadaTotal)} de madrugada (paga à parte em "Madrugada", não junto do salário)`}
+                  {holidayBonusAmountAuto > 0 &&
+                    ` + ${currency(holidayBonusAmountAuto)} de feriado trabalhado (sugestão — só entra de verdade no líquido quando fechar o pagamento)`}
                 </p>
               )}
             </div>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-lg border p-3">
                 <p className="mb-2 text-xs font-medium text-neutral-500">Bônus ({currency(bonusTotal)})</p>
                 {bonusItems.length === 0 ? (
@@ -189,6 +200,29 @@ export function MonthOverviewSection({
                       </li>
                     ))}
                   </ul>
+                )}
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="mb-2 text-xs font-medium text-neutral-500">
+                  Feriado trabalhado ({currency(holidayBonusAmountAuto)})
+                </p>
+                {holidayWorkedDatesAuto.length === 0 ? (
+                  <p className="text-sm text-neutral-400">Nenhum feriado trabalhado no período.</p>
+                ) : (
+                  <>
+                    <ul className="flex flex-col gap-1 text-sm">
+                      {holidayWorkedDatesAuto.map((date) => (
+                        <li key={date} className="flex justify-between gap-2">
+                          <span className="text-neutral-500">{date.split("-").reverse().join("/")}</span>
+                          <Badge variant="secondary">Bateu ponto</Badge>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-1 text-xs text-neutral-400">
+                      Sugestão automática (1/30 do salário por dia) — ajustável na hora de fechar
+                      o pagamento.
+                    </p>
+                  </>
                 )}
               </div>
             </div>
