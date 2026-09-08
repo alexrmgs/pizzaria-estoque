@@ -17,6 +17,7 @@ const WEEKDAY_NAMES = [
 ];
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmployeeDialog } from "../employee-dialog";
 import { DismissEmployeeButton } from "../dismiss-employee-button";
 import { DeleteEmployeeButton } from "../delete-employee-button";
@@ -176,173 +177,196 @@ export default async function FuncionarioDetalhePage({
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            Resumo de horas
-            <span className="text-sm font-normal text-neutral-500">
-              (período: {periodStart.toLocaleDateString("pt-BR")} a{" "}
-              {periodEnd.toLocaleDateString("pt-BR")}
-              {lastPayment ? ", desde o último pagamento" : ""})
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-neutral-500">Horas normais trabalhadas</p>
-              <p className="text-lg font-semibold">{regularHours.toFixed(2)}h</p>
-            </div>
-            {hoursPreview.overtimeMode === "HORA_EXTRA" ? (
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-neutral-500">Horas extras</p>
-                <p className="text-lg font-semibold text-primary">
-                  {hoursPreview.overtimeHours.toFixed(2)}h
-                </p>
+      <Tabs defaultValue="visao-geral">
+        <TabsList>
+          <TabsTrigger value="visao-geral">Visão Geral</TabsTrigger>
+          <TabsTrigger value="ponto">Ponto</TabsTrigger>
+          <TabsTrigger value="folgas">Folgas e Faltas</TabsTrigger>
+          <TabsTrigger value="vales">Vales</TabsTrigger>
+          <TabsTrigger value="ajustes">Bônus e Descontos</TabsTrigger>
+          <TabsTrigger value="pagamentos">Pagamentos</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="visao-geral" className="flex flex-col gap-6 pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                Resumo de horas
+                <span className="text-sm font-normal text-neutral-500">
+                  (período: {periodStart.toLocaleDateString("pt-BR")} a{" "}
+                  {periodEnd.toLocaleDateString("pt-BR")}
+                  {lastPayment ? ", desde o último pagamento" : ""})
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-neutral-500">Horas normais trabalhadas</p>
+                  <p className="text-lg font-semibold">{regularHours.toFixed(2)}h</p>
+                </div>
+                {hoursPreview.overtimeMode === "HORA_EXTRA" ? (
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-neutral-500">Horas extras</p>
+                    <p className="text-lg font-semibold text-primary">
+                      {hoursPreview.overtimeHours.toFixed(2)}h
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-neutral-500">Banco de horas</p>
+                    <p className="text-lg font-semibold text-primary">
+                      {hoursPreview.bankedHours.toFixed(2)}h
+                    </p>
+                  </div>
+                )}
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-neutral-500">Horas noturnas</p>
+                  <p className="text-lg font-semibold">{hoursPreview.totalNightHours.toFixed(2)}h</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-neutral-500">Atraso acumulado</p>
+                  <p className="text-lg font-semibold text-destructive">
+                    {hoursPreview.lateMinutesTotal > 0 ? `${hoursPreview.lateMinutesTotal} min` : "0 min"}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-neutral-500">
+                    Desconto por atraso (tolerância legal de 5min)
+                  </p>
+                  <p className="text-lg font-semibold text-destructive">
+                    {hoursPreview.lateDiscountAmount > 0
+                      ? `${currency(hoursPreview.lateDiscountAmount)} (${hoursPreview.lateDiscountMinutes}min)`
+                      : "—"}
+                  </p>
+                </div>
               </div>
-            ) : (
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-neutral-500">Banco de horas</p>
-                <p className="text-lg font-semibold text-primary">
-                  {hoursPreview.bankedHours.toFixed(2)}h
-                </p>
-              </div>
-            )}
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-neutral-500">Horas noturnas</p>
-              <p className="text-lg font-semibold">{hoursPreview.totalNightHours.toFixed(2)}h</p>
-            </div>
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-neutral-500">Atraso acumulado</p>
-              <p className="text-lg font-semibold text-destructive">
-                {hoursPreview.lateMinutesTotal > 0 ? `${hoursPreview.lateMinutesTotal} min` : "0 min"}
-              </p>
-            </div>
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-neutral-500">
-                Desconto por atraso (tolerância legal de 5min)
-              </p>
-              <p className="text-lg font-semibold text-destructive">
-                {hoursPreview.lateDiscountAmount > 0
-                  ? `${currency(hoursPreview.lateDiscountAmount)} (${hoursPreview.lateDiscountMinutes}min)`
-                  : "—"}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      <MonthOverviewSection
-        periodStart={periodStart.toLocaleDateString("pt-BR")}
-        periodEnd={periodEnd.toLocaleDateString("pt-BR")}
-        baseSalary={hoursPreview.baseSalary}
-        totalNightHours={hoursPreview.totalNightHours}
-        nightPremium={hoursPreview.nightPremium}
-        overtimeMode={hoursPreview.overtimeMode}
-        overtimeHours={hoursPreview.overtimeHours}
-        overtimeAmount={hoursPreview.overtimeAmount}
-        bankedHours={hoursPreview.bankedHours}
-        netAmount={hoursPreview.netAmount}
-        bonusTotal={hoursPreview.bonusTotal}
-        bonusItems={hoursPreview.bonusItems}
-        discountTotal={hoursPreview.discountTotal}
-        discountItems={hoursPreview.discountItems}
-        madrugadaTotal={madrugadaMonthTotal}
-        madrugadaItems={madrugadaMonthItems}
-        holidayWorkedDatesAuto={hoursPreview.holidayWorkedDatesAuto}
-        holidayBonusAmountAuto={hoursPreview.holidayBonusAmountAuto}
-        advancesTotal={hoursPreview.advancesTotal}
-        advanceItems={hoursPreview.advanceItems}
-      />
+          <MonthOverviewSection
+            periodStart={periodStart.toLocaleDateString("pt-BR")}
+            periodEnd={periodEnd.toLocaleDateString("pt-BR")}
+            baseSalary={hoursPreview.baseSalary}
+            totalNightHours={hoursPreview.totalNightHours}
+            nightPremium={hoursPreview.nightPremium}
+            overtimeMode={hoursPreview.overtimeMode}
+            overtimeHours={hoursPreview.overtimeHours}
+            overtimeAmount={hoursPreview.overtimeAmount}
+            bankedHours={hoursPreview.bankedHours}
+            netAmount={hoursPreview.netAmount}
+            bonusTotal={hoursPreview.bonusTotal}
+            bonusItems={hoursPreview.bonusItems}
+            discountTotal={hoursPreview.discountTotal}
+            discountItems={hoursPreview.discountItems}
+            madrugadaTotal={madrugadaMonthTotal}
+            madrugadaItems={madrugadaMonthItems}
+            holidayWorkedDatesAuto={hoursPreview.holidayWorkedDatesAuto}
+            holidayBonusAmountAuto={hoursPreview.holidayBonusAmountAuto}
+            advancesTotal={hoursPreview.advancesTotal}
+            advanceItems={hoursPreview.advanceItems}
+          />
+        </TabsContent>
 
-      <TimeEntriesSection
-        employeeId={id}
-        entries={timeEntries.map((entry) => ({
-          id: entry.id,
-          date: entry.date.toISOString().slice(0, 10),
-          clockIn: entry.clockIn.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-          clockOut: entry.clockOut
-            ? entry.clockOut.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-            : null,
-          hours: entry.clockOut ? shiftHours(entry.clockIn, entry.clockOut) : null,
-          nightHours: entry.clockOut ? nightHours(entry.clockIn, entry.clockOut) : 0,
-          lateMinutes: lateMinutes(employee.scheduledStart, entry.clockIn),
-          clockInDistanceM: entry.clockInDistanceM,
-          clockOutDistanceM: entry.clockOutDistanceM,
-          clockInPhoto: entry.clockInPhoto,
-          clockOutPhoto: entry.clockOutPhoto,
-          note: entry.note,
-        }))}
-      />
+        <TabsContent value="ponto" className="pt-4">
+          <TimeEntriesSection
+            employeeId={id}
+            entries={timeEntries.map((entry) => ({
+              id: entry.id,
+              date: entry.date.toISOString().slice(0, 10),
+              clockIn: entry.clockIn.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+              clockOut: entry.clockOut
+                ? entry.clockOut.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+                : null,
+              hours: entry.clockOut ? shiftHours(entry.clockIn, entry.clockOut) : null,
+              nightHours: entry.clockOut ? nightHours(entry.clockIn, entry.clockOut) : 0,
+              lateMinutes: lateMinutes(employee.scheduledStart, entry.clockIn),
+              clockInDistanceM: entry.clockInDistanceM,
+              clockOutDistanceM: entry.clockOutDistanceM,
+              clockInPhoto: entry.clockInPhoto,
+              clockOutPhoto: entry.clockOutPhoto,
+              note: entry.note,
+            }))}
+          />
+        </TabsContent>
 
-      <DayOffsSection
-        employeeId={id}
-        weeklyDayOff={employee.weeklyDayOff}
-        dayOffs={dayOffs.map((dayOff) => ({
-          id: dayOff.id,
-          date: dayOff.date.toISOString().slice(0, 10),
-          type: dayOff.type,
-          reason: dayOff.reason,
-        }))}
-      />
+        <TabsContent value="folgas" className="pt-4">
+          <DayOffsSection
+            employeeId={id}
+            weeklyDayOff={employee.weeklyDayOff}
+            dayOffs={dayOffs.map((dayOff) => ({
+              id: dayOff.id,
+              date: dayOff.date.toISOString().slice(0, 10),
+              type: dayOff.type,
+              reason: dayOff.reason,
+            }))}
+          />
+        </TabsContent>
 
-      <AdvancesSection
-        employeeId={id}
-        advances={advances.map((advance) => ({
-          id: advance.id,
-          date: advance.date.toISOString().slice(0, 10),
-          amount: Number(advance.amount),
-          description: advance.description,
-          settled: advance.paymentId !== null,
-        }))}
-      />
+        <TabsContent value="vales" className="pt-4">
+          <AdvancesSection
+            employeeId={id}
+            advances={advances.map((advance) => ({
+              id: advance.id,
+              date: advance.date.toISOString().slice(0, 10),
+              amount: Number(advance.amount),
+              description: advance.description,
+              settled: advance.paymentId !== null,
+            }))}
+          />
+        </TabsContent>
 
-      <AdjustmentsSection
-        employeeId={id}
-        adjustments={adjustments.map((adjustment) => ({
-          id: adjustment.id,
-          type: adjustment.type as "BONUS" | "DESCONTO",
-          date: adjustment.date.toISOString().slice(0, 10),
-          amount: Number(adjustment.amount),
-          description: adjustment.description,
-          settled: adjustment.paymentId !== null,
-        }))}
-      />
+        <TabsContent value="ajustes" className="pt-4">
+          <AdjustmentsSection
+            employeeId={id}
+            adjustments={adjustments.map((adjustment) => ({
+              id: adjustment.id,
+              type: adjustment.type as "BONUS" | "DESCONTO",
+              date: adjustment.date.toISOString().slice(0, 10),
+              amount: Number(adjustment.amount),
+              description: adjustment.description,
+              settled: adjustment.paymentId !== null,
+            }))}
+          />
+        </TabsContent>
 
-      <PaymentSection
-        employeeId={id}
-        baseSalary={Number(employee.baseSalary)}
-        dependents={employee.dependents}
-        cltSettings={{
-          inssBrackets: settings.inssBrackets as unknown as { upTo: number | null; rate: number }[],
-          irrfBrackets: settings.irrfBrackets as unknown as { upTo: number | null; rate: number }[],
-          irrfDependentDeduction: Number(settings.irrfDependentDeduction),
-          valeTransporteRate: Number(settings.valeTransporteRate),
-        }}
-        payments={payments.map((payment) => ({
-          id: payment.id,
-          periodStart: payment.periodStart.toISOString().slice(0, 10),
-          periodEnd: payment.periodEnd.toISOString().slice(0, 10),
-          baseSalary: Number(payment.baseSalary),
-          nightPremium: Number(payment.nightPremium),
-          overtimeHours: Number(payment.overtimeHours),
-          overtimeAmount: Number(payment.overtimeAmount),
-          bankedHours: Number(payment.bankedHours),
-          lateDiscountMinutes: Number(payment.lateDiscountMinutes),
-          lateDiscountAmount: Number(payment.lateDiscountAmount),
-          faltaDays: Number(payment.faltaDays),
-          faltaAmount: Number(payment.faltaAmount),
-          inssAmount: Number(payment.inssAmount),
-          irrfAmount: Number(payment.irrfAmount),
-          valeTransporteAmount: Number(payment.valeTransporteAmount),
-          bonusTotal: Number(payment.bonusTotal),
-          discountTotal: Number(payment.discountTotal),
-          advancesTotal: Number(payment.advancesTotal),
-          netAmount: Number(payment.netAmount),
-          paidAt: payment.paidAt.toLocaleDateString("pt-BR"),
-          note: payment.note,
-        }))}
-      />
+        <TabsContent value="pagamentos" className="pt-4">
+          <PaymentSection
+            employeeId={id}
+            baseSalary={Number(employee.baseSalary)}
+            dependents={employee.dependents}
+            cltSettings={{
+              inssBrackets: settings.inssBrackets as unknown as { upTo: number | null; rate: number }[],
+              irrfBrackets: settings.irrfBrackets as unknown as { upTo: number | null; rate: number }[],
+              irrfDependentDeduction: Number(settings.irrfDependentDeduction),
+              valeTransporteRate: Number(settings.valeTransporteRate),
+            }}
+            payments={payments.map((payment) => ({
+              id: payment.id,
+              periodStart: payment.periodStart.toISOString().slice(0, 10),
+              periodEnd: payment.periodEnd.toISOString().slice(0, 10),
+              baseSalary: Number(payment.baseSalary),
+              nightPremium: Number(payment.nightPremium),
+              overtimeHours: Number(payment.overtimeHours),
+              overtimeAmount: Number(payment.overtimeAmount),
+              bankedHours: Number(payment.bankedHours),
+              lateDiscountMinutes: Number(payment.lateDiscountMinutes),
+              lateDiscountAmount: Number(payment.lateDiscountAmount),
+              faltaDays: Number(payment.faltaDays),
+              faltaAmount: Number(payment.faltaAmount),
+              inssAmount: Number(payment.inssAmount),
+              irrfAmount: Number(payment.irrfAmount),
+              valeTransporteAmount: Number(payment.valeTransporteAmount),
+              bonusTotal: Number(payment.bonusTotal),
+              discountTotal: Number(payment.discountTotal),
+              advancesTotal: Number(payment.advancesTotal),
+              netAmount: Number(payment.netAmount),
+              paidAt: payment.paidAt.toLocaleDateString("pt-BR"),
+              note: payment.note,
+            }))}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
