@@ -18,6 +18,9 @@ import { DeleteMovementButton } from "./delete-movement-button";
 import { NotasEntradaPanel } from "../notas/notas-list";
 import { QrBaixaPanel } from "./qr-baixa-panel";
 
+const selectClassName =
+  "h-9 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
 export const maxDuration = 60;
 
 type Movement = {
@@ -114,7 +117,9 @@ export default async function MovimentacoesPage({
   await requirePermission("canManageEstoque");
   const params = await searchParams;
   const dataEntrada = typeof params.dataEntrada === "string" ? params.dataEntrada : "";
+  const fornecedorEntrada = typeof params.fornecedorEntrada === "string" ? params.fornecedorEntrada : "";
   const dataEntradaRange = dataEntrada ? brazilDayRange(dataEntrada) : null;
+  const hasEntradaFilter = Boolean(dataEntradaRange || fornecedorEntrada);
 
   const [ingredientRows, entradas, saidas, fornecedoresRaw] = await Promise.all([
     prisma.ingredient.findMany({
@@ -122,22 +127,16 @@ export default async function MovimentacoesPage({
       orderBy: { name: "asc" },
       select: { id: true, name: true, unit: true, currentStock: true },
     }),
-    dataEntradaRange
-      ? prisma.stockMovement.findMany({
-          where: {
-            type: "ENTRADA",
-            createdAt: { gte: dataEntradaRange.start, lt: dataEntradaRange.end },
-          },
-          orderBy: { createdAt: "desc" },
-          take: 500,
-          include: { ingredient: true, user: true, supplier: { select: { name: true } } },
-        })
-      : prisma.stockMovement.findMany({
-          where: { type: "ENTRADA" },
-          orderBy: { createdAt: "desc" },
-          take: 20,
-          include: { ingredient: true, user: true, supplier: { select: { name: true } } },
-        }),
+    prisma.stockMovement.findMany({
+      where: {
+        type: "ENTRADA",
+        ...(dataEntradaRange && { createdAt: { gte: dataEntradaRange.start, lt: dataEntradaRange.end } }),
+        ...(fornecedorEntrada && { supplierId: fornecedorEntrada }),
+      },
+      orderBy: { createdAt: "desc" },
+      take: hasEntradaFilter ? 500 : 20,
+      include: { ingredient: true, user: true, supplier: { select: { name: true } } },
+    }),
     prisma.stockMovement.findMany({
       where: { type: "SAIDA" },
       orderBy: { createdAt: "desc" },
@@ -199,6 +198,24 @@ export default async function MovimentacoesPage({
                         className="h-9"
                       />
                     </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-neutral-500" htmlFor="fornecedorEntrada">
+                        Fornecedor
+                      </label>
+                      <select
+                        id="fornecedorEntrada"
+                        name="fornecedorEntrada"
+                        defaultValue={fornecedorEntrada}
+                        className={selectClassName}
+                      >
+                        <option value="">Todos</option>
+                        {fornecedores.map((fornecedor) => (
+                          <option key={fornecedor.id} value={fornecedor.id}>
+                            {fornecedor.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <Button type="submit" size="sm">
                       Filtrar
                     </Button>
@@ -210,7 +227,7 @@ export default async function MovimentacoesPage({
                     >
                       Limpar
                     </Button>
-                    {!dataEntrada && (
+                    {!hasEntradaFilter && (
                       <p className="text-xs text-neutral-400">
                         Sem filtro, mostra só as 20 entradas mais recentes.
                       </p>
