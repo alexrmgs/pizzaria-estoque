@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
+import { brazilDayRange } from "@/lib/payroll";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -103,8 +106,15 @@ function MovementsTable({
   );
 }
 
-export default async function MovimentacoesPage() {
+export default async function MovimentacoesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   await requirePermission("canManageEstoque");
+  const params = await searchParams;
+  const dataEntrada = typeof params.dataEntrada === "string" ? params.dataEntrada : "";
+  const dataEntradaRange = dataEntrada ? brazilDayRange(dataEntrada) : null;
 
   const [ingredientRows, entradas, saidas, fornecedoresRaw] = await Promise.all([
     prisma.ingredient.findMany({
@@ -112,12 +122,22 @@ export default async function MovimentacoesPage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true, unit: true, currentStock: true },
     }),
-    prisma.stockMovement.findMany({
-      where: { type: "ENTRADA" },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-      include: { ingredient: true, user: true, supplier: { select: { name: true } } },
-    }),
+    dataEntradaRange
+      ? prisma.stockMovement.findMany({
+          where: {
+            type: "ENTRADA",
+            createdAt: { gte: dataEntradaRange.start, lt: dataEntradaRange.end },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 500,
+          include: { ingredient: true, user: true, supplier: { select: { name: true } } },
+        })
+      : prisma.stockMovement.findMany({
+          where: { type: "ENTRADA" },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          include: { ingredient: true, user: true, supplier: { select: { name: true } } },
+        }),
     prisma.stockMovement.findMany({
       where: { type: "SAIDA" },
       orderBy: { createdAt: "desc" },
@@ -165,12 +185,44 @@ export default async function MovimentacoesPage() {
             <TabsContent value="manual" className="pt-4">
               <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
                 <MovementForm ingredients={ingredients} type="ENTRADA" fornecedores={fornecedores} />
-                <MovementsTable
-                  movements={entradas}
-                  ingredients={ingredients}
-                  fornecedores={fornecedores}
-                  showFornecedor
-                />
+                <div className="flex flex-col gap-3">
+                  <form className="flex flex-wrap items-end gap-3 rounded-lg border bg-white p-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-neutral-500" htmlFor="dataEntrada">
+                        Data
+                      </label>
+                      <Input
+                        id="dataEntrada"
+                        name="dataEntrada"
+                        type="date"
+                        defaultValue={dataEntrada}
+                        className="h-9"
+                      />
+                    </div>
+                    <Button type="submit" size="sm">
+                      Filtrar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      nativeButton={false}
+                      render={<a href="/movimentacoes" />}
+                    >
+                      Limpar
+                    </Button>
+                    {!dataEntrada && (
+                      <p className="text-xs text-neutral-400">
+                        Sem filtro, mostra só as 20 entradas mais recentes.
+                      </p>
+                    )}
+                  </form>
+                  <MovementsTable
+                    movements={entradas}
+                    ingredients={ingredients}
+                    fornecedores={fornecedores}
+                    showFornecedor
+                  />
+                </div>
               </div>
             </TabsContent>
             <TabsContent value="nota" className="pt-4">

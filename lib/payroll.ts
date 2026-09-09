@@ -422,6 +422,20 @@ export function weekdayInBrazil(now: Date = new Date()): number {
 }
 
 /**
+ * Início (inclusive) e fim (exclusivo) em UTC de um dia calendário de
+ * Brasília — pra filtrar campos DateTime (timestamp, não @db.Date) por "esse
+ * dia", tipo `StockMovement.createdAt`, sem cair no mesmo bug de fuso do
+ * `todayInBrazil` (um registro das 22h de Brasília é 01h UTC do dia
+ * seguinte).
+ */
+export function brazilDayRange(dateStr: string): { start: Date; end: Date } {
+  const midnightUTC = new Date(`${dateStr}T00:00:00Z`);
+  const start = new Date(midnightUTC.getTime() + BRAZIL_UTC_OFFSET_HOURS * 60 * 60 * 1000);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, end };
+}
+
+/**
  * Início e fim (inclusive) do mês anterior ao de `reference` em Brasília, em
  * meia-noite UTC — pra comparar de forma segura com
  * `Payment.periodStart`/`periodEnd` (`@db.Date`, que sempre volta do banco
