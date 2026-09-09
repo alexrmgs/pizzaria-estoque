@@ -21,6 +21,14 @@ import { QrBaixaPanel } from "./qr-baixa-panel";
 const selectClassName =
   "h-9 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
+const currency = (value: number) =>
+  value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  });
+
 export const maxDuration = 60;
 
 type Movement = {
@@ -34,6 +42,7 @@ type Movement = {
   user: { name: string };
   supplierId: string | null;
   supplier: { name: string } | null;
+  unitPriceAtEntry: unknown;
 };
 
 type IngredientOption = { id: string; name: string; unit: string; currentStock: number };
@@ -59,6 +68,8 @@ function MovementsTable({
             <TableHead>Ingrediente</TableHead>
             <TableHead>Quantidade</TableHead>
             {showFornecedor && <TableHead>Fornecedor</TableHead>}
+            {showFornecedor && <TableHead>Preço unit.</TableHead>}
+            {showFornecedor && <TableHead>Valor total</TableHead>}
             <TableHead>Funcionário</TableHead>
             <TableHead>Motivo</TableHead>
             <TableHead className="text-right">Ações</TableHead>
@@ -67,12 +78,16 @@ function MovementsTable({
         <TableBody>
           {movements.length === 0 && (
             <TableRow>
-              <TableCell colSpan={showFornecedor ? 7 : 6} className="text-center text-neutral-500">
+              <TableCell colSpan={showFornecedor ? 9 : 6} className="text-center text-neutral-500">
                 Nenhuma movimentação registrada ainda.
               </TableCell>
             </TableRow>
           )}
-          {movements.map((movement) => (
+          {movements.map((movement) => {
+            const unitPrice =
+              movement.unitPriceAtEntry !== null ? Number(movement.unitPriceAtEntry) : null;
+            const quantity = Number(movement.quantity);
+            return (
             <TableRow key={movement.id}>
               <TableCell>{movement.createdAt.toLocaleString("pt-BR")}</TableCell>
               <TableCell className="font-medium">{movement.ingredient.name}</TableCell>
@@ -81,6 +96,12 @@ function MovementsTable({
               </TableCell>
               {showFornecedor && (
                 <TableCell className="text-neutral-500">{movement.supplier?.name ?? "—"}</TableCell>
+              )}
+              {showFornecedor && (
+                <TableCell>{unitPrice !== null ? currency(unitPrice) : "—"}</TableCell>
+              )}
+              {showFornecedor && (
+                <TableCell>{unitPrice !== null ? currency(unitPrice * quantity) : "—"}</TableCell>
               )}
               <TableCell>{movement.user.name}</TableCell>
               <TableCell className="text-neutral-500">{movement.reason ?? "—"}</TableCell>
@@ -102,7 +123,8 @@ function MovementsTable({
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
     </div>
