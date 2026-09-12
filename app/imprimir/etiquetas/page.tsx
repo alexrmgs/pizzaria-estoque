@@ -1,5 +1,6 @@
 import { requireImpressaoAccess } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
+import { logoDataUri } from "@/lib/logo-data-uri";
 import { PrintButton } from "@/components/print-button";
 import { AutoPrint } from "./auto-print";
 
@@ -89,7 +90,7 @@ export default async function ImprimirEtiquetasPage({
         </div>
         <div className="flex items-center gap-2 border-t border-black pt-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="" style={{ height: `${logoMm}mm` }} />
+          <img src={logoDataUri()} alt="" style={{ height: `${logoMm}mm` }} />
           <div className="flex flex-col leading-tight" style={{ fontSize: `${lineFont * 0.85}pt` }}>
             <span className="font-bold">{settings.labelEmpresa || "FB Pizzaria & Esfiharia"}</span>
             {settings.labelCnpj && <span>CNPJ: {settings.labelCnpj}</span>}

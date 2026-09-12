@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import { todayInBrazil } from "@/lib/payroll";
+import { logoDataUri } from "@/lib/logo-data-uri";
 import { PrintButton } from "@/components/print-button";
 
 const brDate = (iso: string) => iso.split("-").reverse().join("/");
@@ -50,7 +51,7 @@ export default async function ImprimirConferenciaPage({
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo.png"
+            src={logoDataUri()}
             alt={settings.labelEmpresa || "Empresa"}
             className="h-12 w-12 shrink-0 object-contain"
           />

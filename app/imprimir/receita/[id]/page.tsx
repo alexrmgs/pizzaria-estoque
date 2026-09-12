@@ -1,7 +1,7 @@
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
+import { logoDataUri } from "@/lib/logo-data-uri";
 import { PrintButton } from "@/components/print-button";
 import { RECIPE_TYPE_LABELS } from "@/lib/recipe-cost";
 
@@ -62,7 +62,8 @@ export default async function ImprimirReceitaPage({
       </div>
 
       <div className="flex items-center gap-3 border-b border-dashed pb-4">
-        <Image src="/logo.png" alt="FB Pizzaria & Esfiharia" width={48} height={47} />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logoDataUri()} alt="FB Pizzaria & Esfiharia" width={48} height={47} />
         <div>
           <p className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">
             FB Pizzaria &amp; Esfiharia · {RECIPE_TYPE_LABELS[recipe.type]}
