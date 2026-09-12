@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
@@ -49,13 +48,20 @@ export default async function ImprimirConferenciaPage({
 
       <div className="flex items-center justify-between border-b border-black pb-2">
         <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt={settings.labelEmpresa || "Empresa"} width={48} height={47} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt={settings.labelEmpresa || "Empresa"}
+            className="h-12 w-12 shrink-0 object-contain"
+          />
           <div>
-            <p className="text-lg font-bold uppercase">{settings.labelEmpresa || "Empresa"}</p>
+            <p className="text-lg font-bold uppercase leading-tight">
+              {settings.labelEmpresa || "Empresa"}
+            </p>
             <p className="text-sm text-neutral-600">Guia de Conferência de Estoque</p>
           </div>
         </div>
-        <div className="text-right text-sm text-neutral-600">
+        <div className="shrink-0 text-right text-sm text-neutral-600">
           <p>Data da contagem: ___/___/____</p>
           <p>Gerado em {hoje}</p>
         </div>

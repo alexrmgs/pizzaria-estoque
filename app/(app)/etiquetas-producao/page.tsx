@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { LoteForm } from "../lotes/lote-form";
 import { LoteRowActions } from "../lotes/lote-row-actions";
+import { LimparFilaProducaoButton } from "./limpar-fila-producao-button";
 
 function formatDate(date: Date | null) {
   if (!date) return "—";
@@ -70,12 +71,15 @@ export default async function EtiquetasProducaoPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold uppercase">Etiquetas / Lotes (Validade)</h1>
-        <p className="text-sm text-neutral-500">
-          Cada etiqueta impressa aqui vira entrada no estoque (produto, peso, validade) e leva um QR
-          code. Pra dar baixa depois, escaneie em Movimentações → Saída.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold uppercase">Etiquetas / Lotes (Validade)</h1>
+          <p className="text-sm text-neutral-500">
+            Cada etiqueta impressa aqui vira entrada no estoque (produto, peso, validade) e leva um
+            QR code. Pra dar baixa depois, escaneie em Movimentações → Saída.
+          </p>
+        </div>
+        <LimparFilaProducaoButton />
       </div>
 
       <LoteForm
