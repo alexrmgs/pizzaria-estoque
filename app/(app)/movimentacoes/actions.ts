@@ -16,24 +16,6 @@ const movementSchema = z.object({
 
 export type MovementFormState = { error?: string } | undefined;
 
-/**
- * Custo médio ponderado: mistura o preço já cadastrado (aplicado ao estoque
- * que já existia) com o preço da entrada nova, proporcional à quantidade de
- * cada um — em vez de simplesmente sobrescrever o preço de todo o estoque
- * pelo valor da compra mais recente.
- */
-function weightedAveragePrice(
-  currentStock: number,
-  currentPrice: number,
-  incomingQuantity: number,
-  incomingPrice: number,
-): number {
-  const totalQuantity = currentStock + incomingQuantity;
-  if (totalQuantity <= 0) return incomingPrice;
-  const blended = (currentStock * currentPrice + incomingQuantity * incomingPrice) / totalQuantity;
-  return Math.round(blended * 100) / 100;
-}
-
 export async function createMovement(
   _prevState: MovementFormState,
   formData: FormData,
@@ -128,9 +110,11 @@ export async function updateMovement(
         );
       }
 
+      // Preço do estoque ajustado pela última entrada com preço informado —
+      // não é mais uma média ponderada com o estoque antigo.
       const newUnitPrice =
         type === "ENTRADA" && unitPrice !== undefined
-          ? weightedAveragePrice(current, Number(ingredient.unitPrice), quantity, unitPrice)
+          ? Math.round(unitPrice * 10000) / 10000
           : undefined;
       await tx.ingredient.update({
         where: { id: ingredientId },
@@ -263,9 +247,11 @@ export async function createMovementsBatch(
             supplierId: parsed.data.type === "ENTRADA" ? parsed.data.supplierId : null,
           },
         });
+        // Preço do estoque ajustado pela última entrada com preço informado —
+        // não é mais uma média ponderada com o estoque antigo.
         const newUnitPrice =
           parsed.data.type === "ENTRADA" && item.unitPrice !== undefined
-            ? weightedAveragePrice(current, Number(ingredient.unitPrice), item.quantity, item.unitPrice)
+            ? Math.round(item.unitPrice * 10000) / 10000
             : undefined;
         await tx.ingredient.update({
           where: { id: item.ingredientId },

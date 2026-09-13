@@ -13,18 +13,6 @@ import {
   manifestarCiencia,
 } from "@/lib/focusnfe";
 
-function weightedAveragePrice(
-  currentStock: number,
-  currentPrice: number,
-  incomingQuantity: number,
-  incomingPrice: number,
-): number {
-  const totalQuantity = currentStock + incomingQuantity;
-  if (totalQuantity <= 0) return incomingPrice;
-  const blended = (currentStock * currentPrice + incomingQuantity * incomingPrice) / totalQuantity;
-  return Math.round(blended * 100) / 100;
-}
-
 const normalize = (s: string) =>
   s
     .normalize("NFD")
@@ -357,7 +345,6 @@ export async function lancarNota(
 
       for (const it of comProduto) {
         const ing = await tx.ingredient.findUniqueOrThrow({ where: { id: it.ingredientId! } });
-        const current = Number(ing.currentStock);
         // Qtd que entra no estoque (o usuário informa direto); custo por unidade
         // do estoque = total da linha ÷ essa quantidade.
         const qtdEstoque = it.qtdEstoque && it.qtdEstoque > 0 ? it.qtdEstoque : it.quantity;
@@ -373,10 +360,9 @@ export async function lancarNota(
             supplierId,
           },
         });
-        const newPrice =
-          custoEstoque > 0
-            ? weightedAveragePrice(current, Number(ing.unitPrice), qtdEstoque, custoEstoque)
-            : undefined;
+        // Preço do estoque ajustado pela última entrada com custo calculável —
+        // não é mais uma média ponderada com o estoque antigo.
+        const newPrice = custoEstoque > 0 ? Math.round(custoEstoque * 10000) / 10000 : undefined;
         await tx.ingredient.update({
           where: { id: it.ingredientId! },
           data: {
