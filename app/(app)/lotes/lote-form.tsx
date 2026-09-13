@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { criarLote } from "./actions";
-import { imprimirTspl } from "../etiquetas/ble-print";
+import { imprimirTsplSegments } from "../etiquetas/ble-print";
 import { buildProducaoTspl } from "../etiquetas/tspl";
 import { todayInBrazil } from "@/lib/payroll";
 
@@ -110,7 +110,7 @@ export function LoteForm({
         heightMm,
         qrContent: `${SITE_URL}/lotes/${result.id}`,
       });
-      await imprimirTspl(tspl);
+      await imprimirTsplSegments(tspl);
     } catch (e) {
       setPrinting(false);
       toast.error(

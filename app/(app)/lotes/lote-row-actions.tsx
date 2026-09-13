@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { darBaixaLote } from "./actions";
-import { imprimirTspl } from "../etiquetas/ble-print";
+import { imprimirTsplSegments } from "../etiquetas/ble-print";
 import { buildProducaoTspl } from "../etiquetas/tspl";
 
 const SITE_URL = "https://fbgestao.com";
@@ -55,7 +55,7 @@ export function LoteRowActions({
           heightMm,
           qrContent: `${SITE_URL}/lotes/${lote.id}`,
         });
-        await imprimirTspl(tspl);
+        await imprimirTsplSegments(tspl);
         toast.success("Reimpresso ✅");
       } catch (e) {
         toast.error("Não imprimiu: " + (e instanceof Error ? e.message : "erro no Bluetooth"));

@@ -105,3 +105,19 @@ export async function imprimirBytes(data: Uint8Array): Promise<void> {
 export async function imprimirTspl(tspl: string): Promise<void> {
   await imprimirBytes(new TextEncoder().encode(tspl));
 }
+
+/** Igual `imprimirTspl`, mas aceita pedaços de texto (comandos) misturados
+ * com bytes crus (dado binário de um BITMAP) — concatena tudo na ordem
+ * certa antes de mandar pra impressora. */
+export async function imprimirTsplSegments(segments: (string | Uint8Array)[]): Promise<void> {
+  const encoder = new TextEncoder();
+  const parts = segments.map((s) => (typeof s === "string" ? encoder.encode(s) : s));
+  const total = parts.reduce((sum, p) => sum + p.length, 0);
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const p of parts) {
+    bytes.set(p, offset);
+    offset += p.length;
+  }
+  await imprimirBytes(bytes);
+}

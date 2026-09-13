@@ -2,6 +2,17 @@
 // da fonte são calculados a partir do tamanho real da etiqueta (203dpi = 8
 // dots/mm) e a fonte se ajusta pra caber na largura — nada sai cortado.
 
+import {
+  LOGO_BITMAP_BYTES_PER_ROW,
+  LOGO_BITMAP_HEIGHT,
+  LOGO_BITMAP_WIDTH,
+  logoBitmapBytes,
+} from "./logo-bitmap";
+
+/** Um "pedaço" do job de impressão: texto (comandos TSPL) ou bytes crus
+ * (dado binário do BITMAP) — precisam ir concatenados na ordem certa. */
+export type TsplSegment = string | Uint8Array;
+
 const DPMM = 8; // 203 dpi
 const FONT = "3"; // fonte interna 16x24 (base)
 const CHAR_W = 16; // largura base de 1 caractere na fonte "3"
@@ -100,7 +111,7 @@ export function buildProducaoTspl(input: {
   widthMm: number;
   heightMm: number;
   qrContent?: string;
-}): string {
+}): TsplSegment[] {
   const wd = Math.round(input.widthMm * DPMM);
   const hd = Math.round(input.heightMm * DPMM);
   const margem = Math.round(2 * DPMM);
@@ -146,17 +157,25 @@ export function buildProducaoTspl(input: {
     y += 20;
   }
 
-  // Rodapé com a empresa, ancorado embaixo (mesma largura reduzida do texto).
+  // Rodapé com a empresa, ancorado embaixo. A logo (bitmap) fica à esquerda
+  // do texto, só quando cabe — etiqueta muito pequena/estreita fica só com
+  // o texto, como antes.
   const rod: string[] = [];
   if (input.empresaNome) rod.push(limpar(input.empresaNome));
   const cnpjCidade = [input.empresaCnpj ? `CNPJ ${input.empresaCnpj}` : "", limpar(input.empresaCidade)]
     .filter(Boolean)
     .join("  ");
   if (cnpjCidade) rod.push(cnpjCidade);
+
+  const logoGap = Math.round(1 * DPMM); // 1mm
+  const logoY = hd - margem - LOGO_BITMAP_HEIGHT;
+  const showLogo = logoY > y && wd - 2 * margem >= LOGO_BITMAP_WIDTH + logoGap + 60;
+  const textX = showLogo ? margem + LOGO_BITMAP_WIDTH + logoGap : margem;
+
   let yRod = hd - margem - rod.length * 14;
   for (const l of rod) {
     if (yRod > y) {
-      linhas.push(`TEXT ${margem},${yRod},"1",0,1,1,"${l}"`);
+      linhas.push(`TEXT ${textX},${yRod},"1",0,1,1,"${l}"`);
     }
     yRod += 14;
   }
@@ -170,9 +189,17 @@ export function buildProducaoTspl(input: {
   }
 
   const copias = Math.max(1, Math.min(input.copias, 50));
-  linhas.push(`PRINT ${copias},1`);
-  linhas.push("");
-  return linhas.join("\r\n");
+
+  const segments: TsplSegment[] = [linhas.join("\r\n") + "\r\n"];
+  if (showLogo) {
+    // Comando BITMAP: a linha de comando termina em vírgula e os bytes
+    // crus do bitmap vêm logo em seguida (não é texto/hex).
+    segments.push(`BITMAP ${margem},${logoY},${LOGO_BITMAP_BYTES_PER_ROW},${LOGO_BITMAP_HEIGHT},0,`);
+    segments.push(logoBitmapBytes());
+    segments.push("\r\n");
+  }
+  segments.push(`PRINT ${copias},1\r\n`);
+  return segments;
 }
 
 /** Reimpressão de um volume específico (ex: só o 2/3). */
