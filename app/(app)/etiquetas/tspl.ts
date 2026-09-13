@@ -27,12 +27,23 @@ function limpar(s: string): string {
     .toUpperCase();
 }
 
-// Maior escala (1..max) em que o texto cabe na largura disponível.
-function escalaQueCabe(texto: string, larguraDisp: number, maxEscala: number): number {
+/**
+ * Maior escala (1..max) em que o texto cabe na largura disponível — e, se
+ * nem na menor escala couber inteiro, corta o texto pra caber garantido.
+ * Sem isso, um texto comprido demais (ex: peso com unidade longa) estourava
+ * a área útil; como a etiqueta imprime com `DIRECTION 1` (invertida), esse
+ * estouro à direita aparecia como corte no lado ESQUERDO da etiqueta física.
+ */
+function ajustarTexto(
+  texto: string,
+  larguraDisp: number,
+  maxEscala: number,
+): { escala: number; texto: string } {
   for (let s = maxEscala; s >= 1; s--) {
-    if (texto.length * CHAR_W * s <= larguraDisp) return s;
+    if (texto.length * CHAR_W * s <= larguraDisp) return { escala: s, texto };
   }
-  return 1;
+  const maxChars = Math.max(1, Math.floor(larguraDisp / CHAR_W));
+  return { escala: 1, texto: texto.slice(0, maxChars) };
 }
 
 function corpo(
@@ -47,11 +58,10 @@ function corpo(
   const margem = Math.round(2 * DPMM); // 2mm
   const disp = wd - 2 * margem;
 
-  const textoPedido = `PEDIDO ${pedido}`;
-  const escPedido = escalaQueCabe(textoPedido, disp, 4);
+  const { escala: escPedido, texto: txtPedido } = ajustarTexto(`PEDIDO ${pedido}`, disp, 4);
   const altPedido = CHAR_H * escPedido;
 
-  const escVolume = escalaQueCabe(linhaVolume, disp, 2);
+  const { escala: escVolume, texto: txtVolume } = ajustarTexto(linhaVolume, disp, 2);
   const altVolume = CHAR_H * escVolume;
 
   const yPedido = margem;
@@ -65,12 +75,12 @@ function corpo(
     "DIRECTION 1",
     "REFERENCE 0,0",
     "CLS",
-    `TEXT ${margem},${yPedido},"${FONT}",0,${escPedido},${escPedido},"${textoPedido}"`,
+    `TEXT ${margem},${yPedido},"${FONT}",0,${escPedido},${escPedido},"${txtPedido}"`,
   ];
   if (temEspacoCliente) {
     linhas.push(`TEXT ${margem},${yCliente},"2",0,1,1,"${cliente}"`);
   }
-  linhas.push(`TEXT ${margem},${yVolume},"${FONT}",0,${escVolume},${escVolume},"${linhaVolume}"`);
+  linhas.push(`TEXT ${margem},${yVolume},"${FONT}",0,${escVolume},${escVolume},"${txtVolume}"`);
   linhas.push("PRINT 1,1");
   return linhas;
 }
@@ -121,8 +131,11 @@ export function buildProducaoTspl(input: {
   const qrAreaDots = Math.round(qrAreaMm * DPMM);
   const disp = wd - 2 * margem - (input.qrContent ? qrAreaDots + margem : 0);
 
-  const produto = limpar(input.produto) || "PRODUTO";
-  const escProduto = escalaQueCabe(produto, disp, 3);
+  const { escala: escProduto, texto: txtProduto } = ajustarTexto(
+    limpar(input.produto) || "PRODUTO",
+    disp,
+    3,
+  );
 
   const linhas: string[] = [
     `SIZE ${input.widthMm} mm,${input.heightMm} mm`,
@@ -132,7 +145,7 @@ export function buildProducaoTspl(input: {
     "CLS",
   ];
   let y = margem;
-  linhas.push(`TEXT ${margem},${y},"${FONT}",0,${escProduto},${escProduto},"${produto}"`);
+  linhas.push(`TEXT ${margem},${y},"${FONT}",0,${escProduto},${escProduto},"${txtProduto}"`);
   y += CHAR_H * escProduto + 10;
 
   const temperatura = limpar(input.temperatura);
@@ -145,8 +158,8 @@ export function buildProducaoTspl(input: {
   // olho na cozinha, por isso sai bem maior que o resto dos detalhes.
   const peso = limpar(input.peso);
   if (peso) {
-    const escPeso = escalaQueCabe(peso, disp, 2);
-    linhas.push(`TEXT ${margem},${y},"${FONT}",0,${escPeso},${escPeso},"${peso}"`);
+    const { escala: escPeso, texto: txtPeso } = ajustarTexto(peso, disp, 2);
+    linhas.push(`TEXT ${margem},${y},"${FONT}",0,${escPeso},${escPeso},"${txtPeso}"`);
     y += CHAR_H * escPeso + 6;
   }
 
