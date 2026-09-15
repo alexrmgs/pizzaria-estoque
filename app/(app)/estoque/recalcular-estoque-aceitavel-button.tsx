@@ -16,7 +16,7 @@ export function RecalcularEstoqueAceitavelButton() {
       onClick={() => {
         if (
           !confirm(
-            'Recalcular o "estoque aceitável" de todos os ingredientes? Vai sobrescrever o valor atual de cada um pelo consumo médio semanal (últimos 90 dias) + 20%.',
+            'Recalcular o "estoque aceitável" e o "estoque mínimo" de todos os ingredientes? Vai sobrescrever os valores atuais com base no consumo dos últimos 30 dias: aceitável = consumo + 15%, mínimo = média diária × 2 dias.',
           )
         ) {
           return;
@@ -26,13 +26,13 @@ export function RecalcularEstoqueAceitavelButton() {
           toast.success(
             `${atualizados} ${atualizados === 1 ? "item atualizado" : "itens atualizados"}.` +
               (semHistorico > 0
-                ? ` ${semHistorico} sem saída nos últimos 90 dias, ficaram de fora.`
+                ? ` ${semHistorico} sem saída nos últimos 30 dias, ficaram de fora.`
                 : ""),
           );
         });
       }}
     >
-      {isPending ? "Recalculando..." : "Recalcular estoque aceitável"}
+      {isPending ? "Recalculando..." : "Recalcular estoque mínimo/aceitável"}
     </Button>
   );
 }

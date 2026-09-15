@@ -203,17 +203,20 @@ export async function excludeProducedFromCmv(): Promise<{ count: number }> {
 }
 
 /**
- * Recalcula o "estoque aceitável" de todos os ingredientes com base no
- * consumo médio semanal real: soma a saída dos últimos 90 dias, divide pelo
- * tempo coberto (mesma conta usada na página do ingrediente) e aplica uma
- * folga de 20% em cima. Ingrediente sem saída registrada nos últimos 90 dias
- * fica de fora (não dá pra estimar consumo sem histórico).
+ * Recalcula o "estoque aceitável" e o "estoque mínimo" de todos os
+ * ingredientes com base no consumo real dos últimos 30 dias (soma da saída
+ * nesse período):
+ * - Aceitável = consumo dos 30 dias + 15% de folga.
+ * - Mínimo = média diária de consumo (consumo dos 30 dias ÷ 30) × 2 —
+ *   dá pra cobrir uns 2 dias de uso até a próxima compra/produção.
+ * Ingrediente sem saída registrada nos últimos 30 dias fica de fora (não dá
+ * pra estimar consumo sem histórico).
  */
 export async function recalcularEstoqueAceitavel(): Promise<{ atualizados: number; semHistorico: number }> {
   await requirePermission("canManageEstoque");
 
   const janelaInicio = new Date();
-  janelaInicio.setDate(janelaInicio.getDate() - 90);
+  janelaInicio.setDate(janelaInicio.getDate() - 30);
 
   const ingredients = await prisma.ingredient.findMany({
     where: { active: true },
@@ -226,21 +229,23 @@ export async function recalcularEstoqueAceitavel(): Promise<{ atualizados: numbe
   for (const { id } of ingredients) {
     const saidas = await prisma.stockMovement.findMany({
       where: { ingredientId: id, type: "SAIDA", createdAt: { gte: janelaInicio } },
-      orderBy: { createdAt: "asc" },
-      select: { quantity: true, createdAt: true },
+      select: { quantity: true },
     });
     if (saidas.length === 0) {
       semHistorico += 1;
       continue;
     }
-    const totalSaida = saidas.reduce((sum, m) => sum + Number(m.quantity), 0);
-    const diasCobertos = Math.max(1, (Date.now() - saidas[0].createdAt.getTime()) / 86_400_000);
-    const mediaSemanal = totalSaida / (diasCobertos / 7);
+    const totalSaida30d = saidas.reduce((sum, m) => sum + Number(m.quantity), 0);
+    const mediaDiaria = totalSaida30d / 30;
     // Arredonda pra cima em número fechado — não dá pra comprar "34,7kg" de
     // açúcar, então o valor final vira um inteiro comprável.
-    const novoIdeal = Math.ceil(mediaSemanal * 1.2);
+    const novoIdeal = Math.ceil(totalSaida30d * 1.15);
+    const novoMinimo = Math.ceil(mediaDiaria * 2);
 
-    await prisma.ingredient.update({ where: { id }, data: { idealStock: novoIdeal } });
+    await prisma.ingredient.update({
+      where: { id },
+      data: { idealStock: novoIdeal, minStock: novoMinimo },
+    });
     atualizados += 1;
   }
 
