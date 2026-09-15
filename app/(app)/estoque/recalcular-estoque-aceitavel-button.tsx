@@ -16,7 +16,7 @@ export function RecalcularEstoqueAceitavelButton() {
       onClick={() => {
         if (
           !confirm(
-            'Recalcular o "estoque aceitável" e o "estoque mínimo" de todos os ingredientes? Vai sobrescrever os valores atuais com base no consumo dos últimos 30 dias: aceitável = consumo + 15%, mínimo = média diária × 2 dias.',
+            'Recalcular o "estoque aceitável" e o "estoque mínimo" de todos os ingredientes? Vai sobrescrever os valores atuais com base no consumo dos últimos 30 dias: aceitável = média semanal + 15%, mínimo = média diária × 2 dias.',
           )
         ) {
           return;

@@ -206,7 +206,9 @@ export async function excludeProducedFromCmv(): Promise<{ count: number }> {
  * Recalcula o "estoque aceitável" e o "estoque mínimo" de todos os
  * ingredientes com base no consumo real dos últimos 30 dias (soma da saída
  * nesse período):
- * - Aceitável = consumo dos 30 dias + 15% de folga.
+ * - Aceitável = média semanal de consumo (consumo dos 30 dias ÷ 30 × 7) +
+ *   15% de folga — a compra é semanal, então é isso que precisa ter em mãos
+ *   entre uma compra e outra, não o mês inteiro.
  * - Mínimo = média diária de consumo (consumo dos 30 dias ÷ 30) × 2 —
  *   dá pra cobrir uns 2 dias de uso até a próxima compra/produção.
  * Ingrediente sem saída registrada nos últimos 30 dias fica de fora (não dá
@@ -237,9 +239,10 @@ export async function recalcularEstoqueAceitavel(): Promise<{ atualizados: numbe
     }
     const totalSaida30d = saidas.reduce((sum, m) => sum + Number(m.quantity), 0);
     const mediaDiaria = totalSaida30d / 30;
+    const mediaSemanal = mediaDiaria * 7;
     // Arredonda pra cima em número fechado — não dá pra comprar "34,7kg" de
     // açúcar, então o valor final vira um inteiro comprável.
-    const novoIdeal = Math.ceil(totalSaida30d * 1.15);
+    const novoIdeal = Math.ceil(mediaSemanal * 1.15);
     const novoMinimo = Math.ceil(mediaDiaria * 2);
 
     await prisma.ingredient.update({
