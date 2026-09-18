@@ -58,10 +58,20 @@ export function LoteForm({
   const [validadeDias, setValidadeDias] = useState("3");
   const [temperatura, setTemperatura] = useState("");
   const [responsavel, setResponsavel] = useState("");
-  const [quantidade, setQuantidade] = useState("");
+  const [bruto, setBruto] = useState("");
+  const [tara, setTara] = useState("");
   const [printing, setPrinting] = useState(false);
 
   const ingredient = ingredients.find((i) => i.id === ingredientId);
+  // Peso líquido = peso bruto (balança com a vasilha) − tara (vasilha vazia).
+  // Sem tara informada, o líquido é o próprio peso digitado.
+  const toNum = (v: string) => {
+    const n = Number(v.trim().replace(",", "."));
+    return Number.isFinite(n) ? n : 0;
+  };
+  const liquidoN = Math.round((toNum(bruto) - toNum(tara)) * 1000) / 1000;
+  const quantidade =
+    bruto.trim() && liquidoN > 0 ? liquidoN.toLocaleString("pt-BR", { maximumFractionDigits: 3 }) : "";
   const dias = Math.max(0, Number(validadeDias) || 0);
   const validadeISO = /^\d{4}-\d{2}-\d{2}$/.test(producao) ? addDaysISO(producao, dias) : "";
   const titleFont = Math.max(11, Math.min(widthMm, heightMm * 1.6) * 0.14);
@@ -75,11 +85,15 @@ export function LoteForm({
       toast.error("Selecione o produto.");
       return;
     }
-    const qtd = Number(quantidade.replace(",", "."));
-    if (!Number.isFinite(qtd) || qtd <= 0) {
+    if (!bruto.trim()) {
       toast.error("Informe o peso/quantidade.");
       return;
     }
+    if (liquidoN <= 0) {
+      toast.error("A tara não pode ser igual ou maior que o peso bruto.");
+      return;
+    }
+    const qtd = liquidoN;
     setPrinting(true);
 
     const result = await criarLote({
@@ -124,7 +138,7 @@ export function LoteForm({
 
     setPrinting(false);
     toast.success("Entrada registrada e etiqueta impressa ✅");
-    setQuantidade("");
+    setBruto("");
     router.refresh();
   }
 
@@ -183,6 +197,41 @@ export function LoteForm({
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
+          <Label htmlFor="bruto" className="text-xs">
+            Peso bruto {ingredient ? `(${ingredient.unit})` : ""}
+          </Label>
+          <Input
+            id="bruto"
+            inputMode="decimal"
+            value={bruto}
+            onChange={(e) => setBruto(e.target.value)}
+            placeholder="Ex: 2,3"
+            className="h-10 w-28"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="tara" className="text-xs">
+            Tara da vasilha {ingredient ? `(${ingredient.unit})` : ""}
+          </Label>
+          <Input
+            id="tara"
+            inputMode="decimal"
+            value={tara}
+            onChange={(e) => setTara(e.target.value)}
+            placeholder="Ex: 0,3"
+            className="h-10 w-28"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium">Peso líquido</span>
+          <div className="flex h-10 min-w-28 items-center rounded-md bg-neutral-100 px-3 text-sm font-bold">
+            {quantidade ? `${quantidade} ${ingredient?.unit ?? ""}` : "—"}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1">
           <Label htmlFor="temperatura" className="text-xs">
             Temperatura
           </Label>
@@ -199,18 +248,6 @@ export function LoteForm({
               <option key={t} value={t} />
             ))}
           </datalist>
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="quantidade" className="text-xs">
-            Peso/quantidade {ingredient ? `(${ingredient.unit})` : ""}
-          </Label>
-          <Input
-            id="quantidade"
-            value={quantidade}
-            onChange={(e) => setQuantidade(e.target.value)}
-            placeholder="Ex: 1,5"
-            className="h-10 w-32"
-          />
         </div>
         <div className="flex flex-1 flex-col gap-1">
           <Label htmlFor="responsavel" className="text-xs">
