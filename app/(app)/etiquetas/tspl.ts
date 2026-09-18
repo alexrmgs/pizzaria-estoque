@@ -125,11 +125,15 @@ export function buildProducaoTspl(input: {
   const wd = Math.round(input.widthMm * DPMM);
   const hd = Math.round(input.heightMm * DPMM);
   const margem = Math.round(2 * DPMM);
+  // A impressora térmica não imprime bem colado na borda esquerda (o rolo
+  // entra com folga e cortava a 1ª letra); então o texto começa mais pra
+  // dentro. Direita e vertical continuam com a margem normal.
+  const margemEsq = Math.round(4 * DPMM);
 
   // Coluna do QR: quadrado do tamanho da altura útil da etiqueta (até 30mm).
   const qrAreaMm = input.qrContent ? Math.min(30, input.heightMm - 4) : 0;
   const qrAreaDots = Math.round(qrAreaMm * DPMM);
-  const disp = wd - 2 * margem - (input.qrContent ? qrAreaDots + margem : 0);
+  const disp = wd - margemEsq - margem - (input.qrContent ? qrAreaDots + margem : 0);
 
   const { escala: escProduto, texto: txtProduto } = ajustarTexto(
     limpar(input.produto) || "PRODUTO",
@@ -145,12 +149,12 @@ export function buildProducaoTspl(input: {
     "CLS",
   ];
   let y = margem;
-  linhas.push(`TEXT ${margem},${y},"${FONT}",0,${escProduto},${escProduto},"${txtProduto}"`);
+  linhas.push(`TEXT ${margemEsq},${y},"${FONT}",0,${escProduto},${escProduto},"${txtProduto}"`);
   y += CHAR_H * escProduto + 10;
 
   const temperatura = limpar(input.temperatura);
   if (temperatura) {
-    linhas.push(`TEXT ${margem},${y},"1",0,1,1,"${temperatura}"`);
+    linhas.push(`TEXT ${margemEsq},${y},"1",0,1,1,"${temperatura}"`);
     y += 20;
   }
 
@@ -159,14 +163,14 @@ export function buildProducaoTspl(input: {
   const peso = limpar(input.peso);
   if (peso) {
     const { escala: escPeso, texto: txtPeso } = ajustarTexto(peso, disp, 2);
-    linhas.push(`TEXT ${margem},${y},"${FONT}",0,${escPeso},${escPeso},"${txtPeso}"`);
+    linhas.push(`TEXT ${margemEsq},${y},"${FONT}",0,${escPeso},${escPeso},"${txtPeso}"`);
     y += CHAR_H * escPeso + 6;
   }
 
   const linhasDet: string[] = [`FABRIC: ${input.fabricacao}`, `VALIDADE: ${input.validade}`];
   if (input.responsavel.trim()) linhasDet.push(`RESP: ${limpar(input.responsavel)}`);
   for (const l of linhasDet) {
-    linhas.push(`TEXT ${margem},${y},"1",0,1,1,"${l}"`);
+    linhas.push(`TEXT ${margemEsq},${y},"1",0,1,1,"${l}"`);
     y += 20;
   }
 
@@ -182,8 +186,8 @@ export function buildProducaoTspl(input: {
 
   const logoGap = Math.round(1 * DPMM); // 1mm
   const logoY = hd - margem - LOGO_BITMAP_HEIGHT;
-  const showLogo = logoY > y && wd - 2 * margem >= LOGO_BITMAP_WIDTH + logoGap + 60;
-  const textX = showLogo ? margem + LOGO_BITMAP_WIDTH + logoGap : margem;
+  const showLogo = logoY > y && wd - margemEsq - margem >= LOGO_BITMAP_WIDTH + logoGap + 60;
+  const textX = showLogo ? margemEsq + LOGO_BITMAP_WIDTH + logoGap : margemEsq;
 
   let yRod = hd - margem - rod.length * 14;
   for (const l of rod) {
@@ -207,7 +211,7 @@ export function buildProducaoTspl(input: {
   if (showLogo) {
     // Comando BITMAP: a linha de comando termina em vírgula e os bytes
     // crus do bitmap vêm logo em seguida (não é texto/hex).
-    segments.push(`BITMAP ${margem},${logoY},${LOGO_BITMAP_BYTES_PER_ROW},${LOGO_BITMAP_HEIGHT},0,`);
+    segments.push(`BITMAP ${margemEsq},${logoY},${LOGO_BITMAP_BYTES_PER_ROW},${LOGO_BITMAP_HEIGHT},0,`);
     segments.push(logoBitmapBytes());
     segments.push("\r\n");
   }
