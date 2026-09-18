@@ -46,6 +46,25 @@ function ajustarTexto(
   return { escala: 1, texto: texto.slice(0, maxChars) };
 }
 
+
+// Fontes internas da impressora (largura x altura em dots, escala 1).
+const FONTES_DETALHE = [
+  { font: "3", w: 16, h: 24 },
+  { font: "2", w: 12, h: 20 },
+  { font: "1", w: 8, h: 12 },
+];
+
+/** Maior fonte em que TODAS as linhas cabem na largura e nas linhas
+ * disponíveis na altura — assim os detalhes saem o maior possível sem
+ * estourar. Se nem a menor cabe, usa a menor (o texto é cortado). */
+function fonteDetalhes(linhas: string[], larguraDisp: number, alturaDisp: number) {
+  const maior = Math.max(...linhas.map((l) => l.length));
+  for (const f of FONTES_DETALHE) {
+    if (maior * f.w <= larguraDisp && linhas.length * (f.h + 6) <= alturaDisp) return f;
+  }
+  return FONTES_DETALHE[FONTES_DETALHE.length - 1];
+}
+
 function corpo(
   widthMm: number,
   heightMm: number,
@@ -126,9 +145,9 @@ export function buildProducaoTspl(input: {
   const hd = Math.round(input.heightMm * DPMM);
   const margem = Math.round(2 * DPMM);
   // A impressora térmica não imprime bem colado na borda esquerda (o rolo
-  // entra com folga e cortava a 1ª letra); então o texto começa mais pra
-  // dentro. Direita e vertical continuam com a margem normal.
-  const margemEsq = Math.round(4 * DPMM);
+  // entra com folga e cortava a 1ª letra, às vezes vários mm); então o texto
+  // começa bem mais pra dentro. Direita e vertical continuam com a margem normal.
+  const margemEsq = Math.round(6 * DPMM);
 
   // Coluna do QR: quadrado do tamanho da altura útil da etiqueta (até 30mm).
   const qrAreaMm = input.qrContent ? Math.min(30, input.heightMm - 4) : 0;
@@ -152,27 +171,37 @@ export function buildProducaoTspl(input: {
   linhas.push(`TEXT ${margemEsq},${y},"${FONT}",0,${escProduto},${escProduto},"${txtProduto}"`);
   y += CHAR_H * escProduto + 10;
 
-  const temperatura = limpar(input.temperatura);
-  if (temperatura) {
-    linhas.push(`TEXT ${margemEsq},${y},"1",0,1,1,"${temperatura}"`);
-    y += 20;
-  }
-
   // Peso/quantidade em destaque — é a informação que mais importa bater o
   // olho na cozinha, por isso sai bem maior que o resto dos detalhes.
   const peso = limpar(input.peso);
-  if (peso) {
-    const { escala: escPeso, texto: txtPeso } = ajustarTexto(peso, disp, 2);
-    linhas.push(`TEXT ${margemEsq},${y},"${FONT}",0,${escPeso},${escPeso},"${txtPeso}"`);
-    y += CHAR_H * escPeso + 6;
-  }
+  const pesoAjustado = peso ? ajustarTexto(peso, disp, 2) : null;
+  const alturaPeso = pesoAjustado ? CHAR_H * pesoAjustado.escala + 6 : 0;
 
-  const linhasDet: string[] = [`FABRIC: ${input.fabricacao}`, `VALIDADE: ${input.validade}`];
+  // Temperatura + fabricação + validade + responsável: mesma fonte, a maior
+  // que couber (antes saíam minúsculos). Reserva o espaço do rodapé (empresa)
+  // e do peso pra escolher o tamanho.
+  const temperatura = limpar(input.temperatura);
+  const linhasDet: string[] = [];
+  if (temperatura) linhasDet.push(temperatura);
+  linhasDet.push(`FABRIC: ${input.fabricacao}`, `VALIDADE: ${input.validade}`);
   if (input.responsavel.trim()) linhasDet.push(`RESP: ${limpar(input.responsavel)}`);
-  for (const l of linhasDet) {
-    linhas.push(`TEXT ${margemEsq},${y},"1",0,1,1,"${l}"`);
-    y += 20;
+  const alturaRodape = LOGO_BITMAP_HEIGHT + margem + 8;
+  const fonteDet = fonteDetalhes(linhasDet, disp, hd - alturaRodape - y - alturaPeso);
+  const maxCharsDet = Math.max(1, Math.floor(disp / fonteDet.w));
+  const linhaDet = (l: string) => {
+    linhas.push(`TEXT ${margemEsq},${y},"${fonteDet.font}",0,1,1,"${l.slice(0, maxCharsDet)}"`);
+    y += fonteDet.h + 6;
+  };
+
+  // Ordem na etiqueta: produto, temperatura, peso, fabricação, validade, resp.
+  if (temperatura) linhaDet(linhasDet.shift() as string);
+  if (pesoAjustado) {
+    linhas.push(
+      `TEXT ${margemEsq},${y},"${FONT}",0,${pesoAjustado.escala},${pesoAjustado.escala},"${pesoAjustado.texto}"`,
+    );
+    y += alturaPeso;
   }
+  for (const l of linhasDet) linhaDet(l);
 
   // Rodapé com a empresa, ancorado embaixo. A logo (bitmap) fica à esquerda
   // do texto, só quando cabe — etiqueta muito pequena/estreita fica só com
