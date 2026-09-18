@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireProducaoAccess } from "@/lib/dal";
+import { requirePermission, requireProducaoAccess } from "@/lib/dal";
 
 const criarLoteSchema = z.object({
   ingredientId: z.string().trim().min(1, "Selecione o produto."),
@@ -169,5 +169,54 @@ export async function darBaixaLote(id: string): Promise<{ error?: string; ok?: b
   revalidatePath("/estoque");
   revalidatePath("/lotes");
   revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+/**
+ * Exclui o lote (etiqueta) e desfaz o efeito dele no estoque: apaga a
+ * movimentação de entrada (e a de saída, se já tinha sido baixado) e ajusta
+ * o estoque de volta. Só quem gerencia estoque pode — mexe em quantidade.
+ */
+export async function excluirLote(id: string): Promise<{ error?: string; ok?: boolean }> {
+  await requirePermission("canManageEstoque");
+
+  const label = await prisma.stockLabel.findUnique({ where: { id } });
+  if (!label) return { error: "Lote não encontrado." };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const [entrada, saida] = await Promise.all([
+        label.entradaMovementId
+          ? tx.stockMovement.findUnique({ where: { id: label.entradaMovementId } })
+          : null,
+        label.saidaMovementId
+          ? tx.stockMovement.findUnique({ where: { id: label.saidaMovementId } })
+          : null,
+      ]);
+
+      const ingredient = await tx.ingredient.findUniqueOrThrow({ where: { id: label.ingredientId } });
+      // Desfaz: a entrada somou no estoque (então tira), a saída tirou (então devolve).
+      const tirar = entrada ? Number(entrada.quantity) : Number(label.quantity);
+      const devolver = saida ? Number(saida.quantity) : 0;
+      const novoEstoque = Math.max(0, Number(ingredient.currentStock) + devolver - tirar);
+      await tx.ingredient.update({
+        where: { id: label.ingredientId },
+        data: { currentStock: novoEstoque },
+      });
+
+      if (entrada) await tx.stockMovement.delete({ where: { id: entrada.id } });
+      if (saida) await tx.stockMovement.delete({ where: { id: saida.id } });
+      await tx.stockLabel.delete({ where: { id } });
+    });
+  } catch {
+    return { error: "Não foi possível excluir esse lote." };
+  }
+
+  revalidatePath("/estoque");
+  revalidatePath("/lotes");
+  revalidatePath("/etiquetas-producao");
+  revalidatePath("/movimentacoes");
+  revalidatePath("/dashboard");
+  revalidatePath("/lista-compras");
   return { ok: true };
 }

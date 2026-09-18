@@ -150,6 +150,7 @@ export default async function EtiquetasProducaoPage() {
                       empresa={empresa}
                       widthMm={settings.labelProducaoWidthMm}
                       heightMm={settings.labelProducaoHeightMm}
+                      podeExcluir={user.role.canManageEstoque}
                     />
                   </TableCell>
                 </TableRow>

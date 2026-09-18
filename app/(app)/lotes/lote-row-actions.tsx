@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { darBaixaLote } from "./actions";
+import { darBaixaLote, excluirLote } from "./actions";
 import { imprimirTsplSegments } from "../etiquetas/ble-print";
 import { buildProducaoTspl } from "../etiquetas/tspl";
 
@@ -20,6 +20,7 @@ export function LoteRowActions({
   empresa,
   widthMm,
   heightMm,
+  podeExcluir = false,
 }: {
   lote: {
     id: string;
@@ -33,6 +34,7 @@ export function LoteRowActions({
   empresa: { nome: string; cnpj: string; endereco: string; cep: string; cidade: string };
   widthMm: number;
   heightMm: number;
+  podeExcluir?: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -76,6 +78,24 @@ export function LoteRowActions({
     });
   }
 
+  function excluir() {
+    const aviso =
+      lote.status === "BAIXADO"
+        ? "Esse lote já foi baixado. Excluir apaga a etiqueta e as movimentações de entrada e saída dele."
+        : "Excluir apaga a etiqueta e tira do estoque os " +
+          `${lote.quantity} ${lote.unit} que ela colocou.`;
+    if (!confirm(`Excluir o lote de ${lote.ingredientName}? ${aviso}`)) return;
+    startTransition(async () => {
+      const result = await excluirLote(lote.id);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Lote excluído ✅");
+      router.refresh();
+    });
+  }
+
   return (
     <div className="flex justify-end gap-2">
       <Button variant="outline" size="sm" disabled={isPending} onClick={reimprimir}>
@@ -84,6 +104,17 @@ export function LoteRowActions({
       {lote.status === "ATIVO" && (
         <Button variant="secondary" size="sm" disabled={isPending} onClick={baixar}>
           Dar baixa
+        </Button>
+      )}
+      {podeExcluir && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive hover:text-destructive"
+          disabled={isPending}
+          onClick={excluir}
+        >
+          Excluir
         </Button>
       )}
     </div>
