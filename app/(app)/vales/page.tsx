@@ -16,11 +16,9 @@ export default async function ValesPage() {
     }),
   ]);
 
-  type EmployeeGroup = {
-    employeeId: string;
-    employeeName: string;
-    pendingTotal: number;
-    pendingCount: number;
+  type MonthGroup = {
+    key: string;
+    label: string;
     vales: {
       id: string;
       date: string;
@@ -28,6 +26,13 @@ export default async function ValesPage() {
       description: string | null;
       paymentId: string | null;
     }[];
+  };
+  type EmployeeGroup = {
+    employeeId: string;
+    employeeName: string;
+    pendingTotal: number;
+    pendingCount: number;
+    months: MonthGroup[];
   };
   const employeeGroups: EmployeeGroup[] = [];
   const employeeGroupById = new Map<string, EmployeeGroup>();
@@ -39,7 +44,7 @@ export default async function ValesPage() {
         employeeName: advance.employee.name,
         pendingTotal: 0,
         pendingCount: 0,
-        vales: [],
+        months: [],
       };
       employeeGroupById.set(advance.employeeId, group);
       employeeGroups.push(group);
@@ -49,7 +54,20 @@ export default async function ValesPage() {
       group.pendingTotal += amount;
       group.pendingCount += 1;
     }
-    group.vales.push({
+    // Advances já vêm ordenados por data desc, então dentro de cada
+    // funcionário os meses saem naturalmente do mais recente pro mais antigo.
+    const monthKey = `${advance.date.getUTCFullYear()}-${String(advance.date.getUTCMonth() + 1).padStart(2, "0")}`;
+    let month = group.months.find((m) => m.key === monthKey);
+    if (!month) {
+      const label = advance.date.toLocaleDateString("pt-BR", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      });
+      month = { key: monthKey, label, vales: [] };
+      group.months.push(month);
+    }
+    month.vales.push({
       id: advance.id,
       date: advance.date.toISOString().slice(0, 10),
       amount,
@@ -83,7 +101,7 @@ export default async function ValesPage() {
             <ValeEmployeeSection
               key={group.employeeId}
               employeeName={group.employeeName}
-              vales={group.vales}
+              months={group.months}
               pendingTotal={group.pendingTotal}
               pendingCount={group.pendingCount}
               defaultOpen={index === 0}
