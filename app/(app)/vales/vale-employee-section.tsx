@@ -18,26 +18,25 @@ import { DeleteValeButton } from "./delete-vale-button";
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-type Advance = {
+type Vale = {
   id: string;
-  employeeName: string;
   date: string;
   amount: number;
   description: string | null;
   paymentId: string | null;
 };
 
-export function ValeMonthSection({
-  monthLabel,
-  advances,
-  totalAmount,
-  pendingAmount,
+export function ValeEmployeeSection({
+  employeeName,
+  vales,
+  pendingTotal,
+  pendingCount,
   defaultOpen,
 }: {
-  monthLabel: string;
-  advances: Advance[];
-  totalAmount: number;
-  pendingAmount: number;
+  employeeName: string;
+  vales: Vale[];
+  pendingTotal: number;
+  pendingCount: number;
   defaultOpen: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -48,18 +47,21 @@ export function ValeMonthSection({
         className="flex cursor-pointer flex-row items-center justify-between select-none"
         onClick={() => setOpen((prev) => !prev)}
       >
-        <CardTitle className="flex items-center gap-2 text-lg capitalize">
-          <ChevronDown className={cn("size-4 transition-transform", !open && "-rotate-90")} />
-          {monthLabel}
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <ChevronDown className={cn("size-4 shrink-0 transition-transform", !open && "-rotate-90")} />
+          {employeeName}
+          <span className="text-sm font-normal text-neutral-500">
+            {vales.length} vale{vales.length === 1 ? "" : "s"}
+          </span>
         </CardTitle>
         <div className="text-sm text-neutral-500">
-          {advances.length} vale{advances.length === 1 ? "" : "s"} ·{" "}
-          <span className="font-semibold text-primary">{currency(totalAmount)}</span>
-          {pendingAmount > 0 && (
+          {pendingTotal > 0 ? (
             <>
-              {" "}
-              · <span className="text-destructive">{currency(pendingAmount)} pendente</span>
+              {pendingCount} pendente{pendingCount === 1 ? "" : "s"} ·{" "}
+              <span className="font-semibold text-destructive">{currency(pendingTotal)}</span>
             </>
+          ) : (
+            "Nada pendente"
           )}
         </div>
       </CardHeader>
@@ -69,7 +71,6 @@ export function ValeMonthSection({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Funcionário</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Valor</TableHead>
                   <TableHead>Descrição</TableHead>
@@ -78,21 +79,20 @@ export function ValeMonthSection({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {advances.map((advance) => (
-                  <TableRow key={advance.id}>
-                    <TableCell className="font-medium">{advance.employeeName}</TableCell>
-                    <TableCell>{advance.date}</TableCell>
-                    <TableCell>{currency(advance.amount)}</TableCell>
-                    <TableCell className="text-neutral-500">{advance.description ?? "—"}</TableCell>
+                {vales.map((vale) => (
+                  <TableRow key={vale.id}>
+                    <TableCell>{vale.date.split("-").reverse().join("/")}</TableCell>
+                    <TableCell>{currency(vale.amount)}</TableCell>
+                    <TableCell className="text-neutral-500">{vale.description ?? "—"}</TableCell>
                     <TableCell>
-                      {advance.paymentId ? (
+                      {vale.paymentId ? (
                         <Badge variant="secondary">Pago</Badge>
                       ) : (
                         <Badge variant="destructive">Pendente</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {!advance.paymentId && <DeleteValeButton id={advance.id} />}
+                      {!vale.paymentId && <DeleteValeButton id={vale.id} />}
                     </TableCell>
                   </TableRow>
                 ))}
