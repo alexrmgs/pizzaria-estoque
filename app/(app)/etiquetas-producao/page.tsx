@@ -2,6 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { requireProducaoAccess } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { formatLote } from "@/lib/lote";
 import {
   Table,
   TableBody,
@@ -29,8 +32,18 @@ function statusValidade(expiresAt: Date | null): "vencido" | "perto" | "ok" | nu
   return "ok";
 }
 
-export default async function EtiquetasProducaoPage() {
+export default async function EtiquetasProducaoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lote?: string; situacao?: string }>;
+}) {
   const user = await requireProducaoAccess();
+  const { lote, situacao } = await searchParams;
+  // Aceita "42", "0042" ou "LOTE 0042".
+  const loteNumero = lote ? Number(lote.replace(/\D/g, "")) || undefined : undefined;
+  const statusFiltro =
+    situacao === "ATIVO" || situacao === "BAIXADO" ? (situacao as "ATIVO" | "BAIXADO") : undefined;
+  const filtrando = loteNumero !== undefined || statusFiltro !== undefined;
 
   const [ingredientsRaw, funcionarios, settings, labelsRaw] = await Promise.all([
     prisma.ingredient.findMany({
@@ -45,14 +58,19 @@ export default async function EtiquetasProducaoPage() {
     }),
     getAppSettings(user.companyId),
     prisma.stockLabel.findMany({
+      where: {
+        ...(loteNumero !== undefined && { numero: loteNumero }),
+        ...(statusFiltro && { status: statusFiltro }),
+      },
       orderBy: [{ status: "asc" }, { expiresAt: "asc" }],
-      take: 50,
+      take: filtrando ? 500 : 50,
       include: { ingredient: { select: { name: true, unit: true } } },
     }),
   ]);
 
   const labels = labelsRaw.map((l) => ({
     id: l.id,
+    numero: l.numero,
     ingredientName: l.ingredient.name,
     unit: l.ingredient.unit,
     quantity: Number(l.quantity),
@@ -91,12 +109,41 @@ export default async function EtiquetasProducaoPage() {
       />
 
       <div className="rounded-lg border bg-white">
-        <div className="border-b p-3 text-sm font-semibold uppercase text-neutral-500">
-          Últimas etiquetas
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
+          <span className="text-sm font-semibold uppercase text-neutral-500">
+            {filtrando ? "Etiquetas encontradas" : "Últimas etiquetas"}
+          </span>
+          <form className="flex flex-wrap items-center gap-2">
+            <Input
+              name="lote"
+              defaultValue={lote ?? ""}
+              placeholder="Nº do lote"
+              inputMode="numeric"
+              className="h-9 w-32"
+            />
+            <select
+              name="situacao"
+              defaultValue={statusFiltro ?? ""}
+              className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+            >
+              <option value="">Todas</option>
+              <option value="ATIVO">Sem baixa (em estoque)</option>
+              <option value="BAIXADO">Baixadas</option>
+            </select>
+            <Button type="submit" size="sm" className="h-9">
+              Buscar
+            </Button>
+            {filtrando && (
+              <a href="/etiquetas-producao" className="text-sm text-neutral-500 underline">
+                Limpar
+              </a>
+            )}
+          </form>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Lote</TableHead>
               <TableHead>Produto</TableHead>
               <TableHead>Peso</TableHead>
               <TableHead>Fabricação</TableHead>
@@ -108,8 +155,8 @@ export default async function EtiquetasProducaoPage() {
           <TableBody>
             {labels.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-neutral-500">
-                  Nenhuma etiqueta registrada ainda.
+                <TableCell colSpan={7} className="text-center text-neutral-500">
+                  {filtrando ? "Nenhuma etiqueta encontrada." : "Nenhuma etiqueta registrada ainda."}
                 </TableCell>
               </TableRow>
             )}
@@ -117,6 +164,7 @@ export default async function EtiquetasProducaoPage() {
               const validade = statusValidade(l.expiresAt);
               return (
                 <TableRow key={l.id}>
+                  <TableCell className="font-mono font-semibold">{formatLote(l.numero)}</TableCell>
                   <TableCell className="font-medium">{l.ingredientName}</TableCell>
                   <TableCell className="text-neutral-500">
                     {l.quantity} {l.unit}

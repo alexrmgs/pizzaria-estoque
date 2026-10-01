@@ -307,6 +307,7 @@ export default async function IngredientHistoryPage({
                         <LoteRowActions
                           lote={{
                             id: l.id,
+                            numero: l.numero,
                             ingredientName: ingredient.name,
                             unit: ingredient.unit,
                             quantity: Number(l.quantity),

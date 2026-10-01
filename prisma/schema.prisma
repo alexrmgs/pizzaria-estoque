@@ -243,6 +243,9 @@ enum StockLabelStatus {
 // escaneado na saída, dando baixa exatamente naquele peso/validade.
 model StockLabel {
   id                String           @id @default(cuid())
+  // Número curto e sequencial impresso na etiqueta ("LOTE 0042") pra achar o
+  // lote fácil quando ninguém deu baixa — o id (cuid) é ilegível.
+  numero            Int              @unique @default(autoincrement())
   ingredient        Ingredient       @relation(fields: [ingredientId], references: [id])
   ingredientId      String
   quantity          Decimal          @db.Decimal(10, 3)
