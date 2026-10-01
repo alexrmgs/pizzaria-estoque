@@ -91,7 +91,14 @@ export default async function DashboardPage({
   if (canViewRelatorios) {
     const [entradas, saidas, revenues, stores] = await Promise.all([
       prisma.stockMovement.findMany({
-        where: { type: "ENTRADA", createdAt: { gte: from, lte: to } },
+        // Ajuste de conferência (contou mais do que o sistema tinha) não é
+        // compra — fica fora. O OR com null é porque NOT em SQL descarta
+        // lançamentos sem motivo.
+        where: {
+          type: "ENTRADA",
+          createdAt: { gte: from, lte: to },
+          OR: [{ reason: null }, { NOT: { reason: { startsWith: "Conferência de estoque" } } }],
+        },
         include: { ingredient: { include: { category: true } }, supplier: { select: { name: true } } },
       }),
       prisma.stockMovement.findMany({
