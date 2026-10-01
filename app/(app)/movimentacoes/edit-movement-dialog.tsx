@@ -34,6 +34,7 @@ type MovementValues = {
   quantity: string;
   reason: string | null;
   supplierId: string | null;
+  date: string;
 };
 
 const formatQty = (value: number) => value.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
@@ -54,6 +55,7 @@ export function EditMovementDialog({
   const [type, setType] = useState<"ENTRADA" | "SAIDA">(movement.type);
   const [quantity, setQuantity] = useState(movement.quantity);
   const [supplierId, setSupplierId] = useState(movement.supplierId ?? "");
+  const [date, setDate] = useState(movement.date);
 
   const ingredientById = new Map(ingredients.map((i) => [i.id, i]));
   const previewIngredient = ingredientById.get(ingredientId);
@@ -90,6 +92,7 @@ export function EditMovementDialog({
           setType(movement.type);
           setQuantity(movement.quantity);
           setSupplierId(movement.supplierId ?? "");
+          setDate(movement.date);
         }
       }}
     >
@@ -216,6 +219,18 @@ export function EditMovementDialog({
               </select>
             </div>
           )}
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="date">Data</Label>
+            <Input
+              id="date"
+              name="date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
+          </div>
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="reason">Motivo (opcional)</Label>

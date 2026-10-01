@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
+import { todayInBrazil } from "@/lib/payroll";
 
 const movementSchema = z.object({
   ingredientId: z.string().trim().min(1, "Selecione um ingrediente."),
@@ -12,6 +13,10 @@ const movementSchema = z.object({
   reason: z.string().trim().max(500).optional(),
   unitPrice: z.coerce.number().positive().optional(),
   supplierId: z.string().trim().min(1).optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida.")
+    .optional(),
 });
 
 export type MovementFormState = { error?: string } | undefined;
@@ -80,12 +85,13 @@ export async function updateMovement(
     reason: formData.get("reason") || undefined,
     unitPrice: formData.get("unitPrice") || undefined,
     supplierId: formData.get("supplierId") || undefined,
+    date: formData.get("date") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const { ingredientId, type, quantity, reason, unitPrice, supplierId } = parsed.data;
+  const { ingredientId, type, quantity, reason, unitPrice, supplierId, date } = parsed.data;
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -133,6 +139,11 @@ export async function updateMovement(
           reason,
           unitPriceAtEntry: type === "ENTRADA" ? (unitPrice ?? Number(ingredient.unitPrice)) : null,
           supplierId: type === "ENTRADA" ? (supplierId ?? null) : null,
+          // Só mexe na data se mudou o dia (em Brasília) — senão mantém o
+          // horário original. Dia novo entra ao meio-dia de Brasília (15h UTC).
+          ...(date && date !== todayInBrazil(old.createdAt).toISOString().slice(0, 10)
+            ? { createdAt: new Date(`${date}T15:00:00Z`) }
+            : {}),
         },
       });
     });

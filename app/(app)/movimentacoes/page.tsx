@@ -17,6 +17,7 @@ import { EditMovementDialog } from "./edit-movement-dialog";
 import { DeleteMovementButton } from "./delete-movement-button";
 import { NotasEntradaPanel } from "../notas/notas-list";
 import { QrBaixaPanel } from "./qr-baixa-panel";
+import { todayInBrazil } from "@/lib/payroll";
 
 const selectClassName =
   "h-9 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -117,6 +118,7 @@ function MovementsTable({
                       quantity: String(movement.quantity),
                       reason: movement.reason,
                       supplierId: movement.supplierId,
+                      date: todayInBrazil(movement.createdAt).toISOString().slice(0, 10),
                     }}
                   />
                   <DeleteMovementButton id={movement.id} />
