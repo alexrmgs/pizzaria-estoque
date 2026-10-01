@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,10 +25,17 @@ type Ingredient = {
   categoryName: string | null;
 };
 
-export function ConferenceForm({ ingredients }: { ingredients: Ingredient[] }) {
+export function ConferenceForm({
+  ingredients,
+  today,
+}: {
+  ingredients: Ingredient[];
+  today: string;
+}) {
   const [counts, setCounts] = useState<Record<string, string>>(() =>
     Object.fromEntries(ingredients.map((i) => [i.id, i.currentStock])),
   );
+  const [date, setDate] = useState(today);
   const [isPending, startTransition] = useTransition();
 
   // Depois de salvar, a página revalida e o servidor manda o estoque já
@@ -61,6 +69,25 @@ export function ConferenceForm({ ingredients }: { ingredients: Ingredient[] }) {
 
   return (
     <form action={handleSubmit} className="flex flex-col gap-4">
+      <div className="flex max-w-xs flex-col gap-1">
+        <Label htmlFor="date" className="text-xs">
+          Data da conferência
+        </Label>
+        <Input
+          id="date"
+          name="date"
+          type="date"
+          value={date}
+          max={today}
+          onChange={(event) => setDate(event.target.value)}
+          className="h-9"
+        />
+        <p className="text-xs text-neutral-400">
+          Se você está contando hoje o estoque de ontem (ex: início de mês), mude pra ontem — o
+          ajuste entra com essa data, em vez de hoje.
+        </p>
+      </div>
+
       <Textarea
         name="note"
         placeholder="Observação (opcional) — ex: conferência mensal de junho"

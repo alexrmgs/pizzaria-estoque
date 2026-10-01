@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
+import { todayInBrazil } from "@/lib/payroll";
 import { Button } from "@/components/ui/button";
 import { ConferenceForm } from "./conference-form";
 
@@ -79,6 +80,7 @@ export default async function ConferenciaPage({
       </form>
 
       <ConferenceForm
+        today={todayInBrazil().toISOString().slice(0, 10)}
         ingredients={ingredients.map((ingredient) => ({
           id: ingredient.id,
           name: ingredient.name,

@@ -10,6 +10,10 @@ const conferenceSchema = z.object({
   currentStock: z.array(z.coerce.number()),
   countedQty: z.array(z.coerce.number().min(0, "A contagem não pode ser negativa.")),
   note: z.string().trim().max(500).optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida.")
+    .optional(),
 });
 
 export type ConferenceFormState = { error?: string; count?: number } | undefined;
@@ -25,6 +29,7 @@ export async function submitConference(
     currentStock: formData.getAll("currentStock"),
     countedQty: formData.getAll("countedQty"),
     note: formData.get("note") || undefined,
+    date: formData.get("date") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -32,6 +37,11 @@ export async function submitConference(
 
   const { ingredientId, currentStock, countedQty, note } = parsed.data;
   const reason = note ? `Conferência de estoque — ${note}` : "Conferência de estoque";
+  // Meio-dia de Brasília (15h UTC) pra data escolhida ficar garantida dentro
+  // do dia certo mesmo em consultas que usam o fuso de Brasília — evita que
+  // uma conferência feita hoje sobre o estoque de ontem (ex: virada de mês)
+  // conte como consumo de hoje.
+  const createdAt = parsed.data.date ? new Date(`${parsed.data.date}T15:00:00Z`) : undefined;
 
   let adjustedCount = 0;
 
@@ -48,6 +58,7 @@ export async function submitConference(
           quantity: Math.abs(diff),
           reason,
           userId: user.id,
+          createdAt,
         },
       });
       await tx.ingredient.update({
