@@ -14,12 +14,13 @@ export const FGTS_RATE = 0.08;
 
 // Provisões mensais (só carteira assinada), sobre a remuneração do mês:
 // 13º, férias e aviso prévio = 1/12 cada; 1/3 de férias sobre a provisão de
-// férias; 40% de multa sobre o FGTS do mês.
+// férias; FGTS de 8% sobre 13º/férias/1/3 provisionados; 40% de multa sobre
+// todo o FGTS (do mês + das provisões). Conservador de propósito — melhor
+// provisionar a mais do que a menos.
 export const PROVISAO = {
   decimo: 1 / 12,
   ferias: 1 / 12,
   tercoFerias: 1 / 12 / 3,
-  multaFgts: FGTS_RATE * 0.4,
   aviso: 1 / 12,
 };
 
@@ -44,6 +45,7 @@ export type CmoFuncionario = {
   provTercoFerias: number;
   provMulta40: number;
   provAviso: number;
+  provFgts: number; // FGTS sobre 13º/férias/1/3 provisionados
   provisoes: number;
   total: number;
   // Informativo: o que já saiu como vale/adiantamento dentro do mês.
@@ -118,6 +120,7 @@ export async function buildRelatorioCmo(mes: string, companyId: string): Promise
       | "provTercoFerias"
       | "provMulta40"
       | "provAviso"
+      | "provFgts"
       | "provisoes"
     >;
 
@@ -171,9 +174,10 @@ export async function buildRelatorioCmo(mes: string, companyId: string): Promise
     const provDecimo = prov(PROVISAO.decimo);
     const provFerias = prov(PROVISAO.ferias);
     const provTercoFerias = prov(PROVISAO.tercoFerias);
-    const provMulta40 = prov(PROVISAO.multaFgts);
     const provAviso = prov(PROVISAO.aviso);
-    const provisoes = provDecimo + provFerias + provTercoFerias + provMulta40 + provAviso;
+    const provFgts = provisiona ? round((provDecimo + provFerias + provTercoFerias) * FGTS_RATE) : 0;
+    const provMulta40 = provisiona ? round((fgts + provFgts) * 0.4) : 0;
+    const provisoes = provDecimo + provFerias + provTercoFerias + provFgts + provMulta40 + provAviso;
     const total = remuneracao + linha.bonus - linha.descontos + madrugada + fgts + resc + provisoes;
 
     funcionarios.push({
@@ -193,6 +197,7 @@ export async function buildRelatorioCmo(mes: string, companyId: string): Promise
       provTercoFerias,
       provMulta40,
       provAviso,
+      provFgts,
       provisoes: round(provisoes),
       total: round(total),
     });
