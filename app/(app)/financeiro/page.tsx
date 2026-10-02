@@ -15,6 +15,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { DailyRevenueDialog } from "../dashboard/daily-revenue-dialog";
 import { DeleteRevenueButton } from "./delete-revenue-button";
+import { RelatorioCanaisDialog } from "./relatorio-canais-dialog";
 import { FinanceiroCharts } from "./financeiro-charts";
 import { HistoricoCharts } from "./historico-charts";
 import { StoreDashboard } from "./store-dashboard";
@@ -342,7 +343,10 @@ export default async function FinanceiroPage({
             Faturamento, pedidos e ticket médio de cada loja.
           </p>
         </div>
-        <DailyRevenueDialog stores={stores.map((s) => ({ id: s.id, name: s.name }))} />
+        <div className="flex flex-wrap gap-2">
+          <RelatorioCanaisDialog />
+          <DailyRevenueDialog stores={stores.map((s) => ({ id: s.id, name: s.name }))} />
+        </div>
       </div>
 
       <Tabs defaultValue={activeTab}>
