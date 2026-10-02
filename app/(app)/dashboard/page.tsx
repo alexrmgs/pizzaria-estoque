@@ -67,13 +67,22 @@ export default async function DashboardPage({
       ])
     : [[], [], []];
 
-  const lowStock = ingredients.filter(
-    (ingredient) => Number(ingredient.currentStock) < Number(ingredient.minStock),
-  );
-  const totalValue = ingredients.reduce(
-    (sum, ingredient) => sum + Number(ingredient.currentStock) * Number(ingredient.unitPrice),
-    0,
-  );
+  // Estoque normal (insumos comprados) e estoque de produção (itens feitos
+  // aqui dentro, marcados "Produzido internamente") ficam separados — a
+  // produção reaproveita o que já tem na pizzaria, não pode somar junto.
+  const estoqueNormal = ingredients.filter((ingredient) => !ingredient.isProduced);
+  const estoqueProducao = ingredients.filter((ingredient) => ingredient.isProduced);
+  const abaixoDoMinimo = (list: typeof ingredients) =>
+    list.filter((ingredient) => Number(ingredient.currentStock) < Number(ingredient.minStock));
+  const valorEstoque = (list: typeof ingredients) =>
+    list.reduce(
+      (sum, ingredient) => sum + Number(ingredient.currentStock) * Number(ingredient.unitPrice),
+      0,
+    );
+  const lowStock = abaixoDoMinimo(estoqueNormal);
+  const lowStockProducao = abaixoDoMinimo(estoqueProducao);
+  const totalValue = valorEstoque(estoqueNormal);
+  const totalValueProducao = valorEstoque(estoqueProducao);
   const hojeUTC = new Date();
   hojeUTC.setUTCHours(0, 0, 0, 0);
   const lotesVencendo = lotesVencendoRaw.map((l) => ({
@@ -97,6 +106,7 @@ export default async function DashboardPage({
         where: {
           type: "ENTRADA",
           createdAt: { gte: from, lte: to },
+          ingredient: { isProduced: false },
           OR: [
             { reason: null },
             {
@@ -113,7 +123,13 @@ export default async function DashboardPage({
         include: { ingredient: { include: { category: true } }, supplier: { select: { name: true } } },
       }),
       prisma.stockMovement.findMany({
-        where: { type: "SAIDA", createdAt: { gte: from, lte: to }, ingredient: { includeInCmv: true } },
+        // Item de produção fica fora do CMV — é reaproveitamento interno, o
+        // custo real já está nos insumos.
+        where: {
+          type: "SAIDA",
+          createdAt: { gte: from, lte: to },
+          ingredient: { includeInCmv: true, isProduced: false },
+        },
         include: { ingredient: true },
       }),
       prisma.revenue.findMany({
@@ -498,14 +514,27 @@ export default async function DashboardPage({
 
       {canManageEstoque && (
         <>
-          <Card className="w-fit">
-            <CardHeader className="pb-1">
-              <CardTitle className="text-sm text-neutral-500">Valor total do estoque</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold text-primary">{currency(totalValue)}</p>
-            </CardContent>
-          </Card>
+          <div className="flex flex-wrap gap-4">
+            <Card className="w-fit">
+              <CardHeader className="pb-1">
+                <CardTitle className="text-sm text-neutral-500">Valor do estoque</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold text-primary">{currency(totalValue)}</p>
+              </CardContent>
+            </Card>
+            {estoqueProducao.length > 0 && (
+              <Card className="w-fit">
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-sm text-neutral-500">Estoque de produção</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-semibold">{currency(totalValueProducao)}</p>
+                  <p className="text-xs text-neutral-500">separado — não soma no estoque</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
           {periodContent}
 
@@ -531,6 +560,24 @@ export default async function DashboardPage({
                     </li>
                   ))}
                 </ul>
+              )}
+              {lowStockProducao.length > 0 && (
+                <div className="mt-4 border-t pt-3">
+                  <p className="mb-2 text-xs font-semibold uppercase text-neutral-500">
+                    Estoque de produção abaixo do mínimo
+                  </p>
+                  <ul className="flex flex-col gap-2">
+                    {lowStockProducao.map((ingredient) => (
+                      <li key={ingredient.id} className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{ingredient.name}</span>
+                        <span className="text-neutral-500">
+                          {ingredient.currentStock.toString()} / {ingredient.minStock.toString()}{" "}
+                          {ingredient.unit}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
               <Link href="/estoque" className="mt-4 inline-block text-sm text-neutral-900 underline">
                 Ver estoque completo
