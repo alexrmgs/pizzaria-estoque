@@ -119,6 +119,7 @@ export function NavLinks({
         { href: "/ponto-totem", label: "Ponto por Facial" },
         { href: "/escalas", label: "Escalas" },
         { href: "/pagamentos", label: "Folha de Pagamento" },
+        { href: "/cmo", label: "Custo de Mão de Obra (CMO)" },
         { href: "/vales", label: "Vales" },
         { href: "/madrugada", label: "Madrugada" },
       ]
