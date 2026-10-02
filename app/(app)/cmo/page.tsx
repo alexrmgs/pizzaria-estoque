@@ -82,7 +82,7 @@ export default async function CmoPage({
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm text-neutral-500">Faturamento do mês</CardTitle>
+            <CardTitle className="text-sm text-neutral-500">Faturamento do mês (FB Eusébio)</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold">{brl(r.faturamento)}</p>

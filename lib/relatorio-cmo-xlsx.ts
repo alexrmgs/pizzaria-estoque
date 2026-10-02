@@ -47,7 +47,7 @@ export async function buildCmoWorkbook(r: RelatorioCmo, empresa: string, periodo
 
   const resumo: [string, number | string, string?][] = [
     ["CMO total do mês", r.total, MOEDA],
-    ["Faturamento do mês", r.faturamento, MOEDA],
+    ["Faturamento do mês (FB Eusébio)", r.faturamento, MOEDA],
     ["CMO / faturamento", r.percentual !== null ? r.percentual / 100 : "—", "0.0%"],
   ];
   for (const [k, v, fmt] of resumo) {

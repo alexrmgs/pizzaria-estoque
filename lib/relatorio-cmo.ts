@@ -66,8 +66,10 @@ export async function buildRelatorioCmo(mes: string, companyId: string): Promise
       where: { companyId, dismissalDate: { gte: start, lte: end } },
       select: { employeeId: true, totalLiquido: true, multaFgts: true },
     }),
+    // Funcionários são da FB Eusébio — faturamento de outras lojas não
+    // entra pra não distorcer o % do CMO (mesmo critério do CMV no dashboard).
     prisma.revenue.findMany({
-      where: { date: { gte: start, lte: end }, store: { companyId } },
+      where: { date: { gte: start, lte: end }, store: { name: "FB EUSEBIO", companyId } },
       select: { amount: true },
     }),
   ]);
