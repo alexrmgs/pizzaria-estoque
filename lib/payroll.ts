@@ -28,25 +28,33 @@ export function formatShiftDuration(hours: number): string {
 export function nightHours(clockIn: Date, clockOut: Date): number {
   if (clockOut <= clockIn) return 0;
 
+  // Conta na hora de Brasília, não no fuso do processo — na Vercel o
+  // processo roda em UTC e a janela 22h–5h virava 19h–2h de Brasília.
+  // Desloca os dois instantes pro "relógio de parede" de Brasília e usa só
+  // métodos UTC daqui pra frente.
+  const offsetMs = BRAZIL_UTC_OFFSET_HOURS * 60 * 60 * 1000;
+  const start = clockIn.getTime() - offsetMs;
+  const end = clockOut.getTime() - offsetMs;
+
   let totalMs = 0;
   // Start one day early so the tail of the previous night's window (which can
   // run into the early hours of clockIn's day, e.g. 00:00-05:00) is checked too.
-  const cursor = new Date(clockIn);
-  cursor.setDate(cursor.getDate() - 1);
-  cursor.setHours(0, 0, 0, 0);
+  const cursor = new Date(start);
+  cursor.setUTCDate(cursor.getUTCDate() - 1);
+  cursor.setUTCHours(0, 0, 0, 0);
 
-  while (cursor.getTime() < clockOut.getTime()) {
+  while (cursor.getTime() < end) {
     const nightStart = new Date(cursor);
-    nightStart.setHours(NIGHT_START_HOUR, 0, 0, 0);
+    nightStart.setUTCHours(NIGHT_START_HOUR, 0, 0, 0);
     const nightEnd = new Date(cursor);
-    nightEnd.setDate(nightEnd.getDate() + 1);
-    nightEnd.setHours(NIGHT_END_HOUR, 0, 0, 0);
+    nightEnd.setUTCDate(nightEnd.getUTCDate() + 1);
+    nightEnd.setUTCHours(NIGHT_END_HOUR, 0, 0, 0);
 
-    const overlapStart = Math.max(clockIn.getTime(), nightStart.getTime());
-    const overlapEnd = Math.min(clockOut.getTime(), nightEnd.getTime());
+    const overlapStart = Math.max(start, nightStart.getTime());
+    const overlapEnd = Math.min(end, nightEnd.getTime());
     if (overlapEnd > overlapStart) totalMs += overlapEnd - overlapStart;
 
-    cursor.setDate(cursor.getDate() + 1);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
 
   return totalMs / 3_600_000;

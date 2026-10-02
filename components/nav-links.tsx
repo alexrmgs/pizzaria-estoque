@@ -115,6 +115,7 @@ export function NavLinks({
     ? [
         { href: "/funcionarios", label: "Funcionários" },
         { href: "/ponto-equipe", label: "Ponto da Equipe" },
+        { href: "/relatorio-ponto", label: "Relatório de Ponto" },
         { href: "/ponto-totem", label: "Ponto por Facial" },
         { href: "/escalas", label: "Escalas" },
         { href: "/pagamentos", label: "Folha de Pagamento" },
