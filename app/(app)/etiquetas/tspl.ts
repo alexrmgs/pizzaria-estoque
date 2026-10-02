@@ -140,7 +140,6 @@ export function buildProducaoTspl(input: {
   widthMm: number;
   heightMm: number;
   qrContent?: string;
-  lote?: string;
 }): TsplSegment[] {
   const wd = Math.round(input.widthMm * DPMM);
   const hd = Math.round(input.heightMm * DPMM);
@@ -185,7 +184,6 @@ export function buildProducaoTspl(input: {
   const linhasDet: string[] = [];
   if (temperatura) linhasDet.push(temperatura);
   linhasDet.push(`FABRIC: ${input.fabricacao}`, `VALIDADE: ${input.validade}`);
-  if (input.lote) linhasDet.push(`LOTE: ${input.lote}`);
   if (input.responsavel.trim()) linhasDet.push(`RESP: ${limpar(input.responsavel)}`);
   const alturaRodape = LOGO_BITMAP_HEIGHT + margem + 8;
   const fonteDet = fonteDetalhes(linhasDet, disp, hd - alturaRodape - y - alturaPeso);

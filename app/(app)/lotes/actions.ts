@@ -16,7 +16,7 @@ const criarLoteSchema = z.object({
     .or(z.literal("")),
 });
 
-export type CriarLoteResult = { error?: string; id?: string; numero?: number };
+export type CriarLoteResult = { error?: string; id?: string };
 
 /**
  * Cria a etiqueta de produção como um "lote": registra a entrada no estoque
@@ -77,7 +77,7 @@ export async function criarLote(input: {
     revalidatePath("/lotes");
     revalidatePath("/dashboard");
     revalidatePath("/lista-compras");
-    return { id: label.id, numero: label.numero };
+    return { id: label.id };
   } catch {
     return { error: "Não foi possível registrar a entrada." };
   }
@@ -85,7 +85,6 @@ export async function criarLote(input: {
 
 export type LoteInfo = {
   id: string;
-  numero: number;
   ingredientName: string;
   unit: string;
   quantity: number;
@@ -105,7 +104,6 @@ export async function buscarLote(id: string): Promise<LoteInfo | null> {
   if (!label) return null;
   return {
     id: label.id,
-    numero: label.numero,
     ingredientName: label.ingredient.name,
     unit: label.ingredient.unit,
     quantity: Number(label.quantity),

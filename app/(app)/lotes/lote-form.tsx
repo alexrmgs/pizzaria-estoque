@@ -10,7 +10,6 @@ import { criarLote } from "./actions";
 import { imprimirTsplSegments } from "../etiquetas/ble-print";
 import { buildProducaoTspl } from "../etiquetas/tspl";
 import { todayInBrazil } from "@/lib/payroll";
-import { formatLote } from "@/lib/lote";
 
 const TEMP_SUGESTOES = [
   "2°C a -18°C",
@@ -124,7 +123,6 @@ export function LoteForm({
         widthMm,
         heightMm,
         qrContent: `${SITE_URL}/lotes/${result.id}`,
-        lote: result.numero ? formatLote(result.numero) : undefined,
       });
       await imprimirTsplSegments(tspl);
     } catch (e) {
@@ -306,9 +304,6 @@ export function LoteForm({
               </p>
               <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
                 <b>VALIDADE:</b> {validadeISO ? formatBR(validadeISO) : "—"}
-              </p>
-              <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>
-                <b>LOTE:</b> (número sai na impressão)
               </p>
               {responsavel.trim() && (
                 <p className="leading-tight" style={{ fontSize: `${lineFont}pt` }}>

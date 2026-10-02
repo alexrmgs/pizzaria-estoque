@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { darBaixaLote, excluirLote } from "./actions";
 import { imprimirTsplSegments } from "../etiquetas/ble-print";
 import { buildProducaoTspl } from "../etiquetas/tspl";
-import { formatLote } from "@/lib/lote";
 
 const SITE_URL = "https://fbgestao.com";
 
@@ -25,7 +24,6 @@ export function LoteRowActions({
 }: {
   lote: {
     id: string;
-    numero: number;
     ingredientName: string;
     unit: string;
     quantity: number;
@@ -58,7 +56,6 @@ export function LoteRowActions({
           widthMm,
           heightMm,
           qrContent: `${SITE_URL}/lotes/${lote.id}`,
-          lote: formatLote(lote.numero),
         });
         await imprimirTsplSegments(tspl);
         toast.success("Reimpresso ✅");
