@@ -8,10 +8,11 @@ import { nightHours, shiftHours } from "@/lib/payroll";
 export type DiaPonto = {
   date: string; // aaaa-mm-dd
   weekday: number;
-  batidas: { entrada: string; saida: string | null }[];
+  batidas: { id: string; entrada: string; saida: string | null; note: string | null }[];
   horas: number;
   horasNoturnas: number;
   feriado: string | null;
+  dayOffReason: string | null;
   obs: string | null; // motivo da falta/atestado/folga e observação do ponto
   situacao: "TRABALHOU" | "EM_ABERTO" | "FALTA" | "ATESTADO" | "FOLGA" | "SEM_REGISTRO";
 };
@@ -179,13 +180,16 @@ export async function buildRelatorioPonto(
         date,
         weekday,
         batidas: entries.map((e) => ({
+          id: e.id,
           entrada: TIME_FMT.format(e.clockIn),
           saida: e.clockOut ? TIME_FMT.format(e.clockOut) : null,
+          note: e.note,
         })),
         horas,
         horasNoturnas,
         feriado,
         situacao,
+        dayOffReason: dayOff?.reason ?? null,
         obs:
           [dayOff?.reason, ...entries.map((e) => e.note)]
             .map((t) => t?.trim())

@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PrintButton } from "@/components/print-button";
+import { AjustarDiaDialog } from "./ajustar-dia-dialog";
 import {
   Table,
   TableBody,
@@ -191,6 +192,7 @@ export default async function RelatorioPontoPage({
                 <TableHead className="text-right">Diurnas</TableHead>
                 <TableHead className="text-right">Noturnas</TableHead>
                 <TableHead>Obs.</TableHead>
+                <TableHead className="print:hidden" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -220,6 +222,18 @@ export default async function RelatorioPontoPage({
                     {[d.feriado ? `Feriado: ${d.feriado}` : "", SITUACAO_LABEL[d.situacao], d.obs ?? ""]
                       .filter(Boolean)
                       .join(" · ")}
+                  </TableCell>
+                  <TableCell className="text-right print:hidden">
+                    <AjustarDiaDialog
+                      employeeId={f.id}
+                      employeeName={f.name}
+                      date={d.date}
+                      dateLabel={`${formatDiaBR(d.date)} (${WEEKDAY_LONG[d.weekday]})`}
+                      situacaoAtual={d.situacao}
+                      batida={d.batidas[0] ?? null}
+                      dayOffReason={d.dayOffReason}
+                      temMaisBatidas={d.batidas.length > 1}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
