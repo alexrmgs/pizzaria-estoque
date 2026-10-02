@@ -12,6 +12,17 @@ import { monthRange } from "@/lib/relatorio-ponto";
 // guardado no sistema, então é estimado aqui.
 export const FGTS_RATE = 0.08;
 
+// Provisões mensais (só carteira assinada), sobre a remuneração do mês:
+// 13º, férias e aviso prévio = 1/12 cada; 1/3 de férias sobre a provisão de
+// férias; 40% de multa sobre o FGTS do mês.
+export const PROVISAO = {
+  decimo: 1 / 12,
+  ferias: 1 / 12,
+  tercoFerias: 1 / 12 / 3,
+  multaFgts: FGTS_RATE * 0.4,
+  aviso: 1 / 12,
+};
+
 export type CmoFuncionario = {
   id: string;
   name: string;
@@ -28,6 +39,12 @@ export type CmoFuncionario = {
   madrugada: number;
   fgts: number;
   rescisao: number; // líquido da rescisão + multa do FGTS
+  provDecimo: number;
+  provFerias: number;
+  provTercoFerias: number;
+  provMulta40: number;
+  provAviso: number;
+  provisoes: number;
   total: number;
   // Informativo: o que já saiu como vale/adiantamento dentro do mês.
   adiantamentos: number;
@@ -36,6 +53,7 @@ export type CmoFuncionario = {
 export type RelatorioCmo = {
   funcionarios: CmoFuncionario[];
   total: number;
+  provisoes: number;
   faturamento: number;
   percentual: number | null;
 };
@@ -89,7 +107,19 @@ export async function buildRelatorioCmo(mes: string, companyId: string): Promise
       .filter((r) => r.employeeId === e.id)
       .reduce((s, r) => s + Number(r.totalLiquido) + Number(r.multaFgts), 0);
 
-    let linha: Omit<CmoFuncionario, "fgts" | "total" | "madrugada" | "rescisao">;
+    let linha: Omit<
+      CmoFuncionario,
+      | "fgts"
+      | "total"
+      | "madrugada"
+      | "rescisao"
+      | "provDecimo"
+      | "provFerias"
+      | "provTercoFerias"
+      | "provMulta40"
+      | "provAviso"
+      | "provisoes"
+    >;
 
     if (pagos.length > 0) {
       const sum = (fn: (p: (typeof pagos)[number]) => unknown) =>
@@ -133,9 +163,18 @@ export async function buildRelatorioCmo(mes: string, companyId: string): Promise
     }
 
     const remuneracao = linha.salario + linha.adicionalNoturno + linha.horasExtras + linha.feriados;
-    const fgts = linha.carteiraAssinada ? (remuneracao - linha.descontos) * FGTS_RATE : 0;
-    const total =
-      remuneracao + linha.bonus - linha.descontos + madrugada + Math.max(0, fgts) + resc;
+    const baseEncargos = Math.max(0, remuneracao - linha.descontos);
+    const fgts = linha.carteiraAssinada ? baseEncargos * FGTS_RATE : 0;
+    // No mês da rescisão as verbas já são pagas nela — não provisiona.
+    const provisiona = linha.carteiraAssinada && resc === 0;
+    const prov = (rate: number) => (provisiona ? round(baseEncargos * rate) : 0);
+    const provDecimo = prov(PROVISAO.decimo);
+    const provFerias = prov(PROVISAO.ferias);
+    const provTercoFerias = prov(PROVISAO.tercoFerias);
+    const provMulta40 = prov(PROVISAO.multaFgts);
+    const provAviso = prov(PROVISAO.aviso);
+    const provisoes = provDecimo + provFerias + provTercoFerias + provMulta40 + provAviso;
+    const total = remuneracao + linha.bonus - linha.descontos + madrugada + fgts + resc + provisoes;
 
     funcionarios.push({
       ...linha,
@@ -147,8 +186,14 @@ export async function buildRelatorioCmo(mes: string, companyId: string): Promise
       descontos: round(linha.descontos),
       adiantamentos: round(linha.adiantamentos),
       madrugada: round(madrugada),
-      fgts: round(Math.max(0, fgts)),
+      fgts: round(fgts),
       rescisao: round(resc),
+      provDecimo,
+      provFerias,
+      provTercoFerias,
+      provMulta40,
+      provAviso,
+      provisoes: round(provisoes),
       total: round(total),
     });
   }
@@ -158,6 +203,7 @@ export async function buildRelatorioCmo(mes: string, companyId: string): Promise
   return {
     funcionarios,
     total,
+    provisoes: round(funcionarios.reduce((s, f) => s + f.provisoes, 0)),
     faturamento,
     percentual: faturamento > 0 ? (total / faturamento) * 100 : null,
   };

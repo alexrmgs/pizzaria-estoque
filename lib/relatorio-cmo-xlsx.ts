@@ -28,10 +28,18 @@ export async function buildCmoWorkbook(r: RelatorioCmo, empresa: string, periodo
     "Madrugada",
     "FGTS (8% est.)",
     "Rescisão",
+    "Prov. 13º",
+    "Prov. férias",
+    "Prov. 1/3 férias",
+    "Prov. 40% FGTS",
+    "Prov. aviso prévio",
+    "Total provisões",
     "CUSTO TOTAL",
     "Vales/adiant. no mês",
   ];
-  ws.columns = [28, 16, 16, 11, 13, 13, 12, 12, 12, 15, 12, 13, 12, 15, 14].map((width) => ({ width }));
+  ws.columns = [28, 16, 16, 11, 13, 13, 12, 12, 12, 15, 12, 13, 12, 12, 12, 12, 12, 12, 13, 15, 14].map(
+    (width) => ({ width }),
+  );
 
   const linhas: [string, Partial<ExcelJS.Font>][] = [
     [empresa || "Empresa", { bold: true, size: 14 }],
@@ -47,6 +55,7 @@ export async function buildCmoWorkbook(r: RelatorioCmo, empresa: string, periodo
 
   const resumo: [string, number | string, string?][] = [
     ["CMO total do mês", r.total, MOEDA],
+    ["  dos quais provisões (13º, férias, 1/3, 40%, aviso)", r.provisoes, MOEDA],
     ["Faturamento do mês (FB Eusébio)", r.faturamento, MOEDA],
     ["CMO / faturamento", r.percentual !== null ? r.percentual / 100 : "—", "0.0%"],
   ];
@@ -78,6 +87,12 @@ export async function buildCmoWorkbook(r: RelatorioCmo, empresa: string, periodo
     f.madrugada,
     f.fgts,
     f.rescisao,
+    f.provDecimo,
+    f.provFerias,
+    f.provTercoFerias,
+    f.provMulta40,
+    f.provAviso,
+    f.provisoes,
     f.total,
     f.adiantamentos,
   ];
@@ -93,7 +108,7 @@ export async function buildCmoWorkbook(r: RelatorioCmo, empresa: string, periodo
       cell.border = borda;
       if (col >= 5) cell.numFmt = MOEDA;
     });
-    row.getCell(14).font = { bold: true };
+    row.getCell(20).font = { bold: true };
     if (f.status === "ESTIMADA") row.getCell(4).font = { italic: true, color: { argb: "FFB45309" } };
   }
 
@@ -111,7 +126,7 @@ export async function buildCmoWorkbook(r: RelatorioCmo, empresa: string, periodo
 
   ws.addRow([]);
   const nota = ws.addRow([
-    "Folha \"Estimada\" = pagamento do mês ainda não fechado; valor previsto pela mesma conta da tela de pagamento. FGTS estimado em 8% só pra quem tem carteira assinada. Descontos de faltas/atrasos reduzem o custo. Vales/adiantamentos são só informativos (já estão dentro do salário).",
+    "Folha \"Estimada\" = pagamento do mês ainda não fechado; valor previsto pela mesma conta da tela de pagamento. FGTS estimado em 8% e provisões (13º, férias e aviso = 1/12; 1/3 de férias; 40% do FGTS) só pra quem tem carteira assinada; no mês da rescisão não há provisão. Descontos de faltas/atrasos reduzem o custo. Vales/adiantamentos são só informativos (já estão dentro do salário).",
   ]);
   ws.mergeCells(nota.number, 1, nota.number, header.length);
   nota.getCell(1).font = { italic: true, size: 9, color: { argb: "FF6B7280" } };

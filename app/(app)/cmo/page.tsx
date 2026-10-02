@@ -78,6 +78,7 @@ export default async function CmoPage({
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold">{brl(r.total)}</p>
+            <p className="text-xs text-neutral-500">inclui {brl(r.provisoes)} de provisões</p>
           </CardContent>
         </Card>
         <Card>
@@ -123,13 +124,18 @@ export default async function CmoPage({
               <TableHead className="text-right">Madrugada</TableHead>
               <TableHead className="text-right">FGTS (est.)</TableHead>
               <TableHead className="text-right">Rescisão</TableHead>
+              <TableHead className="text-right">Prov. 13º</TableHead>
+              <TableHead className="text-right">Prov. férias</TableHead>
+              <TableHead className="text-right">Prov. 1/3 férias</TableHead>
+              <TableHead className="text-right">Prov. 40% FGTS</TableHead>
+              <TableHead className="text-right">Prov. aviso</TableHead>
               <TableHead className="text-right">Custo total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {r.funcionarios.length === 0 && (
               <TableRow>
-                <TableCell colSpan={12} className="text-center text-neutral-500">
+                <TableCell colSpan={17} className="text-center text-neutral-500">
                   Nenhum funcionário nesse mês.
                 </TableCell>
               </TableRow>
@@ -160,6 +166,11 @@ export default async function CmoPage({
                 <TableCell className="text-right">{brl(f.madrugada)}</TableCell>
                 <TableCell className="text-right">{brl(f.fgts)}</TableCell>
                 <TableCell className="text-right">{brl(f.rescisao)}</TableCell>
+                <TableCell className="text-right">{brl(f.provDecimo)}</TableCell>
+                <TableCell className="text-right">{brl(f.provFerias)}</TableCell>
+                <TableCell className="text-right">{brl(f.provTercoFerias)}</TableCell>
+                <TableCell className="text-right">{brl(f.provMulta40)}</TableCell>
+                <TableCell className="text-right">{brl(f.provAviso)}</TableCell>
                 <TableCell className="text-right font-semibold">{brl(f.total)}</TableCell>
               </TableRow>
             ))}
@@ -178,6 +189,11 @@ export default async function CmoPage({
                 <TableCell className="text-right">{brl(sum((f) => f.madrugada))}</TableCell>
                 <TableCell className="text-right">{brl(sum((f) => f.fgts))}</TableCell>
                 <TableCell className="text-right">{brl(sum((f) => f.rescisao))}</TableCell>
+                <TableCell className="text-right">{brl(sum((f) => f.provDecimo))}</TableCell>
+                <TableCell className="text-right">{brl(sum((f) => f.provFerias))}</TableCell>
+                <TableCell className="text-right">{brl(sum((f) => f.provTercoFerias))}</TableCell>
+                <TableCell className="text-right">{brl(sum((f) => f.provMulta40))}</TableCell>
+                <TableCell className="text-right">{brl(sum((f) => f.provAviso))}</TableCell>
                 <TableCell className="text-right">{brl(r.total)}</TableCell>
               </TableRow>
             )}
@@ -186,7 +202,9 @@ export default async function CmoPage({
       </div>
 
       <p className="text-xs text-neutral-500">
-        FGTS estimado em 8% só pra quem tem carteira assinada. Vales e adiantamentos não somam à
+        FGTS estimado em 8% e provisões (13º, férias e aviso prévio = 1/12 da remuneração; 1/3
+        de férias; 40% do FGTS) só pra quem tem carteira assinada — no mês da rescisão não há
+        provisão, porque as verbas já são pagas nela. Vales e adiantamentos não somam à
         parte — já fazem parte do salário.
       </p>
     </div>
