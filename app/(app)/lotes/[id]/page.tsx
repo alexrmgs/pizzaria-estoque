@@ -3,6 +3,7 @@ import { buscarLote } from "../actions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmarBaixaButton } from "./confirmar-baixa-button";
+import { formatLote } from "@/lib/lote";
 
 function formatDate(date: Date | null) {
   if (!date) return "—";
@@ -21,6 +22,7 @@ export default async function LotePage({ params }: { params: Promise<{ id: strin
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-xl">{lote.ingredientName}</CardTitle>
+          <p className="text-sm text-neutral-500">Lote {formatLote(lote.numero)}</p>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
