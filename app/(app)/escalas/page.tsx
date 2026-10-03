@@ -14,6 +14,14 @@ import {
 } from "@/components/ui/table";
 import { ScheduleCalendar, ScheduleLegend } from "@/components/schedule-calendar";
 import { SwapApprovalButtons } from "../funcionarios/swap-approval-buttons";
+import {
+  addWeeksISO,
+  CICLO_SEMANAS,
+  domingosISO,
+  proximoDomingoISO,
+  RODIZIO_REASON,
+} from "@/lib/rodizio-domingos";
+import { RodizioDomingos } from "./rodizio-domingos";
 
 const DAYS_AHEAD = 60;
 
@@ -51,6 +59,28 @@ export default async function EscalasPage() {
       include: { requester: { select: { name: true } }, target: { select: { name: true } } },
     }),
   ]);
+
+  // Quadro do rodízio de domingos: 2 domingos pra trás e 16 pra frente.
+  const domingos = domingosISO(addWeeksISO(proximoDomingoISO(now), -2), 18);
+  const [folgasDomingo, rodizioCount] = await Promise.all([
+    prisma.dayOff.findMany({
+      where: {
+        type: "FOLGA",
+        date: { in: domingos.map((d) => new Date(`${d}T00:00:00Z`)) },
+      },
+      select: { employeeId: true, date: true },
+    }),
+    prisma.dayOff.count({ where: { reason: RODIZIO_REASON } }),
+  ]);
+  const rodizioLinhas = activeEmployees
+    .filter((e) => e.weeklyDayOff !== 0)
+    .map((e) => ({
+      id: e.id,
+      name: e.name,
+      folgas: folgasDomingo
+        .filter((f) => f.employeeId === e.id)
+        .map((f) => f.date.toISOString().slice(0, 10)),
+    }));
 
   const avulsaByEmployee = new Map<string, Set<string>>();
   const workOverrideByEmployee = new Map<string, Set<string>>();
@@ -112,6 +142,21 @@ export default async function EscalasPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Rodízio de domingos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RodizioDomingos
+            domingos={domingos}
+            linhas={rodizioLinhas}
+            todayISO={windowStart.toISOString().slice(0, 10)}
+            temRodizio={rodizioCount > 0}
+            ciclo={CICLO_SEMANAS}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
