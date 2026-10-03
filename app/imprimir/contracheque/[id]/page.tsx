@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import { PrintButton } from "@/components/print-button";
+import { FOLGA_PAGA_TAG } from "@/lib/folga-comprada-shared";
 
 const num = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const brDate = (d: Date) => d.toLocaleDateString("pt-BR", { timeZone: "UTC" });
@@ -49,10 +50,16 @@ export default async function ImprimirContrachequePage({
   // impressão específica.
   const simples = simplesParam ? simplesParam === "1" : !payment.employee.carteiraAssinada;
 
-  const [settings, advances] = await Promise.all([
+  const [settings, advances, folgasPagas] = await Promise.all([
     getAppSettings(user.companyId),
     prisma.advance.findMany({ where: { paymentId: payment.id } }),
+    prisma.payrollAdjustment.findMany({
+      where: { paymentId: payment.id, type: "BONUS", description: { startsWith: FOLGA_PAGA_TAG } },
+    }),
   ]);
+  // Folga comprada vem somada no bônus do pagamento — separa numa linha
+  // própria (é verba salarial, Lei 605/49) e tira do "Bônus".
+  const folgaPagaTotal = folgasPagas.reduce((s, a) => s + Number(a.amount), 0);
   const valeTotal = advances
     .filter((a) => a.kind === "VALE")
     .reduce((s, a) => s + Number(a.amount), 0);
@@ -66,7 +73,7 @@ export default async function ImprimirContrachequePage({
   const nightPremium = Number(payment.nightPremium);
   const overtimeAmount = Number(payment.overtimeAmount);
   const overtimeHours = Number(payment.overtimeHours);
-  const bonusTotal = Number(payment.bonusTotal);
+  const bonusTotal = Number(payment.bonusTotal) - folgaPagaTotal;
   const attendanceBonusAmount = Number(payment.attendanceBonusAmount);
   const lateDiscountAmount = Number(payment.lateDiscountAmount);
   const lateDiscountMinutes = Number(payment.lateDiscountMinutes);
@@ -82,7 +89,7 @@ export default async function ImprimirContrachequePage({
 
   // Base de cálculo padrão (salário + adicional noturno + hora extra) — a
   // mesma usada no fechamento do pagamento pra INSS/IRRF/FGTS.
-  const grossForTax = baseSalary + nightPremium + overtimeAmount;
+  const grossForTax = baseSalary + nightPremium + overtimeAmount + folgaPagaTotal;
   const irrfBase = Math.max(
     0,
     grossForTax - inssAmount - payment.employee.dependents * Number(settings.irrfDependentDeduction),
@@ -111,7 +118,16 @@ export default async function ImprimirContrachequePage({
       desconto: 0,
     });
   }
-  if (bonusTotal > 0) {
+  if (folgaPagaTotal > 0) {
+    rows.push({
+      code: "007",
+      label: "Folga Trabalhada em Dobro (Lei 605/49)",
+      ref: `${num(folgasPagas.length)}`,
+      vencimento: folgaPagaTotal,
+      desconto: 0,
+    });
+  }
+  if (bonusTotal > 0.004) {
     rows.push({ code: "004", label: "Bônus", ref: "", vencimento: bonusTotal, desconto: 0 });
   }
   if (attendanceBonusAmount > 0) {

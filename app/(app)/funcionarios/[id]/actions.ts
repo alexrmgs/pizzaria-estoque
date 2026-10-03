@@ -7,6 +7,12 @@ import { requirePermission } from "@/lib/dal";
 import { computePaymentPreview, type PaymentPreview } from "@/lib/payment-preview";
 import { getAppSettings } from "@/lib/settings";
 import {
+  comprarFolga,
+  desfazerCompra,
+  FOLGA_COMPRADA_REASON,
+  FOLGA_PAGA_TAG,
+} from "@/lib/folga-comprada";
+import {
   faltaAmount,
   holidayWorkedBonusAmount,
   inssAmount,
@@ -119,7 +125,9 @@ export async function deleteTimeEntry(employeeId: string, id: string) {
 
 const dayOffSchema = z.object({
   date: z.string().trim().min(1, "Informe a data."),
-  type: z.enum(["FOLGA", "ATESTADO", "FALTA", "TRABALHA"]),
+  // COMPRADA = folga comprada (trabalha na folga e recebe em dobro) — vira
+  // TRABALHA + provento, ver lib/folga-comprada.ts.
+  type: z.enum(["FOLGA", "ATESTADO", "FALTA", "TRABALHA", "COMPRADA"]),
   reason: z.string().trim().max(300).optional(),
 });
 
@@ -141,14 +149,23 @@ export async function addDayOff(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const date = new Date(`${parsed.data.date}T00:00:00`);
+  const date = new Date(`${parsed.data.date}T00:00:00Z`);
+  const type = parsed.data.type;
 
-  try {
-    await prisma.dayOff.create({
-      data: { employeeId, date, type: parsed.data.type, reason: parsed.data.reason },
-    });
-  } catch {
-    return { error: "Já existe um registro nesse dia." };
+  if (type === "COMPRADA") {
+    try {
+      await comprarFolga(employeeId, parsed.data.date, parsed.data.reason);
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "Não foi possível registrar." };
+    }
+  } else {
+    try {
+      await prisma.dayOff.create({
+        data: { employeeId, date, type, reason: parsed.data.reason },
+      });
+    } catch {
+      return { error: "Já existe um registro nesse dia." };
+    }
   }
 
   revalidatePath(`/funcionarios/${employeeId}`);
@@ -159,7 +176,17 @@ export async function addDayOff(
 
 export async function deleteDayOff(employeeId: string, id: string) {
   await requirePermission("canManageFuncionarios");
-  await prisma.dayOff.delete({ where: { id } });
+  const dayOff = await prisma.dayOff.findUnique({ where: { id } });
+  if (dayOff?.type === "TRABALHA" && dayOff.reason?.startsWith(FOLGA_COMPRADA_REASON)) {
+    // Tira também o provento em dobro (se o pagamento ainda não foi fechado).
+    try {
+      await desfazerCompra(employeeId, dayOff.date.toISOString().slice(0, 10));
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "Não foi possível excluir." };
+    }
+  } else {
+    await prisma.dayOff.delete({ where: { id } });
+  }
   revalidatePath(`/funcionarios/${employeeId}`);
   revalidatePath("/pagamentos");
   revalidatePath("/escalas");
@@ -388,7 +415,12 @@ export async function closePayment(
   // foi admitido no meio do mês (prefill no diálogo), então usa como veio.
   const baseSalary = parsed.data.baseSalary;
 
-  const grossForTax = baseSalary + preview.nightPremium + preview.overtimeAmount;
+  // Folga comprada (paga em dobro) é verba salarial — entra na base de
+  // INSS/IRRF junto com salário, noturno e hora extra.
+  const folgaPagaVal = preview.bonusItems
+    .filter((b) => b.description?.startsWith(FOLGA_PAGA_TAG))
+    .reduce((sum, b) => sum + b.amount, 0);
+  const grossForTax = baseSalary + preview.nightPremium + preview.overtimeAmount + folgaPagaVal;
   const faltaVal = parsed.data.faltaDays > 0 ? faltaAmount(baseSalary, parsed.data.faltaDays) : 0;
   const holidayVal =
     parsed.data.holidayWorkedDays > 0

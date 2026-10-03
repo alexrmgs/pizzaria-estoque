@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { computePaymentPreview } from "@/lib/payment-preview";
 import { monthRange } from "@/lib/relatorio-ponto";
+import { FOLGA_PAGA_TAG } from "@/lib/folga-comprada-shared";
 
 // CMO (custo de mão de obra) do mês: quanto a empresa gastou com cada
 // funcionário na competência — salário e adicionais já com faltas/atrasos
@@ -35,6 +36,7 @@ export type CmoFuncionario = {
   adicionalNoturno: number;
   horasExtras: number;
   feriados: number;
+  folgasPagas: number; // folga comprada, paga em dobro (verba salarial)
   bonus: number; // bônus lançados + bônus de assiduidade
   descontos: number; // faltas + atrasos + outros descontos (reduzem o custo)
   madrugada: number;
@@ -65,7 +67,7 @@ const round = (n: number) => Math.round(n * 100) / 100;
 export async function buildRelatorioCmo(mes: string, companyId: string): Promise<RelatorioCmo> {
   const { start, end } = monthRange(mes);
 
-  const [employees, payments, madrugadas, rescisoes, revenues] = await Promise.all([
+  const [employees, payments, madrugadas, rescisoes, revenues, folgasPagasAdj] = await Promise.all([
     prisma.employee.findMany({
       where: {
         OR: [
@@ -92,6 +94,10 @@ export async function buildRelatorioCmo(mes: string, companyId: string): Promise
       where: { date: { gte: start, lte: end }, store: { name: "FB EUSEBIO", companyId } },
       select: { amount: true },
     }),
+    prisma.payrollAdjustment.findMany({
+      where: { type: "BONUS", date: { gte: start, lte: end }, description: { startsWith: FOLGA_PAGA_TAG } },
+      select: { employeeId: true, amount: true },
+    }),
   ]);
 
   const today = new Date();
@@ -109,9 +115,16 @@ export async function buildRelatorioCmo(mes: string, companyId: string): Promise
       .filter((r) => r.employeeId === e.id)
       .reduce((s, r) => s + Number(r.totalLiquido) + Number(r.multaFgts), 0);
 
+    // Folga comprada vem dentro do bônus (fechado ou previsto) — separa pra
+    // entrar na remuneração (base de FGTS e provisões).
+    const folgasPagas = folgasPagasAdj
+      .filter((a) => a.employeeId === e.id)
+      .reduce((s, a) => s + Number(a.amount), 0);
+
     let linha: Omit<
       CmoFuncionario,
       | "fgts"
+      | "folgasPagas"
       | "total"
       | "madrugada"
       | "rescisao"
@@ -165,7 +178,9 @@ export async function buildRelatorioCmo(mes: string, companyId: string): Promise
       };
     }
 
-    const remuneracao = linha.salario + linha.adicionalNoturno + linha.horasExtras + linha.feriados;
+    linha.bonus = Math.max(0, linha.bonus - folgasPagas);
+    const remuneracao =
+      linha.salario + linha.adicionalNoturno + linha.horasExtras + linha.feriados + folgasPagas;
     const baseEncargos = Math.max(0, remuneracao - linha.descontos);
     const fgts = linha.carteiraAssinada ? baseEncargos * FGTS_RATE : 0;
     // No mês da rescisão as verbas já são pagas nela — não provisiona.
@@ -186,6 +201,7 @@ export async function buildRelatorioCmo(mes: string, companyId: string): Promise
       adicionalNoturno: round(linha.adicionalNoturno),
       horasExtras: round(linha.horasExtras),
       feriados: round(linha.feriados),
+      folgasPagas: round(folgasPagas),
       bonus: round(linha.bonus),
       descontos: round(linha.descontos),
       adiantamentos: round(linha.adiantamentos),

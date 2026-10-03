@@ -119,6 +119,7 @@ export default async function CmoPage({
               <TableHead className="text-right">Adic. noturno</TableHead>
               <TableHead className="text-right">Horas extras</TableHead>
               <TableHead className="text-right">Feriados</TableHead>
+              <TableHead className="text-right">Folgas pagas</TableHead>
               <TableHead className="text-right">Bônus</TableHead>
               <TableHead className="text-right">Descontos</TableHead>
               <TableHead className="text-right">Madrugada</TableHead>
@@ -136,7 +137,7 @@ export default async function CmoPage({
           <TableBody>
             {r.funcionarios.length === 0 && (
               <TableRow>
-                <TableCell colSpan={18} className="text-center text-neutral-500">
+                <TableCell colSpan={19} className="text-center text-neutral-500">
                   Nenhum funcionário nesse mês.
                 </TableCell>
               </TableRow>
@@ -160,6 +161,7 @@ export default async function CmoPage({
                 <TableCell className="text-right">{brl(f.adicionalNoturno)}</TableCell>
                 <TableCell className="text-right">{brl(f.horasExtras)}</TableCell>
                 <TableCell className="text-right">{brl(f.feriados)}</TableCell>
+                <TableCell className="text-right">{brl(f.folgasPagas)}</TableCell>
                 <TableCell className="text-right">{brl(f.bonus)}</TableCell>
                 <TableCell className="text-right text-destructive">
                   {f.descontos ? `−${brl(f.descontos)}` : brl(0)}
@@ -184,6 +186,7 @@ export default async function CmoPage({
                 <TableCell className="text-right">{brl(sum((f) => f.adicionalNoturno))}</TableCell>
                 <TableCell className="text-right">{brl(sum((f) => f.horasExtras))}</TableCell>
                 <TableCell className="text-right">{brl(sum((f) => f.feriados))}</TableCell>
+                <TableCell className="text-right">{brl(sum((f) => f.folgasPagas))}</TableCell>
                 <TableCell className="text-right">{brl(sum((f) => f.bonus))}</TableCell>
                 <TableCell className="text-right text-destructive">
                   −{brl(sum((f) => f.descontos))}

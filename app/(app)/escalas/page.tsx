@@ -22,6 +22,7 @@ import {
   RODIZIO_REASON,
 } from "@/lib/rodizio-domingos";
 import { RodizioDomingos } from "./rodizio-domingos";
+import { FOLGA_COMPRADA_REASON } from "@/lib/folga-comprada";
 
 const DAYS_AHEAD = 60;
 
@@ -65,10 +66,10 @@ export default async function EscalasPage() {
   const [folgasDomingo, rodizioCount] = await Promise.all([
     prisma.dayOff.findMany({
       where: {
-        type: "FOLGA",
         date: { in: domingos.map((d) => new Date(`${d}T00:00:00Z`)) },
+        OR: [{ type: "FOLGA" }, { type: "TRABALHA", reason: { startsWith: FOLGA_COMPRADA_REASON } }],
       },
-      select: { employeeId: true, date: true },
+      select: { employeeId: true, date: true, type: true },
     }),
     prisma.dayOff.count({ where: { reason: RODIZIO_REASON } }),
   ]);
@@ -78,7 +79,10 @@ export default async function EscalasPage() {
       id: e.id,
       name: e.name,
       folgas: folgasDomingo
-        .filter((f) => f.employeeId === e.id)
+        .filter((f) => f.employeeId === e.id && f.type === "FOLGA")
+        .map((f) => f.date.toISOString().slice(0, 10)),
+      compradas: folgasDomingo
+        .filter((f) => f.employeeId === e.id && f.type === "TRABALHA")
         .map((f) => f.date.toISOString().slice(0, 10)),
     }));
 

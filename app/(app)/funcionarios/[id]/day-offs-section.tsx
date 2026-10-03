@@ -18,12 +18,15 @@ import {
 } from "@/components/ui/table";
 import { addDayOff, deleteDayOff } from "./actions";
 import { todayInBrazil } from "@/lib/payroll";
+import { FOLGA_COMPRADA_REASON } from "@/lib/folga-comprada-shared";
 
 function todayISO() {
   return todayInBrazil().toISOString().slice(0, 10);
 }
 
 type AbsenceType = "FOLGA" | "ATESTADO" | "FALTA" | "TRABALHA";
+// "COMPRADA" só existe no formulário — no banco vira TRABALHA + provento.
+type FormType = AbsenceType | "COMPRADA";
 
 type DayOff = {
   id: string;
@@ -42,11 +45,12 @@ const WEEKDAY_NAMES = [
   "Sábado",
 ];
 
-const TYPE_LABELS: Record<AbsenceType, string> = {
+const TYPE_LABELS: Record<FormType, string> = {
   FOLGA: "Folga",
   ATESTADO: "Atestado",
   FALTA: "Falta",
   TRABALHA: "Trabalha (cancela a folga)",
+  COMPRADA: "Folga comprada (paga em dobro)",
 };
 
 function TypeBadge({ type }: { type: AbsenceType }) {
@@ -66,7 +70,7 @@ export function DayOffsSection({
   dayOffs: DayOff[];
 }) {
   const [isPending, startTransition] = useTransition();
-  const [type, setType] = useState<AbsenceType>("FOLGA");
+  const [type, setType] = useState<FormType>("FOLGA");
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -81,8 +85,12 @@ export function DayOffsSection({
 
   function handleDelete(id: string) {
     startTransition(async () => {
-      await deleteDayOff(employeeId, id);
-      toast.success("Registro removido.");
+      const result = await deleteDayOff(employeeId, id);
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Registro removido.");
+      }
     });
   }
 
@@ -129,15 +137,16 @@ export function DayOffsSection({
             <input type="hidden" name="type" value={type} />
             <Select
               value={type}
-              onValueChange={(v) => setType(v as AbsenceType)}
+              onValueChange={(v) => setType(v as FormType)}
               items={[
                 { value: "FOLGA", label: "Folga" },
                 { value: "ATESTADO", label: "Atestado" },
                 { value: "FALTA", label: "Falta" },
                 { value: "TRABALHA", label: "Trabalha (cancela a folga)" },
+                { value: "COMPRADA", label: "Folga comprada (paga em dobro)" },
               ]}
             >
-              <SelectTrigger className="h-9 w-48">
+              <SelectTrigger className="h-9 w-60">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -145,6 +154,7 @@ export function DayOffsSection({
                 <SelectItem value="ATESTADO">Atestado</SelectItem>
                 <SelectItem value="FALTA">Falta</SelectItem>
                 <SelectItem value="TRABALHA">Trabalha (cancela a folga)</SelectItem>
+                <SelectItem value="COMPRADA">Folga comprada (paga em dobro)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -158,6 +168,13 @@ export function DayOffsSection({
             Registrar
           </Button>
         </form>
+        {type === "COMPRADA" && (
+          <p className="text-xs text-neutral-500">
+            O funcionário trabalha no dia de folga e recebe o dia em dobro (2 × salário ÷ 30) no
+            próximo contracheque — Lei 605/49, art. 9º e Súmula 146 do TST. Entra na base de
+            INSS/IRRF/FGTS.
+          </p>
+        )}
 
         <div className="rounded-lg border">
           <Table>
@@ -181,7 +198,11 @@ export function DayOffsSection({
                 <TableRow key={dayOff.id}>
                   <TableCell>{dayOff.date}</TableCell>
                   <TableCell>
-                    <TypeBadge type={dayOff.type} />
+                    {dayOff.type === "TRABALHA" && dayOff.reason?.startsWith(FOLGA_COMPRADA_REASON) ? (
+                      <Badge className="bg-emerald-100 text-emerald-800">Folga comprada</Badge>
+                    ) : (
+                      <TypeBadge type={dayOff.type} />
+                    )}
                   </TableCell>
                   <TableCell className="text-neutral-500">{dayOff.reason ?? "—"}</TableCell>
                   <TableCell className="text-right">

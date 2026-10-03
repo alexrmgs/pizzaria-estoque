@@ -23,6 +23,7 @@ export async function buildCmoWorkbook(r: RelatorioCmo, empresa: string, periodo
     "Adic. noturno",
     "Horas extras",
     "Feriados",
+    "Folgas pagas (dobro)",
     "Bônus",
     "Descontos (faltas/atrasos)",
     "Madrugada",
@@ -38,7 +39,7 @@ export async function buildCmoWorkbook(r: RelatorioCmo, empresa: string, periodo
     "CUSTO TOTAL",
     "Vales/adiant. no mês",
   ];
-  ws.columns = [28, 16, 16, 11, 13, 13, 12, 12, 12, 15, 12, 13, 12, 12, 12, 12, 12, 12, 12, 13, 15, 14].map(
+  ws.columns = [28, 16, 16, 11, 13, 13, 12, 12, 12, 12, 15, 12, 13, 12, 12, 12, 12, 12, 12, 12, 13, 15, 14].map(
     (width) => ({ width }),
   );
 
@@ -83,6 +84,7 @@ export async function buildCmoWorkbook(r: RelatorioCmo, empresa: string, periodo
     f.adicionalNoturno,
     f.horasExtras,
     f.feriados,
+    f.folgasPagas,
     f.bonus,
     -f.descontos,
     f.madrugada,
@@ -110,7 +112,7 @@ export async function buildCmoWorkbook(r: RelatorioCmo, empresa: string, periodo
       cell.border = borda;
       if (col >= 5) cell.numFmt = MOEDA;
     });
-    row.getCell(21).font = { bold: true };
+    row.getCell(22).font = { bold: true };
     if (f.status === "ESTIMADA") row.getCell(4).font = { italic: true, color: { argb: "FFB45309" } };
   }
 

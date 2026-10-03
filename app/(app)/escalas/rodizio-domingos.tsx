@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { alternarDomingo, gerarRodizio, importarEscalaBase } from "./rodizio-actions";
 
-type Linha = { id: string; name: string; folgas: string[] };
+type Linha = { id: string; name: string; folgas: string[]; compradas: string[] };
 
 const curto = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
@@ -56,6 +56,13 @@ export function RodizioDomingos({
     });
   }
 
+  function clicarComConfirmacao(employeeId: string, date: string, folga: boolean) {
+    if (folga && !confirm("Comprar essa folga? O funcionário trabalha nesse domingo e recebe o dia em dobro no contracheque.")) {
+      return;
+    }
+    clicar(employeeId, date);
+  }
+
   const porDomingo = new Map(domingos.map((d) => [d, linhas.filter((l) => l.folgas.includes(d)).length]));
 
   return (
@@ -70,8 +77,9 @@ export function RodizioDomingos({
           {isPending ? "Salvando..." : "Gerar próximos 6 meses"}
         </Button>
         <p className="text-xs text-neutral-500">
-          1 domingo de folga a cada {ciclo} domingos, contando do último domingo de folga de cada
-          um. Clique num quadrinho pra ajustar — o rodízio da pessoa segue a partir dali.
+          1 domingo de folga a cada {ciclo} domingos. Clique pra ajustar: <b>T</b> trabalha →{" "}
+          <b className="text-blue-700">F</b> folga → <b className="text-emerald-700">$</b> folga
+          comprada (trabalha e recebe o dia em dobro — Lei 605/49) → T.
         </p>
       </div>
 
@@ -98,23 +106,34 @@ export function RodizioDomingos({
                 </td>
                 {domingos.map((d) => {
                   const folga = l.folgas.includes(d);
-                  const passado = d < todayISO;
+                  const comprada = l.compradas.includes(d);
+                  // Passado só deixa mexer pra marcar/desmarcar folga comprada
+                  // (a compra costuma ser decidida no próprio dia ou depois).
+                  const passado = d < todayISO && !folga && !comprada;
                   return (
                     <td key={d} className="px-1 py-1 text-center">
                       <button
                         type="button"
                         disabled={passado || isPending}
-                        onClick={() => clicar(l.id, d)}
-                        title={folga ? "Folga — clique pra tirar" : "Trabalha — clique pra dar folga"}
+                        onClick={() => clicarComConfirmacao(l.id, d, folga)}
+                        title={
+                          comprada
+                            ? "Folga comprada (paga em dobro) — clique pra desfazer"
+                            : folga
+                              ? "Folga — clique pra comprar a folga (trabalha e recebe em dobro)"
+                              : "Trabalha — clique pra dar folga"
+                        }
                         className={cn(
                           "h-7 w-9 rounded text-xs font-semibold transition-colors",
-                          folga
-                            ? "bg-blue-600 text-white hover:bg-blue-700"
-                            : "bg-neutral-100 text-neutral-400 hover:bg-blue-100",
+                          comprada
+                            ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                            : folga
+                              ? "bg-blue-600 text-white hover:bg-blue-700"
+                              : "bg-neutral-100 text-neutral-400 hover:bg-blue-100",
                           passado && "cursor-default opacity-50 hover:bg-inherit",
                         )}
                       >
-                        {folga ? "F" : "T"}
+                        {comprada ? "$" : folga ? "F" : "T"}
                       </button>
                     </td>
                   );

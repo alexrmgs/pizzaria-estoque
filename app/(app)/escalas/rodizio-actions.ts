@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { todayInBrazil } from "@/lib/payroll";
+import { comprarFolga, desfazerCompra, FOLGA_COMPRADA_REASON } from "@/lib/folga-comprada";
 import {
   addWeeksISO,
   CICLO_SEMANAS,
@@ -23,7 +24,10 @@ function revalidar() {
   revalidatePath("/dashboard");
 }
 
-/** Liga/desliga a folga de um funcionário num domingo (ajuste manual). */
+/**
+ * Clique no quadro do domingo: Trabalha → Folga → Folga comprada ($, paga em
+ * dobro) → Trabalha.
+ */
 export async function alternarDomingo(employeeId: string, dateISO: string) {
   await requirePermission("canManageFuncionarios");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO) || toDate(dateISO).getUTCDay() !== 0) {
@@ -33,18 +37,26 @@ export async function alternarDomingo(employeeId: string, dateISO: string) {
   const existing = await prisma.dayOff.findUnique({
     where: { employeeId_date: { employeeId, date } },
   });
-  if (existing?.type === "FOLGA") {
-    await prisma.dayOff.delete({ where: { id: existing.id } });
-  } else if (existing && existing.type !== "TRABALHA") {
-    return { error: "Já tem falta/atestado lançado nesse dia." };
-  } else {
-    await prisma.dayOff.upsert({
-      where: { employeeId_date: { employeeId, date } },
-      create: { employeeId, date, type: "FOLGA", reason: RODIZIO_REASON },
-      update: { type: "FOLGA", reason: RODIZIO_REASON },
-    });
+  try {
+    if (existing?.type === "FOLGA") {
+      await comprarFolga(employeeId, dateISO);
+    } else if (existing?.type === "TRABALHA" && existing.reason?.startsWith(FOLGA_COMPRADA_REASON)) {
+      await desfazerCompra(employeeId, dateISO);
+    } else if (existing && existing.type !== "TRABALHA") {
+      return { error: "Já tem falta/atestado lançado nesse dia." };
+    } else {
+      await prisma.dayOff.upsert({
+        where: { employeeId_date: { employeeId, date } },
+        create: { employeeId, date, type: "FOLGA", reason: RODIZIO_REASON },
+        update: { type: "FOLGA", reason: RODIZIO_REASON },
+      });
+    }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível salvar." };
   }
   revalidar();
+  revalidatePath(`/funcionarios/${employeeId}`);
+  revalidatePath("/pagamentos");
   return {};
 }
 
@@ -63,8 +75,13 @@ async function gerar() {
     select: { id: true, name: true },
   });
 
+  // Domingo de folga comprada continua sendo o domingo do rodízio da pessoa
+  // (só foi trabalhado e pago em dobro) — conta como âncora do ciclo.
   const folgas = await prisma.dayOff.findMany({
-    where: { employeeId: { in: elegiveis.map((e) => e.id) }, type: "FOLGA" },
+    where: {
+      employeeId: { in: elegiveis.map((e) => e.id) },
+      OR: [{ type: "FOLGA" }, { type: "TRABALHA", reason: { startsWith: FOLGA_COMPRADA_REASON } }],
+    },
     select: { employeeId: true, date: true },
   });
   const ocupados = await prisma.dayOff.findMany({
