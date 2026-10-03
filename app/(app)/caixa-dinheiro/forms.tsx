@@ -227,38 +227,60 @@ type ConfigForm = {
   moedasContadas: number | null;
 };
 
-export function MesDialog({ config }: { config: ConfigForm }) {
+type Anterior = {
+  month: string;
+  temDados: boolean;
+  saldoFinal: number;
+  moedas: Record<(typeof COINS)[number]["ini"], number>;
+};
+
+const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+/**
+ * Abertura do mês: ou puxa o saldo final (e as moedas que sobraram) do mês
+ * anterior, ou faz a conferência manual — conta cédulas e moedas, e essa
+ * contagem vira o saldo inicial (mostrando a diferença pro mês anterior).
+ */
+export function MesDialog({ config, anterior }: { config: ConfigForm; anterior: Anterior }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [f, setF] = useState({
-    saldoInicial: String(config.saldoInicial),
-    saldoAnterior: config.saldoAnterior != null ? String(config.saldoAnterior) : "",
-    ini05: String(config.ini05),
-    ini10: String(config.ini10),
-    ini25: String(config.ini25),
-    ini50: String(config.ini50),
-    ini100: String(config.ini100),
-    cedulasContadas: config.cedulasContadas != null ? String(config.cedulasContadas) : "",
-    moedasContadas: config.moedasContadas != null ? String(config.moedasContadas) : "",
-  });
+  const [modo, setModo] = useState<"anterior" | "manual">(
+    config.cedulasContadas != null || config.moedasContadas != null ? "manual" : "anterior",
+  );
+  const [cedulas, setCedulas] = useState(
+    config.cedulasContadas != null ? String(config.cedulasContadas) : "",
+  );
+  const [qtd, setQtd] = useState<Record<string, string>>(() =>
+    Object.fromEntries(COINS.map((c) => [c.ini, String(config[c.ini] ?? 0)])),
+  );
 
-  const iniKeys = COINS.map((c) => c.ini);
+  const moedasContadas = COINS.reduce((s, c) => s + (Number(qtd[c.ini]) || 0) * c.value, 0);
+  const totalContado = (Number(cedulas.replace(",", ".")) || 0) + moedasContadas;
+  const diferenca = totalContado - anterior.saldoFinal;
 
   async function submit() {
     setSaving(true);
-    const result = await salvarMes({
-      month: config.month,
-      saldoInicial: Number(f.saldoInicial) || 0,
-      saldoAnterior: f.saldoAnterior === "" ? undefined : Number(f.saldoAnterior),
-      ini05: Number(f.ini05) || 0,
-      ini10: Number(f.ini10) || 0,
-      ini25: Number(f.ini25) || 0,
-      ini50: Number(f.ini50) || 0,
-      ini100: Number(f.ini100) || 0,
-      cedulasContadas: f.cedulasContadas === "" ? undefined : Number(f.cedulasContadas),
-      moedasContadas: f.moedasContadas === "" ? undefined : Number(f.moedasContadas),
-    });
+    const result =
+      modo === "anterior"
+        ? await salvarMes({
+            month: config.month,
+            saldoInicial: anterior.saldoFinal,
+            saldoAnterior: anterior.saldoFinal,
+            ...anterior.moedas,
+          })
+        : await salvarMes({
+            month: config.month,
+            saldoInicial: Math.round(totalContado * 100) / 100,
+            saldoAnterior: anterior.saldoFinal,
+            ini05: Number(qtd.ini05) || 0,
+            ini10: Number(qtd.ini10) || 0,
+            ini25: Number(qtd.ini25) || 0,
+            ini50: Number(qtd.ini50) || 0,
+            ini100: Number(qtd.ini100) || 0,
+            cedulasContadas: Number(cedulas.replace(",", ".")) || 0,
+            moedasContadas: Math.round(moedasContadas * 100) / 100,
+          });
     setSaving(false);
     if (result.error) return toast.error(result.error);
     toast.success("Mês configurado ✅");
@@ -271,74 +293,97 @@ export function MesDialog({ config }: { config: ConfigForm }) {
       <DialogTrigger render={<Button size="sm">Configurar mês</Button>} />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Configurar {config.month}</DialogTitle>
+          <DialogTitle>Abrir o mês {config.month}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label>Saldo inicial (dinheiro no início do mês)</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={f.saldoInicial}
-              onChange={(e) => setF((p) => ({ ...p, saldoInicial: e.target.value }))}
-            />
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant={modo === "anterior" ? "default" : "outline"}
+              onClick={() => setModo("anterior")}
+            >
+              Puxar do mês anterior
+            </Button>
+            <Button
+              type="button"
+              variant={modo === "manual" ? "default" : "outline"}
+              onClick={() => setModo("manual")}
+            >
+              Conferência manual
+            </Button>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label>Estoque inicial de moedas (quantidade)</Label>
-            <div className="grid grid-cols-5 gap-2">
-              {COINS.map((c, i) => (
-                <div key={c.ini} className="flex flex-col gap-1">
-                  <span className="text-xs text-neutral-500">{c.label}</span>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={f[iniKeys[i] as keyof typeof f]}
-                    onChange={(e) =>
-                      setF((p) => ({ ...p, [iniKeys[i]]: e.target.value }))
-                    }
-                    className="h-9"
-                  />
+          {modo === "anterior" ? (
+            <div className="flex flex-col gap-2 rounded-md bg-neutral-50 p-3 text-sm">
+              {anterior.temDados ? (
+                <>
+                  <p>
+                    Saldo final de {anterior.month}:{" "}
+                    <span className="font-semibold">{brl(anterior.saldoFinal)}</span>
+                  </p>
+                  <p className="text-xs text-neutral-500">
+                    Moedas que sobraram:{" "}
+                    {COINS.map((c) => `${anterior.moedas[c.ini]}× ${c.label}`).join(" · ")}
+                  </p>
+                  <p className="text-xs text-neutral-500">
+                    Esse saldo e essas moedas viram o início de {config.month}.
+                  </p>
+                </>
+              ) : (
+                <p className="text-amber-700">
+                  {anterior.month} não tem lançamentos — o mês começa zerado. Use a conferência
+                  manual se tem dinheiro no caixa.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <Label>Cédulas contadas (R$)</Label>
+                <Input
+                  inputMode="decimal"
+                  value={cedulas}
+                  onChange={(e) => setCedulas(e.target.value)}
+                  placeholder="Ex: 850,00"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label>Moedas contadas (quantidade)</Label>
+                <div className="grid grid-cols-5 gap-2">
+                  {COINS.map((c) => (
+                    <div key={c.ini} className="flex flex-col gap-1">
+                      <span className="text-xs text-neutral-500">{c.label}</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={qtd[c.ini]}
+                        onChange={(e) => setQtd((p) => ({ ...p, [c.ini]: e.target.value }))}
+                        className="h-9"
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="border-t pt-3">
-            <Label className="text-sm font-semibold">Virada de mês (opcional)</Label>
-            <p className="mb-2 text-xs text-neutral-500">
-              Contagem física do dinheiro pra conferir a diferença com o mês anterior.
-            </p>
-            <div className="mb-3 flex flex-col gap-1">
-              <span className="text-xs text-neutral-500">Saldo final do mês anterior (R$)</span>
-              <Input
-                type="number"
-                step="0.01"
-                value={f.saldoAnterior}
-                onChange={(e) => setF((p) => ({ ...p, saldoAnterior: e.target.value }))}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-neutral-500">Cédulas contadas (R$)</span>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={f.cedulasContadas}
-                  onChange={(e) => setF((p) => ({ ...p, cedulasContadas: e.target.value }))}
-                />
               </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-neutral-500">Moedas contadas (R$)</span>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={f.moedasContadas}
-                  onChange={(e) => setF((p) => ({ ...p, moedasContadas: e.target.value }))}
-                />
+              <div className="rounded-md bg-neutral-50 p-3 text-sm">
+                <p>
+                  Total contado: <span className="font-semibold">{brl(totalContado)}</span>{" "}
+                  <span className="text-xs text-neutral-500">(moedas {brl(moedasContadas)})</span>
+                </p>
+                <p className="text-xs text-neutral-500">
+                  Saldo do sistema no fim de {anterior.month}: {brl(anterior.saldoFinal)}
+                </p>
+                {Math.abs(diferenca) >= 0.01 && (
+                  <p className={diferenca < 0 ? "font-medium text-destructive" : "font-medium text-emerald-700"}>
+                    Diferença: {diferenca > 0 ? "+" : ""}
+                    {brl(diferenca)} {diferenca < 0 ? "(faltando)" : "(sobrando)"}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-neutral-500">
+                  O total contado vira o saldo inicial de {config.month}.
+                </p>
               </div>
             </div>
-          </div>
+          )}
         </div>
         <DialogFooter>
           <Button onClick={submit} disabled={saving}>

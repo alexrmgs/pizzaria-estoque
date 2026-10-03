@@ -14,6 +14,7 @@ import {
 import { COINS } from "./coins";
 import { EntradaForm, SaidaForm, MoedaForm, MesDialog, ExcluirLinha } from "./forms";
 import { ExtratoExport } from "./extrato-export";
+import { resumoCaixaMes } from "@/lib/caixa-dinheiro";
 
 const currency = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -44,7 +45,7 @@ export default async function CaixaDinheiroPage({
   const nextMes = new Date(Date.UTC(ano, mes, 1)).toISOString().slice(0, 7);
   const hojeISO = now.toISOString().slice(0, 10);
 
-  const [config, entries, coins] = await Promise.all([
+  const [config, entries, coins, anterior] = await Promise.all([
     prisma.cashMonth.findUnique({
       where: { companyId_month: { companyId: currentUser.companyId, month: monthKey } },
     }),
@@ -56,6 +57,7 @@ export default async function CaixaDinheiroPage({
       where: { date: { gte: monthStart, lte: monthEnd }, companyId: currentUser.companyId },
       orderBy: { date: "asc" },
     }),
+    resumoCaixaMes(currentUser.companyId, prevMes),
   ]);
 
   const saldoInicial = Number(config?.saldoInicial ?? 0);
@@ -181,7 +183,7 @@ export default async function CaixaDinheiroPage({
             mesLabel={mesLabel}
             monthKey={monthKey}
           />
-          <MesDialog config={configForm} />
+          <MesDialog config={configForm} anterior={{ month: prevMes, ...anterior }} />
         </div>
       </div>
 
