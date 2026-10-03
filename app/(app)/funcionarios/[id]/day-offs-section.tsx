@@ -170,8 +170,8 @@ export function DayOffsSection({
         </form>
         {type === "COMPRADA" && (
           <p className="text-xs text-neutral-500">
-            O funcionário trabalha no dia de folga e recebe o dia em dobro (2 × salário ÷ 30) no
-            próximo contracheque — Lei 605/49, art. 9º e Súmula 146 do TST. Entra na base de
+            O funcionário trabalha no dia de folga e recebe o dia em dobro: como o dia já está no
+            salário, soma mais 1 dia (salário ÷ 30) no próximo contracheque — Lei 605/49, art. 9º e Súmula 146 do TST. Entra na base de
             INSS/IRRF/FGTS.
           </p>
         )}

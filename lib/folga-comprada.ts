@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 // Folga comprada: o funcionário estava de folga (domingo do rodízio ou folga
 // semanal) e trabalhou sem ganhar outra folga no lugar. Pela Lei 605/49
 // (art. 9º) e Súmula 146 do TST, esse dia é pago em dobro, sem prejuízo do
-// repouso já incluso no salário mensal — ou seja, soma 2 × salário-dia
-// (salário ÷ 30) no contracheque. É verba salarial: entra na base de
+// repouso já incluso no salário mensal. Como o dia já está pago no salário,
+// o acréscimo no contracheque é de mais 1 salário-dia (salário ÷ 30). É verba salarial: entra na base de
 // INSS/IRRF/FGTS.
 //
 // Fica guardado como DayOff TRABALHA (cancela a folga naquele dia) + um
