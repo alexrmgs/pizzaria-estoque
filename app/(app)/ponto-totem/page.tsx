@@ -3,9 +3,10 @@ import { requireAccess } from "@/lib/dal";
 import { TotemTabs } from "./totem-tabs";
 
 export default async function PontoTotemPage() {
-  await requireAccess("canManageFuncionarios", "/ponto-totem");
+  const user = await requireAccess("canManageFuncionarios", "/ponto-totem");
+  const podeCadastrar = user.role.canManageFuncionarios;
 
-  const employees = await prisma.employee.findMany({
+  const employees = !podeCadastrar ? [] : await prisma.employee.findMany({
     where: { active: true },
     orderBy: { name: "asc" },
     select: { id: true, name: true, faceDescriptor: true },
@@ -26,7 +27,7 @@ export default async function PontoTotemPage() {
         </p>
       </div>
 
-      <TotemTabs employees={list} />
+      <TotemTabs employees={list} podeCadastrar={podeCadastrar} />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireUser, requireAccess } from "@/lib/dal";
+import { requireUser, requirePermission } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import { todayInBrazil } from "@/lib/payroll";
 
@@ -27,7 +27,9 @@ export async function saveFaceDescriptor(
   employeeId: string,
   descriptor: number[],
 ): Promise<{ error?: string }> {
-  await requireAccess("canManageFuncionarios", "/ponto-totem");
+  // Cadastro de rosto só pra quem administra o RH inteiro — quem tem só a
+  // tela do Ponto por Facial (totem) apenas bate ponto.
+  await requirePermission("canManageFuncionarios");
   if (!isDescriptor(descriptor)) return { error: "Leitura do rosto inválida. Tente de novo." };
   await prisma.employee.update({ where: { id: employeeId }, data: { faceDescriptor: descriptor } });
   revalidatePath("/ponto-totem");
@@ -35,7 +37,9 @@ export async function saveFaceDescriptor(
 }
 
 export async function removeFaceDescriptor(employeeId: string): Promise<{ error?: string }> {
-  await requireAccess("canManageFuncionarios", "/ponto-totem");
+  // Cadastro de rosto só pra quem administra o RH inteiro — quem tem só a
+  // tela do Ponto por Facial (totem) apenas bate ponto.
+  await requirePermission("canManageFuncionarios");
   await prisma.employee.update({ where: { id: employeeId }, data: { faceDescriptor: undefined } });
   revalidatePath("/ponto-totem");
   return {};

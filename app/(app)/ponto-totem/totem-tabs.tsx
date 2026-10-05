@@ -9,8 +9,17 @@ type Employee = { id: string; name: string; hasFace: boolean };
 
 // Alterna entre bater ponto e cadastrar — renderiza só um por vez pra não
 // abrir duas câmeras ao mesmo tempo.
-export function TotemTabs({ employees }: { employees: Employee[] }) {
+export function TotemTabs({
+  employees,
+  podeCadastrar,
+}: {
+  employees: Employee[];
+  // Só o administrador do RH cadastra rostos; o totem só bate ponto.
+  podeCadastrar: boolean;
+}) {
   const [mode, setMode] = useState<"bater" | "cadastrar">("bater");
+
+  if (!podeCadastrar) return <TotemKiosk />;
 
   return (
     <div className="flex flex-col gap-4">
