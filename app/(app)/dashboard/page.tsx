@@ -514,27 +514,30 @@ export default async function DashboardPage({
 
       {canManageEstoque && (
         <>
-          <div className="flex flex-wrap gap-4">
-            <Card className="w-fit">
-              <CardHeader className="pb-1">
-                <CardTitle className="text-sm text-neutral-500">Valor do estoque</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold text-primary">{currency(totalValue)}</p>
-              </CardContent>
-            </Card>
-            {estoqueProducao.length > 0 && (
+          {/* Valor do estoque em R$ só pra quem vê Relatórios. */}
+          {canViewRelatorios && (
+            <div className="flex flex-wrap gap-4">
               <Card className="w-fit">
                 <CardHeader className="pb-1">
-                  <CardTitle className="text-sm text-neutral-500">Estoque de produção</CardTitle>
+                  <CardTitle className="text-sm text-neutral-500">Valor do estoque</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-semibold">{currency(totalValueProducao)}</p>
-                  <p className="text-xs text-neutral-500">separado — não soma no estoque</p>
+                  <p className="text-2xl font-semibold text-primary">{currency(totalValue)}</p>
                 </CardContent>
               </Card>
-            )}
-          </div>
+              {estoqueProducao.length > 0 && (
+                <Card className="w-fit">
+                  <CardHeader className="pb-1">
+                    <CardTitle className="text-sm text-neutral-500">Estoque de produção</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-semibold">{currency(totalValueProducao)}</p>
+                    <p className="text-xs text-neutral-500">separado — não soma no estoque</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
 
           {periodContent}
 

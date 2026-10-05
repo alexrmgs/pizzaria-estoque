@@ -58,9 +58,13 @@ type Category = { id: string; name: string };
 export function IngredientDialog({
   ingredient,
   categories,
+  showValues = true,
 }: {
   ingredient?: Ingredient;
   categories: Category[];
+  // Sem acesso a valores (cargo sem Relatórios): o preço fica escondido e
+  // vai como campo oculto, mantendo o que já está cadastrado.
+  showValues?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -151,19 +155,23 @@ export function IngredientDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="unitPrice">Preço por unidade (R$)</Label>
-              <Input
-                id="unitPrice"
-                name="unitPrice"
-                type="number"
-                step="0.0001"
-                min="0"
-                value={unitPrice}
-                onChange={(e) => setUnitPrice(e.target.value)}
-                required
-              />
-            </div>
+            {showValues ? (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="unitPrice">Preço por unidade (R$)</Label>
+                <Input
+                  id="unitPrice"
+                  name="unitPrice"
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  value={unitPrice}
+                  onChange={(e) => setUnitPrice(e.target.value)}
+                  required
+                />
+              </div>
+            ) : (
+              <input type="hidden" name="unitPrice" value={unitPrice || "0"} />
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -284,7 +292,7 @@ export function IngredientDialog({
                 Fator de correção: <span className="font-semibold">{correctionFactor.toFixed(3)}</span>
                 {" · "}
                 Perda: <span className="font-semibold">{((1 - netNum / grossNum) * 100).toFixed(1)}%</span>
-                {costPerNetUnit !== null && (
+                {showValues && costPerNetUnit !== null && (
                   <>
                     {" · "}
                     Custo do {unit} limpo:{" "}

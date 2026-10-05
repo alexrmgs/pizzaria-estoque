@@ -36,11 +36,13 @@ function RecipeGrid({
   ingredients,
   canManage,
   canManageEstoque,
+  showValues,
 }: {
   recipes: RecipeWithIngredients[];
   ingredients: RecipeIngredientOption[];
   canManage: boolean;
   canManageEstoque: boolean;
+  showValues: boolean;
 }) {
   if (recipes.length === 0) {
     return <p className="text-sm text-neutral-500">Nenhuma receita cadastrada nessa categoria ainda.</p>;
@@ -110,10 +112,12 @@ function RecipeGrid({
 
               {canManage && (
                 <div className="mt-3 flex flex-col gap-0.5 border-t pt-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500">Custo total (com perdas)</span>
-                    <span className="font-medium">{currency(totalCost)}</span>
-                  </div>
+                  {showValues && (
+                    <div className="flex justify-between">
+                      <span className="text-neutral-500">Custo total (com perdas)</span>
+                      <span className="font-medium">{currency(totalCost)}</span>
+                    </div>
+                  )}
                   {isUnitYield ? (
                     <>
                       <div className="flex justify-between">
@@ -122,12 +126,14 @@ function RecipeGrid({
                           {yieldUnits !== null ? `${yieldUnits} un.` : "—"}
                         </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-neutral-500">Custo por unidade</span>
-                        <span className="font-medium">
-                          {costPerUnit !== null ? currency(costPerUnit) : "—"}
-                        </span>
-                      </div>
+                      {showValues && (
+                        <div className="flex justify-between">
+                          <span className="text-neutral-500">Custo por unidade</span>
+                          <span className="font-medium">
+                            {costPerUnit !== null ? currency(costPerUnit) : "—"}
+                          </span>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <>
@@ -137,12 +143,14 @@ function RecipeGrid({
                           {yieldKg !== null ? `${yieldKg.toFixed(3)} kg` : "—"}
                         </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-neutral-500">Custo por kg</span>
-                        <span className="font-medium">
-                          {costPerKg !== null ? `${currency(costPerKg)}/kg` : "—"}
-                        </span>
-                      </div>
+                      {showValues && (
+                        <div className="flex justify-between">
+                          <span className="text-neutral-500">Custo por kg</span>
+                          <span className="font-medium">
+                            {costPerKg !== null ? `${currency(costPerKg)}/kg` : "—"}
+                          </span>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -169,6 +177,7 @@ function RecipeGrid({
                     <RecipeDialog
                       ingredients={ingredients}
                       canManageEstoque={canManageEstoque}
+                      showValues={showValues}
                       recipe={{
                         id: recipe.id,
                         name: recipe.name,
@@ -202,6 +211,8 @@ export default async function ReceitasPage() {
   const user = await requireUser();
   const canManage = user.role.canManageReceitas;
   const canManageEstoque = user.role.canManageEstoque;
+  // Custos em R$ só pra quem vê Relatórios.
+  const showValues = user.role.canViewRelatorios;
 
   const [recipes, ingredients] = await Promise.all([
     prisma.recipe.findMany({
@@ -253,7 +264,7 @@ export default async function ReceitasPage() {
           </p>
         </div>
         {canManage && (
-          <RecipeDialog ingredients={ingredientOptions} canManageEstoque={canManageEstoque} />
+          <RecipeDialog ingredients={ingredientOptions} canManageEstoque={canManageEstoque} showValues={showValues} />
         )}
       </div>
 
@@ -275,6 +286,7 @@ export default async function ReceitasPage() {
               <RecipeDialog
                 ingredients={ingredientOptions}
                 canManageEstoque={canManageEstoque}
+                showValues={showValues}
                 defaultType="PRODUCAO"
               />
             </div>
@@ -284,6 +296,7 @@ export default async function ReceitasPage() {
             ingredients={ingredientOptions}
             canManage={canManage}
             canManageEstoque={canManageEstoque}
+            showValues={showValues}
           />
         </TabsContent>
 
@@ -293,6 +306,7 @@ export default async function ReceitasPage() {
               <RecipeDialog
                 ingredients={ingredientOptions}
                 canManageEstoque={canManageEstoque}
+                showValues={showValues}
                 defaultType="PIZZA"
               />
             </div>
@@ -302,6 +316,7 @@ export default async function ReceitasPage() {
             ingredients={ingredientOptions}
             canManage={canManage}
             canManageEstoque={canManageEstoque}
+            showValues={showValues}
           />
         </TabsContent>
 
@@ -311,6 +326,7 @@ export default async function ReceitasPage() {
               <RecipeDialog
                 ingredients={ingredientOptions}
                 canManageEstoque={canManageEstoque}
+                showValues={showValues}
                 defaultType="BEIRUTE"
               />
             </div>
@@ -320,6 +336,7 @@ export default async function ReceitasPage() {
             ingredients={ingredientOptions}
             canManage={canManage}
             canManageEstoque={canManageEstoque}
+            showValues={showValues}
           />
         </TabsContent>
 
@@ -329,6 +346,7 @@ export default async function ReceitasPage() {
               <RecipeDialog
                 ingredients={ingredientOptions}
                 canManageEstoque={canManageEstoque}
+                showValues={showValues}
                 defaultType="ESFIHA"
               />
             </div>
@@ -338,6 +356,7 @@ export default async function ReceitasPage() {
             ingredients={ingredientOptions}
             canManage={canManage}
             canManageEstoque={canManageEstoque}
+            showValues={showValues}
           />
         </TabsContent>
       </Tabs>

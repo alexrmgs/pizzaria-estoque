@@ -244,11 +244,13 @@ export function RecipeDialog({
   recipe,
   defaultType,
   canManageEstoque,
+  showValues = true,
 }: {
   ingredients: Ingredient[];
   recipe?: Recipe;
   defaultType?: RecipeType;
   canManageEstoque: boolean;
+  showValues?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -603,7 +605,7 @@ export function RecipeDialog({
                           className="h-7 w-20"
                         />
                       </div>
-                      {selected && (
+                      {selected && showValues && (
                         <span className="text-xs font-medium text-primary">
                           ≈ {currency(rowCost(row))}
                         </span>
@@ -624,10 +626,12 @@ export function RecipeDialog({
                 );
               })}
             </div>
-            <div className="flex justify-between border-t pt-2 text-sm">
-              <span className="font-medium">Custo total da receita</span>
-              <span className="font-semibold text-primary">{currency(totalCost)}</span>
-            </div>
+            {showValues && (
+              <div className="flex justify-between border-t pt-2 text-sm">
+                <span className="font-medium">Custo total da receita</span>
+                <span className="font-semibold text-primary">{currency(totalCost)}</span>
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">
               Ex: a cebola perde peso na limpeza — se você usa 100g líquidos mas perde 20% no
               preparo, informe 20% aqui, e o custo já é calculado considerando a quantidade bruta

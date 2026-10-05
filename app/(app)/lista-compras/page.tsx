@@ -28,11 +28,13 @@ function ListaTable({
   emptyMessage,
   items,
   printTitle,
+  showValues,
 }: {
   description: string;
   emptyMessage: string;
   items: ListItem[];
   printTitle: string;
+  showValues: boolean;
 }) {
   const totalEstimatedCost = items.reduce((sum, item) => sum + item.estimatedCost, 0);
 
@@ -63,16 +65,18 @@ function ListaTable({
         <p className="text-sm text-neutral-500">{emptyMessage}</p>
       ) : (
         <>
-          <Card className="w-fit print:hidden">
-            <CardHeader className="pb-1">
-              <CardTitle className="text-sm text-neutral-500">Custo estimado da compra</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold text-primary">{currency(totalEstimatedCost)}</p>
-            </CardContent>
-          </Card>
+          {showValues && (
+            <Card className="w-fit print:hidden">
+              <CardHeader className="pb-1">
+                <CardTitle className="text-sm text-neutral-500">Custo estimado da compra</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold text-primary">{currency(totalEstimatedCost)}</p>
+              </CardContent>
+            </Card>
+          )}
 
-          <PurchaseTable items={items} />
+          <PurchaseTable items={items} showValues={showValues} />
         </>
       )}
     </div>
@@ -80,7 +84,8 @@ function ListaTable({
 }
 
 export default async function ListaComprasPage() {
-  await requirePermission("canManageEstoque");
+  const user = await requirePermission("canManageEstoque");
+  const showValues = user.role.canViewRelatorios;
 
   const ingredients = await prisma.ingredient.findMany({
     where: { active: true },
@@ -168,6 +173,7 @@ export default async function ListaComprasPage() {
             emptyMessage="Nenhum ingrediente abaixo do estoque mínimo no momento. 🎉"
             items={abaixoDoMinimo}
             printTitle="Lista de Compras — Abaixo do Mínimo"
+            showValues={showValues}
           />
         </TabsContent>
 
@@ -177,6 +183,7 @@ export default async function ListaComprasPage() {
             emptyMessage="Nenhum ingrediente abaixo do estoque aceitável no momento. 🎉"
             items={abaixoDoAceitavel}
             printTitle="Lista de Compras — Super Lista"
+            showValues={showValues}
           />
         </TabsContent>
       </Tabs>

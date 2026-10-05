@@ -35,11 +35,13 @@ function IngredientsTable({
   categories,
   canManage,
   emptyMessage,
+  showValues,
 }: {
   ingredients: IngredientWithCategory[];
   categories: Category[];
   canManage: boolean;
   emptyMessage: string;
+  showValues: boolean;
 }) {
   return (
     <div className="rounded-lg border bg-white">
@@ -49,10 +51,10 @@ function IngredientsTable({
             <TableHead>Nome</TableHead>
             <TableHead>Categoria</TableHead>
             <TableHead>Unidade</TableHead>
-            <TableHead>Preço unit.</TableHead>
+            {showValues && <TableHead>Preço unit.</TableHead>}
             <TableHead>Estoque atual</TableHead>
             <TableHead>Estoque mínimo</TableHead>
-            <TableHead>Valor em estoque</TableHead>
+            {showValues && <TableHead>Valor em estoque</TableHead>}
             <TableHead>Status</TableHead>
             {canManage && <TableHead className="text-right">Ações</TableHead>}
           </TableRow>
@@ -84,10 +86,10 @@ function IngredientsTable({
                 </TableCell>
                 <TableCell className="text-neutral-500">{ingredient.category?.name ?? "—"}</TableCell>
                 <TableCell>{ingredient.unit}</TableCell>
-                <TableCell>{currency(price)}</TableCell>
+                {showValues && <TableCell>{currency(price)}</TableCell>}
                 <TableCell>{current}</TableCell>
                 <TableCell>{min}</TableCell>
-                <TableCell>{currency(current * price)}</TableCell>
+                {showValues && <TableCell>{currency(current * price)}</TableCell>}
                 <TableCell>
                   {low ? (
                     <Badge variant="destructive">Estoque baixo</Badge>
@@ -108,6 +110,7 @@ function IngredientsTable({
                       </Button>
                       <IngredientDialog
                         categories={categories}
+                        showValues={showValues}
                         ingredient={{
                           id: ingredient.id,
                           name: ingredient.name,
@@ -149,6 +152,8 @@ export default async function EstoquePage({
   const user = await requirePermission("canManageEstoque");
   const params = await searchParams;
 
+  // Valores em R$ só pra quem vê Relatórios — cargo só de estoque vê quantidades.
+  const showValues = user.role.canViewRelatorios;
   const busca = typeof params.busca === "string" ? params.busca.trim() : "";
   const categoryId = typeof params.categoria === "string" ? params.categoria : "";
   const status = typeof params.status === "string" ? params.status : "";
@@ -197,7 +202,7 @@ export default async function EstoquePage({
             </Button>
             <RecalcularEstoqueAceitavelButton />
             <ExportCsvButton names={ingredients.map((i) => i.name)} />
-            <IngredientDialog categories={categories} />
+            <IngredientDialog categories={categories} showValues={showValues} />
           </div>
         )}
       </div>
@@ -258,31 +263,36 @@ export default async function EstoquePage({
         </TabsList>
 
         <TabsContent value="normal" className="flex flex-col gap-4 pt-4">
-          <Card className="w-fit">
-            <CardHeader className="pb-1">
-              <CardTitle className="text-sm text-neutral-500">Valor total do estoque</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold text-primary">{currency(normalTotalValue)}</p>
-            </CardContent>
-          </Card>
+          {showValues && (
+            <Card className="w-fit">
+              <CardHeader className="pb-1">
+                <CardTitle className="text-sm text-neutral-500">Valor total do estoque</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold text-primary">{currency(normalTotalValue)}</p>
+              </CardContent>
+            </Card>
+          )}
           <IngredientsTable
             ingredients={normalIngredients}
             categories={categories}
             canManage={user.role.canManageEstoque}
             emptyMessage="Nenhum ingrediente encontrado para os filtros selecionados."
+            showValues={showValues}
           />
         </TabsContent>
 
         <TabsContent value="producao" className="flex flex-col gap-4 pt-4">
-          <Card className="w-fit">
-            <CardHeader className="pb-1">
-              <CardTitle className="text-sm text-neutral-500">Valor total do estoque de produção</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold text-primary">{currency(producedTotalValue)}</p>
-            </CardContent>
-          </Card>
+          {showValues && (
+            <Card className="w-fit">
+              <CardHeader className="pb-1">
+                <CardTitle className="text-sm text-neutral-500">Valor total do estoque de produção</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold text-primary">{currency(producedTotalValue)}</p>
+              </CardContent>
+            </Card>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-neutral-500">
               Itens marcados como &quot;Produzido internamente&quot; no cadastro — preparados na
@@ -295,6 +305,7 @@ export default async function EstoquePage({
             categories={categories}
             canManage={user.role.canManageEstoque}
             emptyMessage="Nenhum item de produção encontrado para os filtros selecionados."
+            showValues={showValues}
           />
         </TabsContent>
       </Tabs>

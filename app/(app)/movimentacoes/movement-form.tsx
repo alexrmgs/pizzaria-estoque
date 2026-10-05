@@ -48,10 +48,13 @@ export function MovementForm({
   ingredients,
   type,
   fornecedores = [],
+  showValues = true,
 }: {
   ingredients: Ingredient[];
   type: "ENTRADA" | "SAIDA";
   fornecedores?: Fornecedor[];
+  // Cargo sem Relatórios não vê/informa preço — a entrada mantém o preço cadastrado.
+  showValues?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [formKey, setFormKey] = useState(0);
@@ -237,7 +240,7 @@ export function MovementForm({
               )}
             </div>
 
-            {isEntrada && (
+            {isEntrada && showValues && (
               <div className="flex flex-col gap-2">
                 <Label htmlFor={`unitPrice-${type}`}>Preço de compra dessa vez (opcional)</Label>
                 <Input
@@ -285,7 +288,7 @@ export function MovementForm({
                   <TableRow>
                     <TableHead>Ingrediente</TableHead>
                     <TableHead>Quantidade</TableHead>
-                    {isEntrada && <TableHead>Preço de compra</TableHead>}
+                    {isEntrada && showValues && <TableHead>Preço de compra</TableHead>}
                     <TableHead>Motivo</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -297,7 +300,7 @@ export function MovementForm({
                       <TableCell>
                         {item.quantity} {item.unit}
                       </TableCell>
-                      {isEntrada && (
+                      {isEntrada && showValues && (
                         <TableCell className="text-neutral-500">
                           {item.unitPrice !== undefined ? currency(item.unitPrice) : "—"}
                         </TableCell>

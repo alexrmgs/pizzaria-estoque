@@ -76,7 +76,7 @@ function limparComprados() {
   persist();
 }
 
-export function PurchaseTable({ items }: { items: ListItem[] }) {
+export function PurchaseTable({ items, showValues = true }: { items: ListItem[]; showValues?: boolean }) {
   const comprados = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const totalComprado = items.filter((item) => comprados.has(item.id)).length;
 
@@ -104,7 +104,7 @@ export function PurchaseTable({ items }: { items: ListItem[] }) {
               <TableHead>Estoque mínimo</TableHead>
               <TableHead>Estoque aceitável</TableHead>
               <TableHead>Sugestão de compra</TableHead>
-              <TableHead className="print:hidden">Custo estimado</TableHead>
+              {showValues && <TableHead className="print:hidden">Custo estimado</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -137,7 +137,9 @@ export function PurchaseTable({ items }: { items: ListItem[] }) {
                   <TableCell className="font-semibold text-primary">
                     {item.suggestedQty} {item.unit}
                   </TableCell>
-                  <TableCell className="print:hidden">{currency(item.estimatedCost)}</TableCell>
+                  {showValues && (
+                    <TableCell className="print:hidden">{currency(item.estimatedCost)}</TableCell>
+                  )}
                 </TableRow>
               );
             })}

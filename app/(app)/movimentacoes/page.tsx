@@ -54,12 +54,15 @@ function MovementsTable({
   ingredients,
   fornecedores,
   showFornecedor,
+  showValues = true,
 }: {
   movements: Movement[];
   ingredients: IngredientOption[];
   fornecedores: FornecedorOption[];
   showFornecedor?: boolean;
+  showValues?: boolean;
 }) {
+  const showPreco = showFornecedor && showValues;
   return (
     <div className="rounded-lg border bg-white">
       <Table>
@@ -69,8 +72,8 @@ function MovementsTable({
             <TableHead>Ingrediente</TableHead>
             <TableHead>Quantidade</TableHead>
             {showFornecedor && <TableHead>Fornecedor</TableHead>}
-            {showFornecedor && <TableHead>Preço unit.</TableHead>}
-            {showFornecedor && <TableHead>Valor total</TableHead>}
+            {showPreco && <TableHead>Preço unit.</TableHead>}
+            {showPreco && <TableHead>Valor total</TableHead>}
             <TableHead>Funcionário</TableHead>
             <TableHead>Motivo</TableHead>
             <TableHead className="text-right">Ações</TableHead>
@@ -79,7 +82,7 @@ function MovementsTable({
         <TableBody>
           {movements.length === 0 && (
             <TableRow>
-              <TableCell colSpan={showFornecedor ? 9 : 6} className="text-center text-neutral-500">
+              <TableCell colSpan={showPreco ? 9 : showFornecedor ? 7 : 6} className="text-center text-neutral-500">
                 Nenhuma movimentação registrada ainda.
               </TableCell>
             </TableRow>
@@ -98,10 +101,10 @@ function MovementsTable({
               {showFornecedor && (
                 <TableCell className="text-neutral-500">{movement.supplier?.name ?? "—"}</TableCell>
               )}
-              {showFornecedor && (
+              {showPreco && (
                 <TableCell>{unitPrice !== null ? currency(unitPrice) : "—"}</TableCell>
               )}
-              {showFornecedor && (
+              {showPreco && (
                 <TableCell>{unitPrice !== null ? currency(unitPrice * quantity) : "—"}</TableCell>
               )}
               <TableCell>{movement.user.name}</TableCell>
@@ -109,6 +112,7 @@ function MovementsTable({
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
                   <EditMovementDialog
+                    showValues={showValues}
                     ingredients={ingredients}
                     fornecedores={fornecedores}
                     movement={{
@@ -138,7 +142,8 @@ export default async function MovimentacoesPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  await requirePermission("canManageEstoque");
+  const user = await requirePermission("canManageEstoque");
+  const showValues = user.role.canViewRelatorios;
   const params = await searchParams;
   const dataEntrada = typeof params.dataEntrada === "string" ? params.dataEntrada : "";
   const fornecedorEntrada = typeof params.fornecedorEntrada === "string" ? params.fornecedorEntrada : "";
@@ -203,11 +208,17 @@ export default async function MovimentacoesPage({
           <Tabs defaultValue="manual">
             <TabsList>
               <TabsTrigger value="manual">Manual</TabsTrigger>
-              <TabsTrigger value="nota">Com nota</TabsTrigger>
+              {/* Nota fiscal é financeira (valores, boleto) — só pra quem vê Relatórios. */}
+              {showValues && <TabsTrigger value="nota">Com nota</TabsTrigger>}
             </TabsList>
             <TabsContent value="manual" className="pt-4">
               <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-                <MovementForm ingredients={ingredients} type="ENTRADA" fornecedores={fornecedores} />
+                <MovementForm
+                  ingredients={ingredients}
+                  type="ENTRADA"
+                  fornecedores={fornecedores}
+                  showValues={showValues}
+                />
                 <div className="flex flex-col gap-3">
                   <form className="flex flex-wrap items-end gap-3 rounded-lg border bg-white p-4">
                     <div className="flex flex-col gap-1">
@@ -262,21 +273,29 @@ export default async function MovimentacoesPage({
                     ingredients={ingredients}
                     fornecedores={fornecedores}
                     showFornecedor
+                    showValues={showValues}
                   />
                 </div>
               </div>
             </TabsContent>
-            <TabsContent value="nota" className="pt-4">
-              <NotasEntradaPanel />
-            </TabsContent>
+            {showValues && (
+              <TabsContent value="nota" className="pt-4">
+                <NotasEntradaPanel />
+              </TabsContent>
+            )}
           </Tabs>
         </TabsContent>
 
         <TabsContent value="saida" className="flex flex-col gap-4 pt-4">
           <QrBaixaPanel />
           <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-            <MovementForm ingredients={ingredients} type="SAIDA" />
-            <MovementsTable movements={saidas} ingredients={ingredients} fornecedores={fornecedores} />
+            <MovementForm ingredients={ingredients} type="SAIDA" showValues={showValues} />
+            <MovementsTable
+              movements={saidas}
+              ingredients={ingredients}
+              fornecedores={fornecedores}
+              showValues={showValues}
+            />
           </div>
         </TabsContent>
       </Tabs>

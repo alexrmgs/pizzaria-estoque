@@ -43,10 +43,12 @@ export function EditMovementDialog({
   movement,
   ingredients,
   fornecedores = [],
+  showValues = true,
 }: {
   movement: MovementValues;
   ingredients: Ingredient[];
   fornecedores?: Fornecedor[];
+  showValues?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -182,7 +184,7 @@ export function EditMovementDialog({
             )}
           </div>
 
-          {type === "ENTRADA" && (
+          {type === "ENTRADA" && showValues && (
             <div className="flex flex-col gap-2">
               <Label htmlFor="unitPrice">Preço de compra dessa vez (opcional)</Label>
               <Input

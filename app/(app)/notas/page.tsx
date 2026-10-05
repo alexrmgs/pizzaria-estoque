@@ -1,10 +1,13 @@
+import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/dal";
 import { NotasEntradaPanel } from "./notas-list";
 
 export const maxDuration = 60;
 
 export default async function NotasPage() {
-  await requirePermission("canManageEstoque");
+  const user = await requirePermission("canManageEstoque");
+  // Nota fiscal tem valores — cargo só de estoque (sem Relatórios) não acessa.
+  if (!user.role.canViewRelatorios) redirect("/movimentacoes");
 
   return (
     <div className="flex flex-col gap-6">

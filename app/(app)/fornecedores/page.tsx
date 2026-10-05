@@ -16,7 +16,8 @@ const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export default async function FornecedoresPage() {
-  await requirePermission("canManageEstoque");
+  const user = await requirePermission("canManageEstoque");
+  const showValues = user.role.canViewRelatorios;
 
   const [fornecedoresRaw, products, entradaMovements] = await Promise.all([
     prisma.fornecedor.findMany({
@@ -59,28 +60,31 @@ export default async function FornecedoresPage() {
         <FornecedorDialog products={products} />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">💰 Onde mais compro</CardTitle>
-          <p className="text-xs text-neutral-500">
-            Soma das entradas em Movimentações marcadas com fornecedor.
-          </p>
-        </CardHeader>
-        <CardContent>
-          {ranking.length === 0 ? (
-            <p className="text-sm text-neutral-500">Nenhuma entrada com fornecedor marcado ainda.</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {ranking.map((f) => (
-                <div key={f.id} className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{f.name}</span>
-                  <span className="font-semibold text-primary">{currency(f.total)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Ranking em R$ só pra quem vê Relatórios. */}
+      {showValues && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">💰 Onde mais compro</CardTitle>
+            <p className="text-xs text-neutral-500">
+              Soma das entradas em Movimentações marcadas com fornecedor.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {ranking.length === 0 ? (
+              <p className="text-sm text-neutral-500">Nenhuma entrada com fornecedor marcado ainda.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {ranking.map((f) => (
+                  <div key={f.id} className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{f.name}</span>
+                    <span className="font-semibold text-primary">{currency(f.total)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="rounded-lg border bg-white">
         <div className="border-b p-3 text-sm font-semibold uppercase text-neutral-500">

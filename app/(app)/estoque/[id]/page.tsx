@@ -47,6 +47,7 @@ export default async function IngredientHistoryPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const user = await requirePermission("canManageEstoque");
+  const showValues = user.role.canViewRelatorios;
   const { id } = await params;
   const { from, to } = await searchParams;
 
@@ -148,24 +149,28 @@ export default async function IngredientHistoryPage({
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-1">
-            <CardTitle className="text-sm text-neutral-500">Preço cadastrado</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">{currency(Number(ingredient.unitPrice))}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-1">
-            <CardTitle className="text-sm text-neutral-500">Valor em estoque</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold text-primary">
-              {currency(current * Number(ingredient.unitPrice))}
-            </p>
-          </CardContent>
-        </Card>
+        {showValues && (
+          <>
+            <Card>
+              <CardHeader className="pb-1">
+                <CardTitle className="text-sm text-neutral-500">Preço cadastrado</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold">{currency(Number(ingredient.unitPrice))}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-1">
+                <CardTitle className="text-sm text-neutral-500">Valor em estoque</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold text-primary">
+                  {currency(current * Number(ingredient.unitPrice))}
+                </p>
+              </CardContent>
+            </Card>
+          </>
+        )}
         <Card>
           <CardHeader className="pb-1">
             <CardTitle className="text-sm text-neutral-500">Consumo médio semanal</CardTitle>
@@ -349,7 +354,7 @@ export default async function IngredientHistoryPage({
                   <TableHead>Data</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Quantidade</TableHead>
-                  <TableHead>Preço de compra</TableHead>
+                  {showValues && <TableHead>Preço de compra</TableHead>}
                   <TableHead>Motivo</TableHead>
                   <TableHead>Funcionário</TableHead>
                 </TableRow>
@@ -376,11 +381,13 @@ export default async function IngredientHistoryPage({
                       {movement.type === "ENTRADA" ? "+" : "-"}
                       {movement.quantity.toString()} {ingredient.unit}
                     </TableCell>
-                    <TableCell className="text-neutral-500">
-                      {movement.unitPriceAtEntry !== null
-                        ? currency(Number(movement.unitPriceAtEntry))
-                        : "—"}
-                    </TableCell>
+                    {showValues && (
+                      <TableCell className="text-neutral-500">
+                        {movement.unitPriceAtEntry !== null
+                          ? currency(Number(movement.unitPriceAtEntry))
+                          : "—"}
+                      </TableCell>
+                    )}
                     <TableCell className="text-neutral-500">{movement.reason ?? "—"}</TableCell>
                     <TableCell className="text-neutral-500">{movement.user.name}</TableCell>
                   </TableRow>

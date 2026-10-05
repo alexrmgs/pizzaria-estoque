@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
 import { Conferencia } from "./conferencia";
 
 export default async function NotaPage({ params }: { params: Promise<{ id: string }> }) {
-  await requirePermission("canManageEstoque");
+  const user = await requirePermission("canManageEstoque");
+  // Nota fiscal tem valores — cargo só de estoque (sem Relatórios) não acessa.
+  if (!user.role.canViewRelatorios) redirect("/movimentacoes");
   const { id } = await params;
 
   const [nota, ingredients] = await Promise.all([
