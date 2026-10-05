@@ -71,9 +71,21 @@ export function RoleDialog({ role }: { role?: Role }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
-  const [rhInteiro, setRhInteiro] = useState(role?.canManageFuncionarios ?? false);
+  // Funcionários (RH): marcado → escolhe "liberar tudo" ou "só algumas telas".
+  // "Tudo" vira canManageFuncionarios; "só algumas" vira a lista Role.paginas.
+  const [rhAtivo, setRhAtivo] = useState(
+    (role?.canManageFuncionarios ?? false) || (role?.paginas.length ?? 0) > 0,
+  );
+  const [rhModo, setRhModo] = useState<"tudo" | "parte">(
+    role && !role.canManageFuncionarios && role.paginas.length > 0 ? "parte" : "tudo",
+  );
 
   function handleSubmit(formData: FormData) {
+    // RH desmarcado: não manda nem o "tudo" nem as telas.
+    if (!rhAtivo) {
+      formData.delete("canManageFuncionarios");
+      formData.delete("paginas");
+    }
     startTransition(async () => {
       const result = role
         ? await updateRole(role.id, undefined, formData)
@@ -91,7 +103,11 @@ export function RoleDialog({ role }: { role?: Role }) {
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (next) setError(undefined);
+        if (next) {
+          setError(undefined);
+          setRhAtivo((role?.canManageFuncionarios ?? false) || (role?.paginas.length ?? 0) > 0);
+          setRhModo(role && !role.canManageFuncionarios && role.paginas.length > 0 ? "parte" : "tudo");
+        }
       }}
     >
       <DialogTrigger
@@ -113,52 +129,86 @@ export function RoleDialog({ role }: { role?: Role }) {
 
           <div className="flex flex-col gap-3">
             <Label>Permissões</Label>
-            {PERMISSIONS.map((permission) => (
-              <label
-                key={permission.key}
-                htmlFor={permission.key}
-                className="group/field flex items-start gap-2"
-              >
-                <Checkbox
-                  id={permission.key}
-                  name={permission.key}
-                  defaultChecked={role?.[permission.key] ?? false}
-                  onCheckedChange={
-                    permission.key === "canManageFuncionarios"
-                      ? (checked) => setRhInteiro(checked === true)
-                      : undefined
-                  }
-                />
-                <span className="flex flex-col">
-                  <span className="text-sm font-medium">{permission.label}</span>
-                  <span className="text-xs text-muted-foreground">{permission.hint}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-
-          {!rhInteiro && (
-            <div className="flex flex-col gap-2 rounded-md border p-3">
-              <Label>Telas avulsas do RH</Label>
-              <p className="text-xs text-muted-foreground">
-                Libera só a tela marcada, sem o RH inteiro — ex: só o Ponto por Facial pro
-                tablet da loja.
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {RH_PAGINAS.map((p) => (
-                  <label key={p.href} htmlFor={`pg-${p.href}`} className="flex items-center gap-2 text-sm">
+            {PERMISSIONS.map((permission) =>
+              permission.key === "canManageFuncionarios" ? (
+                <div key={permission.key} className="flex flex-col gap-2">
+                  <label htmlFor="rh-ativo" className="group/field flex items-start gap-2">
                     <Checkbox
-                      id={`pg-${p.href}`}
-                      name="paginas"
-                      value={p.href}
-                      defaultChecked={role?.paginas.includes(p.href) ?? false}
+                      id="rh-ativo"
+                      checked={rhAtivo}
+                      onCheckedChange={(checked) => setRhAtivo(checked === true)}
                     />
-                    {p.label}
+                    <span className="flex flex-col">
+                      <span className="text-sm font-medium">{permission.label}</span>
+                      <span className="text-xs text-muted-foreground">{permission.hint}</span>
+                    </span>
                   </label>
-                ))}
-              </div>
-            </div>
-          )}
+                  {rhAtivo && (
+                    <div className="ml-6 flex flex-col gap-2 rounded-md border p-3">
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={rhModo === "tudo" ? "default" : "outline"}
+                          onClick={() => setRhModo("tudo")}
+                        >
+                          Liberar tudo
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={rhModo === "parte" ? "default" : "outline"}
+                          onClick={() => setRhModo("parte")}
+                        >
+                          Só algumas telas
+                        </Button>
+                      </div>
+                      {rhModo === "tudo" ? (
+                        <>
+                          <input type="hidden" name="canManageFuncionarios" value="on" />
+                          <p className="text-xs text-muted-foreground">Acesso a todas as telas do RH.</p>
+                        </>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          {RH_PAGINAS.map((p) => (
+                            <label
+                              key={p.href}
+                              htmlFor={`pg-${p.href}`}
+                              className="flex items-center gap-2 text-sm"
+                            >
+                              <Checkbox
+                                id={`pg-${p.href}`}
+                                name="paginas"
+                                value={p.href}
+                                defaultChecked={role?.paginas.includes(p.href) ?? false}
+                              />
+                              {p.label}
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <label
+                  key={permission.key}
+                  htmlFor={permission.key}
+                  className="group/field flex items-start gap-2"
+                >
+                  <Checkbox
+                    id={permission.key}
+                    name={permission.key}
+                    defaultChecked={role?.[permission.key] ?? false}
+                  />
+                  <span className="flex flex-col">
+                    <span className="text-sm font-medium">{permission.label}</span>
+                    <span className="text-xs text-muted-foreground">{permission.hint}</span>
+                  </span>
+                </label>
+              ),
+            )}
+          </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
           <DialogFooter>
