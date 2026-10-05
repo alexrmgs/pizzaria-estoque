@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import {
   formatShiftDuration,
@@ -29,7 +29,7 @@ const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export default async function PagamentosPage() {
-  const currentUser = await requirePermission("canManageFuncionarios");
+  const currentUser = await requireAccess("canManageFuncionarios", "/pagamentos");
 
   const now = new Date();
   const brazilToday = todayInBrazil(now);

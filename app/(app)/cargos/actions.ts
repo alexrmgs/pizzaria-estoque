@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/dal";
+import { sanitizePaginas } from "@/lib/paginas-avulsas";
 
 const roleSchema = z.object({
   name: z.string().trim().min(1, "Informe o nome do cargo."),
@@ -14,6 +15,7 @@ const roleSchema = z.object({
   canManageFuncionarios: z.coerce.boolean(),
   canPrintEtiquetas: z.coerce.boolean(),
   canPrintProducao: z.coerce.boolean(),
+  paginas: z.array(z.string()),
 });
 
 export type RoleFormState = { error?: string } | undefined;
@@ -28,6 +30,9 @@ function parseRoleForm(formData: FormData) {
     canManageFuncionarios: formData.get("canManageFuncionarios") === "on",
     canPrintEtiquetas: formData.get("canPrintEtiquetas") === "on",
     canPrintProducao: formData.get("canPrintProducao") === "on",
+    // Com o RH inteiro liberado, tela avulsa do RH é redundante — zera.
+    paginas:
+      formData.get("canManageFuncionarios") === "on" ? [] : sanitizePaginas(formData.getAll("paginas")),
   });
 }
 

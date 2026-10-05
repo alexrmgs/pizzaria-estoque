@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +63,7 @@ export default async function PontoEquipePage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/ponto-equipe");
 
   const params = await searchParams;
   const dateParam = typeof params.date === "string" ? params.date : undefined;

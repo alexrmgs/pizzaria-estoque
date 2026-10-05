@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 import { lateMinutes, nightHours, shiftHours, todayInBrazil } from "@/lib/payroll";
 import { computePaymentPreview } from "@/lib/payment-preview";
 import { getAppSettings } from "@/lib/settings";
@@ -36,7 +36,7 @@ export default async function FuncionarioDetalhePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const currentUser = await requirePermission("canManageFuncionarios");
+  const currentUser = await requireAccess("canManageFuncionarios", "/funcionarios");
   const { id } = await params;
 
   const employee = await prisma.employee.findUnique({ where: { id } });

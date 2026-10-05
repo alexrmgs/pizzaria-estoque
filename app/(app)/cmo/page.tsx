@@ -1,4 +1,4 @@
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 import { todayInBrazil } from "@/lib/payroll";
 import { buildRelatorioCmo } from "@/lib/relatorio-cmo";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +33,7 @@ export default async function CmoPage({
 }: {
   searchParams: Promise<{ mes?: string }>;
 }) {
-  const user = await requirePermission("canManageFuncionarios");
+  const user = await requireAccess("canManageFuncionarios", "/cmo");
   const params = await searchParams;
   const mes = params.mes && /^\d{4}-\d{2}$/.test(params.mes) ? params.mes : defaultMes();
   const r = await buildRelatorioCmo(mes, user.companyId);

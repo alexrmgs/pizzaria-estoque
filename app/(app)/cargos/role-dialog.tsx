@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { createRole, updateRole } from "./actions";
+import { RH_PAGINAS } from "@/lib/paginas-avulsas";
 
 type Role = {
   id: string;
@@ -25,9 +26,10 @@ type Role = {
   canManageFuncionarios: boolean;
   canPrintEtiquetas: boolean;
   canPrintProducao: boolean;
+  paginas: string[];
 };
 
-const PERMISSIONS: { key: keyof Omit<Role, "id" | "name">; label: string; hint: string }[] = [
+const PERMISSIONS: { key: keyof Omit<Role, "id" | "name" | "paginas">; label: string; hint: string }[] = [
   {
     key: "canManageEstoque",
     label: "Estoque",
@@ -69,6 +71,7 @@ export function RoleDialog({ role }: { role?: Role }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
+  const [rhInteiro, setRhInteiro] = useState(role?.canManageFuncionarios ?? false);
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -120,6 +123,11 @@ export function RoleDialog({ role }: { role?: Role }) {
                   id={permission.key}
                   name={permission.key}
                   defaultChecked={role?.[permission.key] ?? false}
+                  onCheckedChange={
+                    permission.key === "canManageFuncionarios"
+                      ? (checked) => setRhInteiro(checked === true)
+                      : undefined
+                  }
                 />
                 <span className="flex flex-col">
                   <span className="text-sm font-medium">{permission.label}</span>
@@ -128,6 +136,29 @@ export function RoleDialog({ role }: { role?: Role }) {
               </label>
             ))}
           </div>
+
+          {!rhInteiro && (
+            <div className="flex flex-col gap-2 rounded-md border p-3">
+              <Label>Telas avulsas do RH</Label>
+              <p className="text-xs text-muted-foreground">
+                Libera só a tela marcada, sem o RH inteiro — ex: só o Ponto por Facial pro
+                tablet da loja.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {RH_PAGINAS.map((p) => (
+                  <label key={p.href} htmlFor={`pg-${p.href}`} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      id={`pg-${p.href}`}
+                      name="paginas"
+                      value={p.href}
+                      defaultChecked={role?.paginas.includes(p.href) ?? false}
+                    />
+                    {p.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           {error && <p className="text-sm text-red-600">{error}</p>}
           <DialogFooter>

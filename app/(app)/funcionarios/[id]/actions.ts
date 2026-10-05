@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 import { computePaymentPreview, type PaymentPreview } from "@/lib/payment-preview";
 import { getAppSettings } from "@/lib/settings";
 import {
@@ -47,7 +47,7 @@ export async function addTimeEntry(
   _prevState: TimeEntryFormState,
   formData: FormData,
 ): Promise<TimeEntryFormState> {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/funcionarios", "/ponto-equipe", "/pagamentos");
 
   const parsed = timeEntrySchema.safeParse({
     date: formData.get("date"),
@@ -83,7 +83,7 @@ export async function editTimeEntry(
   _prevState: TimeEntryFormState,
   formData: FormData,
 ): Promise<TimeEntryFormState> {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/funcionarios", "/ponto-equipe", "/pagamentos");
 
   const parsed = timeEntrySchema.safeParse({
     date: formData.get("date"),
@@ -115,7 +115,7 @@ export async function editTimeEntry(
 }
 
 export async function deleteTimeEntry(employeeId: string, id: string) {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/funcionarios", "/ponto-equipe", "/pagamentos");
   await prisma.timeEntry.delete({ where: { id } });
   revalidatePath(`/funcionarios/${employeeId}`);
   revalidatePath("/ponto-equipe");
@@ -138,7 +138,7 @@ export async function addDayOff(
   _prevState: DayOffFormState,
   formData: FormData,
 ): Promise<DayOffFormState> {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/funcionarios", "/ponto-equipe", "/pagamentos");
 
   const parsed = dayOffSchema.safeParse({
     date: formData.get("date"),
@@ -175,7 +175,7 @@ export async function addDayOff(
 }
 
 export async function deleteDayOff(employeeId: string, id: string) {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/funcionarios", "/ponto-equipe", "/pagamentos");
   const dayOff = await prisma.dayOff.findUnique({ where: { id } });
   if (dayOff?.type === "TRABALHA" && dayOff.reason?.startsWith(FOLGA_COMPRADA_REASON)) {
     // Tira também o provento em dobro (se o pagamento ainda não foi fechado).
@@ -208,7 +208,7 @@ export async function addAdvance(
   _prevState: AdvanceFormState,
   formData: FormData,
 ): Promise<AdvanceFormState> {
-  const user = await requirePermission("canManageFuncionarios");
+  const user = await requireAccess("canManageFuncionarios", "/funcionarios", "/ponto-equipe", "/pagamentos");
 
   const parsed = advanceSchema.safeParse({
     date: formData.get("date"),
@@ -258,7 +258,7 @@ export async function addAdvance(
 }
 
 export async function deleteAdvance(employeeId: string, id: string) {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/funcionarios", "/ponto-equipe", "/pagamentos");
   const advance = await prisma.advance.delete({ where: { id, paymentId: null } });
   if (advance.payableId) {
     await prisma.payable.delete({ where: { id: advance.payableId } }).catch(() => {});
@@ -285,7 +285,7 @@ export async function addAdjustment(
   _prevState: AdjustmentFormState,
   formData: FormData,
 ): Promise<AdjustmentFormState> {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/funcionarios", "/ponto-equipe", "/pagamentos");
 
   const parsed = adjustmentSchema.safeParse({
     type: formData.get("type"),
@@ -311,7 +311,7 @@ export async function addAdjustment(
 }
 
 export async function deleteAdjustment(employeeId: string, id: string) {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/funcionarios", "/ponto-equipe", "/pagamentos");
   await prisma.payrollAdjustment.delete({ where: { id, paymentId: null } });
   revalidatePath(`/funcionarios/${employeeId}`);
 }
@@ -323,7 +323,7 @@ export async function getPaymentPreview(
   periodStartStr: string,
   periodEndStr: string,
 ): Promise<PaymentPreview | { error: string }> {
-  const user = await requirePermission("canManageFuncionarios");
+  const user = await requireAccess("canManageFuncionarios", "/funcionarios", "/ponto-equipe", "/pagamentos");
 
   const periodStart = new Date(`${periodStartStr}T00:00:00Z`);
   const periodEnd = new Date(`${periodEndStr}T00:00:00Z`);
@@ -367,7 +367,7 @@ export async function closePayment(
   _prevState: ClosePaymentFormState,
   formData: FormData,
 ): Promise<ClosePaymentFormState> {
-  const user = await requirePermission("canManageFuncionarios");
+  const user = await requireAccess("canManageFuncionarios", "/funcionarios", "/ponto-equipe", "/pagamentos");
 
   const parsed = closePaymentSchema.safeParse({
     periodStart: formData.get("periodStart"),
@@ -562,7 +562,7 @@ export async function closePayment(
  * valores soltos que podem ficar inconsistentes com o total.
  */
 export async function reopenPayment(employeeId: string, paymentId: string) {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/funcionarios", "/ponto-equipe", "/pagamentos");
 
   await prisma.$transaction(async (tx) => {
     await tx.payrollAdjustment.updateMany({

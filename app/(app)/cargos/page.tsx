@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { RoleDialog } from "./role-dialog";
+import { RH_PAGINAS } from "@/lib/paginas-avulsas";
 import { DeleteRoleButton } from "./delete-role-button";
 
 export default async function CargosPage() {
@@ -56,11 +57,17 @@ export default async function CargosPage() {
                     {role.canManageFuncionarios && (
                       <Badge variant="secondary">Funcionários</Badge>
                     )}
+                    {RH_PAGINAS.filter((p) => role.paginas.includes(p.href)).map((p) => (
+                      <Badge key={p.href} variant="outline">
+                        {p.label}
+                      </Badge>
+                    ))}
                     {!role.canManageEstoque &&
                       !role.canManageReceitas &&
                       !role.canViewRelatorios &&
                       !role.canManageUsuarios &&
-                      !role.canManageFuncionarios && (
+                      !role.canManageFuncionarios &&
+                      role.paginas.length === 0 && (
                         <span className="text-sm text-neutral-500">Nenhuma</span>
                       )}
                   </div>

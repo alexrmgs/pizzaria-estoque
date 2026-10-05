@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 import { todayInBrazil } from "@/lib/payroll";
 import { comprarFolga, desfazerCompra, FOLGA_COMPRADA_REASON } from "@/lib/folga-comprada";
 import {
@@ -29,7 +29,7 @@ function revalidar() {
  * dobro) → Trabalha.
  */
 export async function alternarDomingo(employeeId: string, dateISO: string) {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/escalas");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO) || toDate(dateISO).getUTCDay() !== 0) {
     return { error: "Data inválida." };
   }
@@ -112,7 +112,7 @@ async function gerar() {
 }
 
 export async function gerarRodizio() {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/escalas");
   const result = await gerar();
   revalidar();
   return result;
@@ -120,7 +120,7 @@ export async function gerarRodizio() {
 
 /** Lança a escala base (PDF de out/nov 2026) e já gera o rodízio pra frente. */
 export async function importarEscalaBase() {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/escalas");
   const employees = await prisma.employee.findMany({
     where: { active: true },
     select: { id: true, name: true, weeklyDayOff: true },

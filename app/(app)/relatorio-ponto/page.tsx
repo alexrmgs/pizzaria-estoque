@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import { todayInBrazil } from "@/lib/payroll";
 import {
@@ -49,7 +49,7 @@ export default async function RelatorioPontoPage({
 }: {
   searchParams: Promise<{ mes?: string; funcionario?: string }>;
 }) {
-  const user = await requirePermission("canManageFuncionarios");
+  const user = await requireAccess("canManageFuncionarios", "/relatorio-ponto");
   const params = await searchParams;
   const mes = params.mes && /^\d{4}-\d{2}$/.test(params.mes) ? params.mes : defaultMes();
   const funcionario = params.funcionario || undefined;

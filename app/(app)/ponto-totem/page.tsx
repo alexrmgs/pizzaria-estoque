@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 import { TotemTabs } from "./totem-tabs";
 
 export default async function PontoTotemPage() {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/ponto-totem");
 
   const employees = await prisma.employee.findMany({
     where: { active: true },

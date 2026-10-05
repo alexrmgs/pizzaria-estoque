@@ -1,10 +1,10 @@
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import { buildRelatorioPonto } from "@/lib/relatorio-ponto";
 import { buildPontoWorkbook } from "@/lib/relatorio-ponto-xlsx";
 
 export async function GET(request: Request) {
-  const user = await requirePermission("canManageFuncionarios");
+  const user = await requireAccess("canManageFuncionarios", "/relatorio-ponto");
   const url = new URL(request.url);
   const mes = url.searchParams.get("mes") ?? "";
   if (!/^\d{4}-\d{2}$/.test(mes)) return new Response("Mês inválido.", { status: 400 });

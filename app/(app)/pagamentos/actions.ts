@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 import {
   admissionProrationFactor,
   SALARY_ADVANCE_RATE,
@@ -16,7 +16,7 @@ import {
  * conta pendente em Contas a Pagar, vencimento no próprio dia 20.
  */
 export async function generateSalaryAdvances(): Promise<{ created: number; skipped: number }> {
-  const user = await requirePermission("canManageFuncionarios");
+  const user = await requireAccess("canManageFuncionarios", "/pagamentos");
 
   const brazilToday = todayInBrazil();
   const monthStart = new Date(Date.UTC(brazilToday.getUTCFullYear(), brazilToday.getUTCMonth(), 1));

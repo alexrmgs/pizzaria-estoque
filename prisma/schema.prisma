@@ -46,6 +46,8 @@ model Role {
   canManageFuncionarios Boolean  @default(false)
   canPrintEtiquetas     Boolean  @default(false)
   canPrintProducao      Boolean  @default(false)
+  // Telas avulsas liberadas sem o grupo inteiro (ver lib/paginas-avulsas.ts).
+  paginas               String[] @default([])
   createdAt             DateTime @default(now())
 
   users User[]

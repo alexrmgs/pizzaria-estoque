@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 
 const BRAZIL_UTC_OFFSET_HOURS = 3;
 
@@ -31,7 +31,7 @@ export type AjusteDiaState = { error?: string } | undefined;
  * - LIMPAR: apaga tudo do dia (fica "sem registro").
  */
 export async function ajustarDiaPonto(employeeId: string, entryId: string | null, formData: FormData): Promise<AjusteDiaState> {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/relatorio-ponto");
 
   const parsed = schema.safeParse({
     date: formData.get("date"),

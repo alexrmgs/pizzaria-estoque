@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 
 const advanceSchema = z.object({
   employeeId: z.string().trim().min(1, "Selecione um funcionário."),
@@ -22,7 +22,7 @@ export async function createAdvance(
   _prevState: AdvanceFormState,
   formData: FormData,
 ): Promise<AdvanceFormState> {
-  const user = await requirePermission("canManageFuncionarios");
+  const user = await requireAccess("canManageFuncionarios", "/vales", "/pagamentos");
 
   const parsed = advanceSchema.safeParse({
     employeeId: formData.get("employeeId"),
@@ -73,7 +73,7 @@ export async function createAdvance(
 }
 
 export async function removeAdvance(id: string) {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/vales", "/pagamentos");
   const advance = await prisma.advance.delete({ where: { id, paymentId: null } });
   if (advance.payableId) {
     await prisma.payable.delete({ where: { id: advance.payableId } }).catch(() => {});

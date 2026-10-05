@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 const FALTA_PENALTY = 15;
 
 export default async function FuncionariosPage() {
-  const currentUser = await requirePermission("canManageFuncionarios");
+  const currentUser = await requireAccess("canManageFuncionarios", "/funcionarios");
 
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));

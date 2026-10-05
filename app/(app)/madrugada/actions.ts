@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 
 const madrugadaSchema = z.object({
   employeeId: z.string().trim().min(1, "Selecione um funcionário."),
@@ -24,7 +24,7 @@ export async function createMadrugadaPayment(
   _prevState: MadrugadaFormState,
   formData: FormData,
 ): Promise<MadrugadaFormState> {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/madrugada");
 
   const parsed = madrugadaSchema.safeParse({
     employeeId: formData.get("employeeId"),
@@ -55,7 +55,7 @@ export async function createMadrugadaPayment(
 }
 
 export async function removeMadrugadaPayment(id: string) {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/madrugada");
   const adjustment = await prisma.payrollAdjustment.delete({
     where: { id, paymentId: null, paidAt: null },
   });
@@ -70,7 +70,7 @@ export async function removeMadrugadaPayment(id: string) {
  * e marca os lançamentos como pagos, zerando o pendente dele.
  */
 export async function payMadrugadaForEmployee(employeeId: string): Promise<{ error?: string }> {
-  const user = await requirePermission("canManageFuncionarios");
+  const user = await requireAccess("canManageFuncionarios", "/madrugada");
 
   const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
   if (!employee) return { error: "Funcionário não encontrado." };

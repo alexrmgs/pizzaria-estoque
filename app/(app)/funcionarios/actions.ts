@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import { computeRescisao } from "@/lib/rescisao";
 import type { TaxBracket } from "@/lib/payroll";
@@ -71,7 +71,7 @@ export async function createEmployee(
   _prevState: EmployeeFormState,
   formData: FormData,
 ): Promise<EmployeeFormState> {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/funcionarios", "/escalas");
 
   const parsed = parseEmployeeForm(formData);
   if (!parsed.success) {
@@ -108,7 +108,7 @@ export async function updateEmployee(
   _prevState: EmployeeFormState,
   formData: FormData,
 ): Promise<EmployeeFormState> {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/funcionarios", "/escalas");
 
   const parsed = parseEmployeeForm(formData);
   if (!parsed.success) {
@@ -143,7 +143,7 @@ export async function updateEmployee(
 }
 
 export async function setEmployeeActive(id: string, active: boolean) {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/funcionarios", "/escalas");
 
   await prisma.employee.update({ where: { id }, data: { active } });
 
@@ -155,7 +155,7 @@ export async function setEmployeeActive(id: string, active: boolean) {
 }
 
 export async function respondToSwapAsManager(swapId: string, approve: boolean) {
-  const user = await requirePermission("canManageFuncionarios");
+  const user = await requireAccess("canManageFuncionarios", "/funcionarios", "/escalas");
 
   const swap = await prisma.shiftSwapRequest.findUniqueOrThrow({
     where: { id: swapId },
@@ -231,7 +231,7 @@ export async function respondToSwapAsManager(swapId: string, approve: boolean) {
 }
 
 export async function deleteEmployee(id: string) {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/funcionarios", "/escalas");
 
   try {
     // Apaga tudo que está ligado ao funcionário antes de excluí-lo. Ponto,
@@ -275,7 +275,7 @@ export type TerminationPreviewData = {
 export async function getTerminationPreview(
   employeeId: string,
 ): Promise<TerminationPreviewData | { error: string }> {
-  const user = await requirePermission("canManageFuncionarios");
+  const user = await requireAccess("canManageFuncionarios", "/funcionarios", "/escalas");
 
   const [employee, settings, advances, adjustments] = await Promise.all([
     prisma.employee.findUnique({ where: { id: employeeId } }),
@@ -341,7 +341,7 @@ export async function demitirComRescisao(
   _prevState: TerminationFormState,
   formData: FormData,
 ): Promise<TerminationFormState> {
-  const user = await requirePermission("canManageFuncionarios");
+  const user = await requireAccess("canManageFuncionarios", "/funcionarios", "/escalas");
 
   const parsed = terminationSchema.safeParse({
     dismissalDate: formData.get("dismissalDate"),

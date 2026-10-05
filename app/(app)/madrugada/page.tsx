@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import { MadrugadaForm } from "./madrugada-form";
 import { MadrugadaEmployeeSection } from "./madrugada-employee-section";
 
 export default async function MadrugadaPage() {
-  const user = await requirePermission("canManageFuncionarios");
+  const user = await requireAccess("canManageFuncionarios", "/madrugada");
 
   const [employees, settings, payments] = await Promise.all([
     prisma.employee.findMany({ where: { active: true }, orderBy: { name: "asc" } }),

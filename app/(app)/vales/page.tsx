@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 import { ValeForm } from "./vale-form";
 import { ValeEmployeeSection } from "./vale-employee-section";
 
 export default async function ValesPage() {
-  await requirePermission("canManageFuncionarios");
+  await requireAccess("canManageFuncionarios", "/vales");
 
   const [employees, advances] = await Promise.all([
     prisma.employee.findMany({ where: { active: true }, orderBy: { name: "asc" } }),

@@ -10,6 +10,8 @@ export interface RolePermissions {
   canManageFuncionarios: boolean;
   canPrintEtiquetas: boolean;
   canPrintProducao: boolean;
+  // Telas avulsas (ex: "/ponto-totem"). Sessões antigas podem não ter.
+  paginas?: string[];
 }
 
 declare module "next-auth" {

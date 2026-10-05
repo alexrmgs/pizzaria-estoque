@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RH_PAGINAS } from "@/lib/paginas-avulsas";
 
 type Permissions = {
   canManageEstoque: boolean;
@@ -14,6 +15,7 @@ type Permissions = {
   canManageFuncionarios: boolean;
   canPrintEtiquetas: boolean;
   canPrintProducao: boolean;
+  paginas?: string[];
 };
 
 type NavItem = { href: string; label: string };
@@ -78,7 +80,8 @@ export function NavLinks({
     permissions.canManageReceitas ||
     permissions.canManageUsuarios ||
     permissions.canViewRelatorios ||
-    permissions.canManageFuncionarios;
+    permissions.canManageFuncionarios ||
+    (permissions.paginas?.length ?? 0) > 0;
 
   // Estação de impressão: só imprime etiquetas (pedidos e/ou produção), nada
   // mais. Vê só a(s) tela(s) que tem permissão.
@@ -111,19 +114,11 @@ export function NavLinks({
     ...(permissions.canViewRelatorios ? [{ href: "/relatorios", label: "Relatórios" }] : []),
   ];
 
-  const rhItems: NavItem[] = permissions.canManageFuncionarios
-    ? [
-        { href: "/funcionarios", label: "Funcionários" },
-        { href: "/ponto-equipe", label: "Ponto da Equipe" },
-        { href: "/relatorio-ponto", label: "Relatório de Ponto" },
-        { href: "/ponto-totem", label: "Ponto por Facial" },
-        { href: "/escalas", label: "Escalas" },
-        { href: "/pagamentos", label: "Folha de Pagamento" },
-        { href: "/cmo", label: "Custo de Mão de Obra (CMO)" },
-        { href: "/vales", label: "Vales" },
-        { href: "/madrugada", label: "Madrugada" },
-      ]
-    : [];
+  // RH inteiro, ou só as telas avulsas liberadas no cargo.
+  const rhTodas: NavItem[] = RH_PAGINAS.map((p) => ({ href: p.href, label: p.label }));
+  const rhItems = permissions.canManageFuncionarios
+    ? rhTodas
+    : rhTodas.filter((item) => permissions.paginas?.includes(item.href));
 
   const financeiroItems: NavItem[] = permissions.canViewRelatorios
     ? [

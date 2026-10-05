@@ -11,13 +11,25 @@ export async function requireUser() {
   return session.user;
 }
 
-type PermissionKey = keyof Omit<RolePermissions, "id" | "name">;
+type PermissionKey = keyof Omit<RolePermissions, "id" | "name" | "paginas">;
 
 export async function requirePermission(key: PermissionKey) {
   const user = await requireUser();
   // Redirects to /meu-ponto (not /dashboard) because /dashboard itself requires
   // a permission now — redirecting there would loop for accounts without it.
   if (!user.role[key]) redirect("/meu-ponto");
+  return user;
+}
+
+/**
+ * Libera quem tem a permissão do grupo inteiro OU alguma das telas avulsas
+ * informadas (Role.paginas) — ex: requireAccess("canManageFuncionarios",
+ * "/ponto-totem") deixa entrar um cargo que só tem o Ponto por Facial.
+ */
+export async function requireAccess(key: PermissionKey, ...paginas: string[]) {
+  const user = await requireUser();
+  const liberadas = user.role.paginas ?? [];
+  if (!user.role[key] && !paginas.some((p) => liberadas.includes(p))) redirect("/meu-ponto");
   return user;
 }
 

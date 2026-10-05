@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/dal";
+import { requireAccess } from "@/lib/dal";
 import { upcomingFolgas, formatDate, STATUS_LABELS } from "@/lib/schedule";
 import { todayInBrazil } from "@/lib/payroll";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +27,7 @@ import { FOLGA_COMPRADA_REASON } from "@/lib/folga-comprada";
 const DAYS_AHEAD = 60;
 
 export default async function EscalasPage() {
-  const user = await requirePermission("canManageFuncionarios");
+  const user = await requireAccess("canManageFuncionarios", "/escalas");
   const myEmployee = await prisma.employee.findUnique({ where: { userId: user.id } });
 
   const now = new Date();
