@@ -33,20 +33,55 @@ function limparCache() {
   cachedChar = null;
 }
 
+const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Erro de conexão BLE que vale tentar de novo (impressora acordando / caiu). */
+function erroDeConexao(e: unknown) {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /disconnected|gatt|network|connection|not connected/i.test(msg);
+}
+
+/**
+ * Conecta e acha a característica de escrita. A Knup às vezes aceita a
+ * conexão e derruba logo em seguida (acordando do modo de economia) — aí o
+ * getPrimaryServices falha com "GATT Server is disconnected". Tenta até 3
+ * vezes, com uma pausa crescente, antes de desistir.
+ */
 async function acharCaracteristica(device: any): Promise<any> {
-  const server = await comTimeout<any>(
-    device.gatt.connect(),
-    12000,
-    "Não conectei na impressora (ela pode estar desligada ou dormindo). Ligue/aproxime e tente de novo.",
-  );
-  const services = await server.getPrimaryServices();
-  for (const service of services) {
-    const chars = await service.getCharacteristics();
-    for (const c of chars) {
-      if (c.properties.write || c.properties.writeWithoutResponse) return c;
+  let ultimoErro: unknown = null;
+  for (let tentativa = 1; tentativa <= 3; tentativa++) {
+    try {
+      const server = await comTimeout<any>(
+        device.gatt.connect(),
+        12000,
+        "Não conectei na impressora (ela pode estar desligada ou dormindo). Ligue/aproxime e tente de novo.",
+      );
+      // Dá um respiro pra conexão estabilizar antes de pedir os serviços.
+      await esperar(300);
+      if (!device.gatt.connected) throw new Error("GATT Server is disconnected");
+      const services = await server.getPrimaryServices();
+      for (const service of services) {
+        const chars = await service.getCharacteristics();
+        for (const c of chars) {
+          if (c.properties.write || c.properties.writeWithoutResponse) return c;
+        }
+      }
+      return null;
+    } catch (e) {
+      ultimoErro = e;
+      if (!erroDeConexao(e)) throw e;
+      try {
+        device.gatt.disconnect();
+      } catch {
+        /* ignora */
+      }
+      await esperar(700 * tentativa);
     }
   }
-  return null;
+  throw new Error(
+    "A impressora conectou mas caiu em seguida. Confira se está ligada e perto do tablet e tente de novo." +
+      (ultimoErro instanceof Error ? ` (${ultimoErro.message})` : ""),
+  );
 }
 
 async function getWriteChar(): Promise<any> {
@@ -82,21 +117,37 @@ async function getWriteChar(): Promise<any> {
   return char;
 }
 
+async function enviar(data: Uint8Array) {
+  const char = await getWriteChar();
+  const chunk = 100;
+  for (let i = 0; i < data.length; i += chunk) {
+    const slice = data.slice(i, i + chunk);
+    const escrita = char.properties.writeWithoutResponse
+      ? char.writeValueWithoutResponse(slice)
+      : char.writeValue(slice);
+    await comTimeout(escrita, 8000, "A impressão travou. Tente de novo.");
+    await esperar(20);
+  }
+}
+
 /** Envia bytes (TSPL) pra impressora em pacotes pequenos (limite do BLE). */
 export async function imprimirBytes(data: Uint8Array): Promise<void> {
   try {
-    const char = await getWriteChar();
-    const chunk = 100;
-    for (let i = 0; i < data.length; i += chunk) {
-      const slice = data.slice(i, i + chunk);
-      const escrita = char.properties.writeWithoutResponse
-        ? char.writeValueWithoutResponse(slice)
-        : char.writeValue(slice);
-      await comTimeout(escrita, 8000, "A impressão travou. Tente de novo.");
-      await new Promise((r) => setTimeout(r, 20));
-    }
+    await enviar(data);
   } catch (e) {
-    // Se falhou/travou, zera a conexão pra próxima tentativa pedir a impressora de novo.
+    if (erroDeConexao(e) && cachedDevice) {
+      // Conexão caiu (impressora dormiu): reconecta no MESMO aparelho, sem
+      // pedir pra escolher de novo, e manda a etiqueta mais uma vez.
+      cachedChar = null;
+      try {
+        await enviar(data);
+        return;
+      } catch (e2) {
+        limparCache();
+        throw e2;
+      }
+    }
+    // Outro erro: zera a conexão pra próxima tentativa pedir a impressora de novo.
     limparCache();
     throw e;
   }
