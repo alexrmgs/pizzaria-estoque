@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { erroIA } from "@/lib/ai-errors";
 
 /** Modelo usado nas análises. Trocar aqui se quiser algo mais barato
  * (ex: "claude-haiku-4-5") ou mais capaz. */
@@ -10,19 +11,27 @@ const AI_MODEL = "claude-opus-5";
  * atenção e recomendações práticas. Se a chave da API não estiver
  * configurada, avisa de forma amigável em vez de quebrar.
  */
-async function analisar(system: string, user: string, maxTokens = 1500): Promise<string> {
+async function analisar(
+  system: string,
+  user: string,
+  maxTokens = 1500,
+): Promise<string> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error(
       "A IA ainda não está ativada. Configure a chave ANTHROPIC_API_KEY pra usar as análises.",
     );
   }
   const client = new Anthropic();
-  const response = await client.messages.create({
-    model: AI_MODEL,
-    max_tokens: maxTokens,
-    system,
-    messages: [{ role: "user", content: user }],
-  });
+  const response = await client.messages
+    .create({
+      model: AI_MODEL,
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: "user", content: user }],
+    })
+    .catch((e: unknown) => {
+      throw erroIA(e);
+    });
   const text = response.content
     .filter((block): block is Anthropic.TextBlock => block.type === "text")
     .map((block) => block.text)
@@ -59,7 +68,9 @@ Regras:
  * atual e sugere o que comprar e quanto, SEM comprar demais (evita dinheiro
  * parado e perda por validade).
  */
-export async function generatePurchaseAnalysis(dataSummary: string): Promise<string> {
+export async function generatePurchaseAnalysis(
+  dataSummary: string,
+): Promise<string> {
   return analisar(
     `Você é um especialista em COMPRAS e ESTOQUE de uma pizzaria no Brasil, falando com o dono (não técnico, prefere textos curtos). Monte uma COMPRA INTELIGENTE: com base no consumo (saídas), a compra deve deixar o estoque suficiente pra durar cerca de 1 semana — sem faltar, mas SEM comprar demais (evitar dinheiro parado e perda por validade).
 

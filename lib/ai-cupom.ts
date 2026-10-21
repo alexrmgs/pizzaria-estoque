@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { erroIA } from "@/lib/ai-errors";
 
 // Modelo com visão pra ler o cupom (Sonnet 5 dá conta e é mais barato que Opus).
 const VISION_MODEL = "claude-sonnet-5";
@@ -52,20 +53,30 @@ export async function extrairCupom(
     throw new Error("A IA ainda não está ativada (falta ANTHROPIC_API_KEY).");
   }
   const client = new Anthropic();
-  const res = await client.messages.create({
-    model: VISION_MODEL,
-    max_tokens: 2500,
-    system: SYSTEM,
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
-          { type: "text", text: "Extraia os itens deste cupom no JSON pedido." },
-        ],
-      },
-    ],
-  });
+  const res = await client.messages
+    .create({
+      model: VISION_MODEL,
+      max_tokens: 2500,
+      system: SYSTEM,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: { type: "base64", media_type: mediaType, data: base64 },
+            },
+            {
+              type: "text",
+              text: "Extraia os itens deste cupom no JSON pedido.",
+            },
+          ],
+        },
+      ],
+    })
+    .catch((e: unknown) => {
+      throw erroIA(e);
+    });
 
   const texto = res.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
@@ -94,7 +105,10 @@ export async function extrairCupom(
   return {
     fornecedor: raw.fornecedor ? String(raw.fornecedor).trim() : null,
     numero: raw.numero != null ? String(raw.numero).trim() : null,
-    emissao: raw.emissao && /^\d{4}-\d{2}-\d{2}$/.test(raw.emissao) ? raw.emissao : null,
+    emissao:
+      raw.emissao && /^\d{4}-\d{2}-\d{2}$/.test(raw.emissao)
+        ? raw.emissao
+        : null,
     total: num(raw.total),
     items: (raw.items ?? []).map((it) => {
       const quantity = num(it.quantity) || 1;
