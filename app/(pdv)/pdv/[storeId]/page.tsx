@@ -33,8 +33,10 @@ export default async function QuadroPage({ params }: { params: Promise<{ storeId
       .map((v) => ({
         id: v.id,
         numero: v.numero,
-        modulo: v.modulo as "BALCAO",
-        cliente: v.clienteNome || "Balcão",
+        modulo: v.modulo as "BALCAO" | "DELIVERY",
+        cliente: v.clienteNome || (v.modulo === "DELIVERY" ? "Delivery" : "Balcão"),
+        endereco: v.enderecoTexto ?? undefined,
+        taxaEntrega: Number(v.taxaEntrega) || undefined,
         total: Number(v.total),
         hora: horaFortaleza(v.createdAt),
         minutosNoStatus: minutosDesde(v.historico[0]?.createdAt ?? v.createdAt),

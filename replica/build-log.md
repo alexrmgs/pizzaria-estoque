@@ -13,3 +13,5 @@
 
 Não testado de ponta a ponta ainda: depende de rodar `prisma/migrations/20261023120000_pdv_fatia1/migration.sql` no Supabase.
 Sem screenshots em replica/clone-screens: as telas exigem login + tabelas no banco.
+| S02/S03 cliente e endereço (delivery) | 2026-10-23 | parcial | busca por nome, CEP → endereço, editar cadastro | — |
+| ajuste: cobrar → vai pro quadro | 2026-10-23 | feito | — | via imprime num iframe escondido pra não prender a tela |

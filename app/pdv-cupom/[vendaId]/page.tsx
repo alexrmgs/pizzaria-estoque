@@ -24,6 +24,7 @@ export default async function CupomPage({
     where: { id: vendaId, store: { companyId: user.companyId } },
     include: {
       store: { select: { id: true, name: true } },
+      cliente: { select: { telefone: true } },
       itens: { where: { canceladoEm: null }, orderBy: { createdAt: "asc" } },
       pagamentos: { where: { estornadoEm: null }, include: { forma: true } },
     },
@@ -43,7 +44,7 @@ export default async function CupomPage({
         storeId={venda.store.id}
         vendaId={venda.id}
         voltar={destino}
-        autoImprimir={imprimir === "1"}
+        autoImprimir={imprimir === "iframe" ? "iframe" : imprimir === "1"}
         podeCancelar={!!role?.canGerenciarPdv && !cancelada}
       />
 
@@ -54,7 +55,17 @@ export default async function CupomPage({
           PEDIDO {venda.numero}
         </p>
         {cancelada ? <p className="mb-2 text-center text-[16px] font-bold">*** CANCELADO ***</p> : null}
-        <p className="font-bold">BALCÃO{venda.clienteNome ? ` · ${venda.clienteNome}` : ""}</p>
+        {venda.modulo === "DELIVERY" ? (
+          <div className="border-b border-dashed border-black pb-1">
+            <p className="text-[14px] font-bold">DELIVERY</p>
+            <p className="font-bold">{venda.clienteNome}</p>
+            {venda.cliente?.telefone ? <p>Tel: {venda.cliente.telefone}</p> : null}
+            <p className="font-bold">{venda.enderecoTexto}</p>
+            {venda.obsEntrega ? <p>Obs: {venda.obsEntrega}</p> : null}
+          </div>
+        ) : (
+          <p className="font-bold">BALCÃO{venda.clienteNome ? ` · ${venda.clienteNome}` : ""}</p>
+        )}
 
         <table className="mt-2 w-full">
           <tbody>
@@ -72,11 +83,14 @@ export default async function CupomPage({
         </table>
 
         <div className="mt-2 border-t border-dashed border-black pt-1">
+          {Number(venda.desconto) > 0 || Number(venda.taxaEntrega) > 0 ? (
+            <p className="flex justify-between"><span>Itens</span><span>{brl(venda.subtotal)}</span></p>
+          ) : null}
+          {Number(venda.taxaEntrega) > 0 ? (
+            <p className="flex justify-between"><span>Taxa de entrega</span><span>{brl(venda.taxaEntrega)}</span></p>
+          ) : null}
           {Number(venda.desconto) > 0 ? (
-            <>
-              <p className="flex justify-between"><span>Subtotal</span><span>{brl(venda.subtotal)}</span></p>
-              <p className="flex justify-between"><span>Desconto</span><span>-{brl(venda.desconto)}</span></p>
-            </>
+            <p className="flex justify-between"><span>Desconto</span><span>-{brl(venda.desconto)}</span></p>
           ) : null}
           <p className="flex justify-between text-[15px] font-bold"><span>TOTAL</span><span>R$ {brl(venda.total)}</span></p>
           {venda.pagamentos.map((p) => (

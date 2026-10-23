@@ -46,6 +46,13 @@ export function horaFortaleza(d: Date): string {
   return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Fortaleza" });
 }
 
+/** "Rua X, 12 — Centro · ap 3 — ref: perto da praça" */
+export function textoEndereco(e: { logradouro: string; numero?: string | null; bairro?: string | null; complemento?: string | null; referencia?: string | null }) {
+  const rua = [e.logradouro, e.numero].filter(Boolean).join(", ");
+  const resto = [e.bairro, e.complemento].filter(Boolean).join(" · ");
+  return [rua, resto, e.referencia ? `ref: ${e.referencia}` : ""].filter(Boolean).join(" — ");
+}
+
 export function minutosDesde(d: Date): number {
   return Math.max(0, Math.floor((Date.now() - d.getTime()) / 60_000));
 }

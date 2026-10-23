@@ -112,6 +112,7 @@ model Company {
   pdvCategorias      PdvCategoria[]
   pdvProdutos        PdvProduto[]
   pdvFormasPagamento PdvFormaPagamento[]
+  pdvClientes        PdvCliente[]
 }
 
 /**
@@ -1001,37 +1002,43 @@ model PdvCaixaConferencia {
 
 // Uma venda = um pedido (delivery/balcão/ficha) ou uma comanda de salão.
 model PdvVenda {
-  id              String     @id @default(cuid())
+  id              String      @id @default(cuid())
   storeId         String
-  store           Store      @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  store           Store       @relation(fields: [storeId], references: [id], onDelete: Restrict)
   numero          Int
   // dia operacional (corte às 05:00 de Fortaleza — ver lib/pdv.ts)
-  dia             DateTime   @db.Date
+  dia             DateTime    @db.Date
   // DELIVERY | BALCAO | SALAO | FICHA
   modulo          String
-  canal           String     @default("LOJA_PROPRIA")
+  canal           String      @default("LOJA_PROPRIA")
   clienteNome     String?
+  clienteId       String?
+  cliente         PdvCliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  // endereço fotografado no momento da venda (o cadastro pode mudar depois)
+  enderecoTexto   String?
+  taxaEntrega     Decimal     @default(0) @db.Decimal(10, 2)
+  obsEntrega      String?
   statusId        String?
-  status          PdvStatus? @relation(fields: [statusId], references: [id], onDelete: Restrict)
+  status          PdvStatus?  @relation(fields: [statusId], references: [id], onDelete: Restrict)
   caixaId         String?
-  caixa           PdvCaixa?  @relation(fields: [caixaId], references: [id], onDelete: Restrict)
-  subtotal        Decimal    @default(0) @db.Decimal(10, 2)
-  acrescimo       Decimal    @default(0) @db.Decimal(10, 2)
+  caixa           PdvCaixa?   @relation(fields: [caixaId], references: [id], onDelete: Restrict)
+  subtotal        Decimal     @default(0) @db.Decimal(10, 2)
+  acrescimo       Decimal     @default(0) @db.Decimal(10, 2)
   acrescimoMotivo String?
-  desconto        Decimal    @default(0) @db.Decimal(10, 2)
+  desconto        Decimal     @default(0) @db.Decimal(10, 2)
   descontoMotivo  String?
-  total           Decimal    @default(0) @db.Decimal(10, 2)
+  total           Decimal     @default(0) @db.Decimal(10, 2)
   obs             String?
   // ABERTA | PAGA | CANCELADA
-  situacao        String     @default("ABERTA")
+  situacao        String      @default("ABERTA")
   canceladaEm     DateTime?
   cancelMotivo    String?
   // gerado na tela: clique duplo no "Fechar pedido" não cria duas vendas
-  clientRequestId String     @unique
+  clientRequestId String      @unique
   createdById     String
-  createdBy       User       @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  createdBy       User        @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
   fechadaEm       DateTime?
 
   itens      PdvVendaItem[]
@@ -1044,6 +1051,7 @@ model PdvVenda {
   @@index([statusId])
   @@index([caixaId])
   @@index([createdById])
+  @@index([clienteId])
 }
 
 model PdvVendaItem {
@@ -1107,4 +1115,40 @@ model PdvStatusHistorico {
   @@index([vendaId, createdAt])
   @@index([statusId])
   @@index([userId])
+}
+
+// Clientes do delivery — por empresa (o mesmo cliente pede em qualquer loja).
+// Telefone só com dígitos e DDD; é a chave da busca.
+model PdvCliente {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  nome      String
+  telefone  String
+  obs       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enderecos PdvEndereco[]
+  vendas    PdvVenda[]
+
+  @@unique([companyId, telefone])
+  @@index([companyId, nome])
+}
+
+model PdvEndereco {
+  id          String     @id @default(cuid())
+  clienteId   String
+  cliente     PdvCliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  logradouro  String
+  numero      String?
+  bairro      String?
+  complemento String?
+  referencia  String?
+  // última taxa cobrada nesse endereço — já vem preenchida no próximo pedido
+  taxaEntrega Decimal    @default(0) @db.Decimal(10, 2)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([clienteId])
 }

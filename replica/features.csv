@@ -1,12 +1,12 @@
 feature,area,priority,original,clone,notes
-Buscar cliente por telefone ou nome,delivery,must,yes,no,S02
-Cadastrar cliente e vários endereços,delivery,must,yes,no,S03
+Buscar cliente por telefone ou nome,delivery,must,yes,partial,por telefone (aceita sem DDD); por nome falta
+Cadastrar cliente e vários endereços,delivery,must,yes,yes,cria/atualiza ao fechar o pedido
 Venda de balcão sem cliente,balcao,must,yes,yes,F02
 Lançar itens por categoria com busca,venda,must,yes,yes,busca + Enter adiciona
 Opcionais/adicionais com mín e máx,venda,must,yes,no,cardápio já existe no pizzaria-estoque
 Pizza meio a meio,venda,must,yes,no,essencial para pizzaria
 Observação por item,venda,must,yes,yes,
-Taxa de entrega editável,delivery,must,yes,no,S05
+Taxa de entrega editável,delivery,must,yes,yes,lembra a última taxa de cada endereço
 Desconto e acréscimo com motivo,venda,must,yes,partial,só desconto na tela; acréscimo já existe no servidor
 Formas de pagamento + troco para,pagamento,must,yes,yes,
 Vários pagamentos na mesma venda,pagamento,must,yes,no,

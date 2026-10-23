@@ -17,7 +17,7 @@ export function CupomAcoes({
   storeId: string;
   vendaId: string;
   voltar: string;
-  autoImprimir: boolean;
+  autoImprimir: boolean | "iframe";
   podeCancelar: boolean;
 }) {
   const router = useRouter();
@@ -27,14 +27,16 @@ export function CupomAcoes({
   // cancelou o diálogo), volta pra tela de venda.
   useEffect(() => {
     if (!autoImprimir) return;
-    const depois = () => router.replace(voltar);
+    // dentro do iframe escondido da tela de venda: só imprime e avisa a tela
+    const depois =
+      autoImprimir === "iframe" ? () => window.parent.postMessage(`pdv-impresso:${vendaId}`, window.location.origin) : () => router.replace(voltar);
     window.addEventListener("afterprint", depois, { once: true });
     const t = setTimeout(() => window.print(), 150);
     return () => {
       clearTimeout(t);
       window.removeEventListener("afterprint", depois);
     };
-  }, [autoImprimir, voltar, router]);
+  }, [autoImprimir, voltar, router, vendaId]);
 
   function cancelar() {
     const motivo = prompt("Motivo do cancelamento:");
