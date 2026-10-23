@@ -62,6 +62,27 @@ export function textoEndereco(e: { logradouro: string; numero?: string | null; b
   return [rua, resto, e.referencia ? `ref: ${e.referencia}` : ""].filter(Boolean).join(" — ");
 }
 
+type EventoHistorico = { evento: string; createdAt: Date; statusId: string | null };
+
+/**
+ * Quando o pedido entrou em cada status (a última vez, se voltou e avançou de
+ * novo) — a partir do histórico. Status ainda não alcançados ficam sem hora.
+ */
+export function etapasDoPedido(status: { id: string; nome: string }[], historico: EventoHistorico[], statusAtualId: string | null) {
+  const entrada = new Map<string, Date>();
+  for (const h of historico) {
+    if ((h.evento === "CRIADA" || h.evento === "STATUS") && h.statusId) entrada.set(h.statusId, h.createdAt);
+  }
+  const atual = status.findIndex((s) => s.id === statusAtualId);
+  return status.map((s, i) => ({
+    id: s.id,
+    nome: s.nome,
+    // depois do atual não conta (se voltou, a hora antiga não vale mais)
+    em: i <= atual ? (entrada.get(s.id) ?? null) : null,
+    atual: i === atual,
+  }));
+}
+
 export function minutosDesde(d: Date): number {
   return Math.max(0, Math.floor((Date.now() - d.getTime()) / 60_000));
 }

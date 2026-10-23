@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, MapPin, Phone } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
-import { horaFortaleza, requirePdv } from "@/lib/pdv";
+import { etapasDoPedido, horaFortaleza, requirePdv } from "@/lib/pdv";
 import { brl, ModuloTag, type Modulo } from "@/components/pdv/primitives";
 import { PedidoAcoes } from "./acoes";
 
@@ -27,12 +27,21 @@ export default async function PedidoPage({ params }: { params: Promise<{ storeId
   if (!venda) notFound();
 
   const [statusLoja, role] = await Promise.all([
-    prisma.pdvStatus.findMany({ where: { storeId: store!.id }, orderBy: { ordem: "asc" }, select: { id: true } }),
+    prisma.pdvStatus.findMany({ where: { storeId: store!.id }, orderBy: { ordem: "asc" }, select: { id: true, nome: true, cor: true } }),
     prisma.role.findUnique({ where: { id: user.role.id }, select: { canGerenciarPdv: true } }),
   ]);
   const idx = statusLoja.findIndex((s) => s.id === venda.statusId);
   const cancelada = venda.situacao === "CANCELADA";
   const n = (v: unknown) => Number(v);
+  const etapas = etapasDoPedido(statusLoja, venda.historico, venda.statusId);
+  const fimDoPedido = cancelada ? venda.canceladaEm : null;
+  // quanto tempo ficou em cada status: até entrar no próximo (ou até agora, no atual)
+  const duracao = (i: number) => {
+    const ini = etapas[i].em;
+    if (!ini) return null;
+    const fim = etapas[i + 1]?.em ?? (etapas[i].atual ? (fimDoPedido ?? new Date()) : null);
+    return fim ? Math.max(0, Math.round((fim.getTime() - ini.getTime()) / 60_000)) : null;
+  };
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-3 md:p-6">
@@ -65,6 +74,31 @@ export default async function PedidoPage({ params }: { params: Promise<{ storeId
         podeAvancar={!cancelada && idx >= 0 && idx < statusLoja.length - 1}
         podeCancelar={!!role?.canGerenciarPdv && !cancelada}
       />
+
+      <ol aria-label="Linha do tempo do pedido" className="grid gap-2 rounded-pdv-lg bg-pdv-surface p-3 sm:grid-flow-col sm:auto-cols-fr">
+        {etapas.map((e, i) => {
+          const min = duracao(i);
+          const feito = !!e.em;
+          return (
+            <li
+              key={e.id}
+              aria-current={e.atual ? "step" : undefined}
+              className={`flex items-center gap-3 rounded-pdv-md border-2 p-2 sm:flex-col sm:items-start sm:gap-1 ${
+                e.atual ? "border-pdv-accent bg-pdv-accent/10" : feito ? "border-pdv-line" : "border-dashed border-pdv-line opacity-50"
+              }`}
+            >
+              <span className="flex items-center gap-2 text-sm font-bold">
+                <span className="size-2.5 rounded-full" style={{ background: feito ? statusLoja[i].cor : "transparent", border: `2px solid ${statusLoja[i].cor}` }} aria-hidden />
+                {e.nome}
+              </span>
+              <span className="ml-auto font-mono text-sm tabular-nums sm:ml-0">
+                {e.em ? horaFortaleza(e.em) : "—"}
+                {min != null ? <span className="text-pdv-muted"> · {min}min{e.atual && !cancelada ? " até agora" : ""}</span> : null}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
 
       {cancelada && venda.cancelMotivo ? (
         <p className="rounded-pdv-md border border-pdv-danger p-3 text-sm">

@@ -16,6 +16,8 @@ export type PedidoResumo = {
   minutosNoStatus: number;
   hora: string;
   entregador?: string;
+  /** hora em que entrou em cada status, na ordem */
+  etapas?: { nome: string; hora: string }[];
 };
 
 export function PedidoCard({ pedido, onAbrir }: { pedido: PedidoResumo; onAbrir?: () => void }) {
@@ -40,6 +42,16 @@ export function PedidoCard({ pedido, onAbrir }: { pedido: PedidoResumo; onAbrir?
         <ModuloTag modulo={pedido.modulo} />
         <span className="font-mono text-lg font-bold tabular-nums">{brl(pedido.total)}</span>
       </div>
+      {pedido.etapas && pedido.etapas.length > 1 ? (
+        <ol className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-pdv-muted" aria-label="Horário de cada status">
+          {pedido.etapas.map((e, i) => (
+            <li key={i} className={i === pedido.etapas!.length - 1 ? "font-semibold text-pdv-text" : undefined}>
+              {i > 0 ? "→ " : ""}
+              {e.nome} <span className="font-mono">{e.hora}</span>
+            </li>
+          ))}
+        </ol>
+      ) : null}
       <div className="flex items-center justify-between text-xs text-pdv-muted">
         <span>{pedido.hora}</span>
         {pedido.entregador ? <span>🛵 {pedido.entregador}</span> : pedido.taxaEntrega ? <span>entrega {brl(pedido.taxaEntrega)}</span> : null}

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { diaOperacional, horaFortaleza, minutosDesde, requirePdv } from "@/lib/pdv";
+import { diaOperacional, etapasDoPedido, horaFortaleza, minutosDesde, requirePdv } from "@/lib/pdv";
 import { QuadroPedidos, type ColunaQuadro } from "./quadro";
 
 export default async function QuadroPage({ params }: { params: Promise<{ storeId: string }> }) {
@@ -17,7 +17,7 @@ export default async function QuadroPage({ params }: { params: Promise<{ storeId
         // hoje inteiro + o que sobrou de ontem sem ser entregue
         OR: [{ dia: hoje }, { dia: ontem, status: { tag: { notIn: ["ENTREGUE", "FINALIZADO"] } } }],
       },
-      include: { historico: { orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } } },
+      include: { historico: { orderBy: { createdAt: "asc" }, select: { createdAt: true, evento: true, statusId: true } } },
       orderBy: { createdAt: "asc" },
     }),
   ]);
@@ -39,7 +39,10 @@ export default async function QuadroPage({ params }: { params: Promise<{ storeId
         taxaEntrega: Number(v.taxaEntrega) || undefined,
         total: Number(v.total),
         hora: horaFortaleza(v.createdAt),
-        minutosNoStatus: minutosDesde(v.historico[0]?.createdAt ?? v.createdAt),
+        minutosNoStatus: minutosDesde(v.historico.at(-1)?.createdAt ?? v.createdAt),
+        etapas: etapasDoPedido(status, v.historico, v.statusId)
+          .filter((e) => e.em)
+          .map((e) => ({ nome: e.nome, hora: horaFortaleza(e.em!) })),
       })),
   }));
 
