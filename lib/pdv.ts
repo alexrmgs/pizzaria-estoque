@@ -46,6 +46,15 @@ export function horaFortaleza(d: Date): string {
   return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Fortaleza" });
 }
 
+// DDD das lojas (Ceará). Quem atende digita só o número; se vier sem DDD
+// (8 ou 9 dígitos), completa com esse.
+export const DDD_PADRAO = "85";
+
+export function normalizarTelefone(t: string): string {
+  const d = t.replace(/\D/g, "").replace(/^0+/, "");
+  return d.length === 8 || d.length === 9 ? DDD_PADRAO + d : d;
+}
+
 /** "Rua X, 12 — Centro · ap 3 — ref: perto da praça" */
 export function textoEndereco(e: { logradouro: string; numero?: string | null; bairro?: string | null; complemento?: string | null; referencia?: string | null }) {
   const rua = [e.logradouro, e.numero].filter(Boolean).join(", ");

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/lib/generated/prisma/client";
-import { caixaAberto, diaOperacional, esperadoDoCaixa, proximoNumero, requirePdv, textoEndereco } from "@/lib/pdv";
+import { caixaAberto, diaOperacional, esperadoDoCaixa, normalizarTelefone, proximoNumero, requirePdv, textoEndereco } from "@/lib/pdv";
 
 type Resultado<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -62,7 +62,7 @@ export async function salvarCliente(
   input: { telefone: string; nome: string; endereco?: EnderecoInput }
 ): Promise<Resultado<{ cliente: ClienteEncontrado; enderecoId: string | null }>> {
   const { store } = await requirePdv(storeId);
-  const telefone = input.telefone.replace(/\D/g, "");
+  const telefone = normalizarTelefone(input.telefone);
   const nome = input.nome.trim().slice(0, 80);
   if (telefone.length < 10) return { ok: false, error: "Telefone com DDD, por favor" };
   if (!nome) return { ok: false, error: "Falta o nome" };
@@ -99,8 +99,8 @@ export async function salvarCliente(
 /** Busca o cliente do delivery pelo telefone (só dígitos, com DDD). */
 export async function buscarCliente(storeId: string, telefone: string): Promise<ClienteEncontrado | null> {
   const { store } = await requirePdv(storeId);
-  const tel = telefone.replace(/\D/g, "");
-  if (tel.length < 8) return null;
+  const tel = normalizarTelefone(telefone);
+  if (tel.length < 10) return null;
   const c = await prisma.pdvCliente.findFirst({
     // aceita digitar sem DDD: casa pelo final do número
     where: { companyId: store!.companyId, OR: [{ telefone: tel }, { telefone: { endsWith: tel } }] },
@@ -155,7 +155,7 @@ export async function criarVenda(storeId: string, input: NovaVendaInput): Promis
     return { p, qtd: i.qtd, obs: i.obs || null, unit, total: unit * i.qtd };
   });
   const ehDelivery = v.modulo === "DELIVERY";
-  const telefone = (v.telefone ?? "").replace(/\D/g, "");
+  const telefone = normalizarTelefone(v.telefone ?? "");
   if (ehDelivery) {
     if (!v.clienteNome) return { ok: false, error: "Falta o nome do cliente" };
     if (telefone.length < 10) return { ok: false, error: "Telefone com DDD, por favor" };

@@ -39,7 +39,7 @@ export function IdentificarCliente({
 
   function buscar(tel = telefone) {
     const digitos = tel.replace(/\D/g, "");
-    if (digitos.length < 8) return setErro("Digite o telefone com DDD");
+    if (digitos.length < 8) return setErro("Digite o telefone");
     setErro(undefined);
     start(async () => {
       const c = await buscarCliente(storeId, digitos);
@@ -73,11 +73,11 @@ export function IdentificarCliente({
       >
         <PdvField
           autoFocus={!inicial}
-          label="Telefone do cliente"
+          label="Telefone do cliente (DDD 85 já incluso)"
           type="tel"
           inputMode="tel"
           autoComplete="off"
-          placeholder="(85) 9 9999-9999"
+          placeholder="9 9999-9999"
           value={telefone}
           onChange={(e) => {
             setTelefone(e.target.value);

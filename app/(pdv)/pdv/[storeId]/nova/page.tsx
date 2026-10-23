@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { caixaAberto, requirePdv } from "@/lib/pdv";
+import { caixaAberto, normalizarTelefone, requirePdv } from "@/lib/pdv";
 import { buscarCliente } from "../actions";
 import { NovaVenda } from "./nova-venda";
 
@@ -31,7 +31,7 @@ export default async function NovaVendaPage({
     );
   }
 
-  const telDigitos = tel?.replace(/\D/g, "") ?? "";
+  const telDigitos = normalizarTelefone(tel ?? "");
   const inicial = telDigitos.length >= 8 ? { telefone: telDigitos, cliente: await buscarCliente(store!.id, telDigitos) } : undefined;
 
   const [categorias, formas] = await Promise.all([
