@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { MapPin, Phone, Plus, Store, UserPlus } from "lucide-react";
 
 import { DddField, juntarTelefone, PdvButton, PdvField, separarTelefone } from "@/components/pdv/primitives";
@@ -37,6 +37,27 @@ export function IdentificarCliente({
   );
   const [nome, setNome] = useState(inicial?.cliente?.nome ?? "");
   const [end, setEnd] = useState<NovoEndereco>(END_VAZIO);
+  const [cep, setCep] = useState("");
+  const [cepInfo, setCepInfo] = useState<{ texto: string; erro?: boolean } | null>(null);
+  const numeroRef = useRef<HTMLInputElement>(null);
+
+  // CEP completo → busca rua e bairro no ViaCEP (grátis, sem chave)
+  async function buscarCep(valor: string) {
+    const d = valor.replace(/\D/g, "").slice(0, 8);
+    setCep(d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d);
+    if (d.length !== 8) return setCepInfo(null);
+    setCepInfo({ texto: "Buscando CEP…" });
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${d}/json/`, { signal: AbortSignal.timeout(6000) });
+      const j = (await r.json()) as { erro?: boolean; logradouro?: string; bairro?: string; localidade?: string; uf?: string };
+      if (j.erro) return setCepInfo({ texto: "CEP não encontrado — preencha a rua", erro: true });
+      setEnd((e) => ({ ...e, logradouro: j.logradouro || e.logradouro, bairro: j.bairro || e.bairro }));
+      setCepInfo({ texto: `${j.localidade}/${j.uf}${j.logradouro ? "" : " — CEP geral da cidade, preencha a rua"}` });
+      numeroRef.current?.focus();
+    } catch {
+      setCepInfo({ texto: "Não consegui buscar o CEP agora — preencha a rua", erro: true });
+    }
+  }
   const [pendente, start] = useTransition();
 
   function buscar() {
@@ -49,6 +70,8 @@ export function IdentificarCliente({
       setCliente(c);
       setNome(c?.nome ?? "");
       setEnd(END_VAZIO);
+      setCep("");
+      setCepInfo(null);
       setCadastro(c ? (c.enderecos.length ? "achou" : "endereco") : "novo");
     });
   }
@@ -156,8 +179,18 @@ export function IdentificarCliente({
           </p>
           {cadastro === "novo" ? <PdvField label="Nome" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={80} autoFocus /> : null}
           <div className="grid grid-cols-[1fr_6rem] gap-2">
-            <PdvField label="Rua" value={end.logradouro} onChange={(e) => setEnd({ ...end, logradouro: e.target.value })} maxLength={150} autoFocus={cadastro === "endereco"} />
-            <PdvField label="Nº" value={end.numero} onChange={(e) => setEnd({ ...end, numero: e.target.value })} maxLength={20} />
+            <div className="col-span-2 flex items-end gap-3">
+              <PdvField label="CEP" inputMode="numeric" placeholder="00000-000" value={cep} onChange={(e) => buscarCep(e.target.value)} className="w-36" autoFocus={cadastro === "endereco"} />
+              {cepInfo ? (
+                <p className={`pb-3 text-sm ${cepInfo.erro ? "text-pdv-warning" : "text-pdv-muted"}`} aria-live="polite">
+                  {cepInfo.texto}
+                </p>
+              ) : (
+                <p className="pb-3 text-sm text-pdv-muted">opcional — preenche rua e bairro</p>
+              )}
+            </div>
+            <PdvField label="Rua" value={end.logradouro} onChange={(e) => setEnd({ ...end, logradouro: e.target.value })} maxLength={150} />
+            <PdvField ref={numeroRef} label="Nº" value={end.numero} onChange={(e) => setEnd({ ...end, numero: e.target.value })} maxLength={20} />
             <PdvField label="Bairro" value={end.bairro} onChange={(e) => setEnd({ ...end, bairro: e.target.value })} maxLength={80} />
             <PdvField label="Compl." value={end.complemento} onChange={(e) => setEnd({ ...end, complemento: e.target.value })} maxLength={120} />
             <PdvField label="Ponto de referência" value={end.referencia} onChange={(e) => setEnd({ ...end, referencia: e.target.value })} maxLength={150} className="col-span-2" />
