@@ -277,7 +277,7 @@ export function NovaVenda({
         )}
 
         <ValorComMotivo label="Desconto" valor={desconto} motivo={descontoMotivo} onValor={setDesconto} onMotivo={setDescontoMotivo} />
-        <FormaPagamentoPicker formas={formas} valor={formaId} onChange={setFormaId} />
+        <FormaPagamentoPicker formas={formas} valor={formaId} onChange={setFormaId} legenda="Pagamento previsto (confere ao finalizar)" />
         {ehDinheiro ? (
           <div className="flex items-end gap-3">
             <PdvField label="Troco para" inputMode="decimal" placeholder="0,00" value={trocoPara} onChange={(e) => setTrocoPara(e.target.value)} error={erroTroco} className="flex-1" />
@@ -297,7 +297,7 @@ export function NovaVenda({
           ) : null}
 
           <PdvButton variant="primary" size="lg" onClick={cobrar} disabled={!podeCobrar} loading={enviando}>
-            Cobrar {brl(total)}
+            Lançar pedido {brl(total)}
           </PdvButton>
         </div>
       </aside>

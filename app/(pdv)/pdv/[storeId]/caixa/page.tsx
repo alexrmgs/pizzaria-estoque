@@ -60,10 +60,12 @@ export default async function CaixaPage({
     );
   }
 
-  const [{ linhas }, movimentos, vendas] = await Promise.all([
+  const [{ linhas }, movimentos, recebido, abertos] = await Promise.all([
     esperadoDoCaixa(caixa.id),
     prisma.pdvCaixaMovimento.findMany({ where: { caixaId: caixa.id }, orderBy: { createdAt: "desc" } }),
-    prisma.pdvVenda.aggregate({ where: { caixaId: caixa.id, situacao: { not: "CANCELADA" } }, _count: true, _sum: { total: true } }),
+    // só entra o que foi finalizado nesse caixa
+    prisma.pdvPagamento.aggregate({ where: { caixaId: caixa.id, estornadoEm: null, venda: { situacao: { not: "CANCELADA" } } }, _sum: { valor: true } }),
+    prisma.pdvVenda.count({ where: { caixaId: caixa.id, situacao: "ABERTA" } }),
   ]);
 
   return (
@@ -73,7 +75,7 @@ export default async function CaixaPage({
           {[
             { label: "Aberto às", valor: horaFortaleza(caixa.abertoEm) },
             { label: "Troco inicial", valor: brl(Number(caixa.valorInicial)) },
-            { label: `${vendas._count} vendas`, valor: brl(Number(vendas._sum.total ?? 0)) },
+            { label: "Recebido", valor: brl(Number(recebido._sum.valor ?? 0)) },
           ].map((k) => (
             <div key={k.label} className="rounded-pdv-md bg-pdv-surface p-3">
               <p className="text-xs text-pdv-muted uppercase">{k.label}</p>
@@ -81,6 +83,13 @@ export default async function CaixaPage({
             </div>
           ))}
         </section>
+
+        {abertos > 0 ? (
+          <p role="status" className="rounded-pdv-md border border-pdv-warning p-3 text-sm">
+            <strong className="text-pdv-warning">{abertos} pedido{abertos === 1 ? "" : "s"} lançado{abertos === 1 ? "" : "s"} por você ainda sem finalizar.</strong>{" "}
+            O pagamento deles só entra no caixa de quem finalizar.
+          </p>
+        ) : null}
 
         <section className="flex flex-col gap-3" aria-labelledby="mov-h">
           <h2 id="mov-h" className="font-pdv-display text-sm font-extrabold tracking-wider text-pdv-accent uppercase">

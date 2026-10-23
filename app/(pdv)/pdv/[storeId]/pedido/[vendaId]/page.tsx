@@ -7,11 +7,19 @@ import { etapasDoPedido, horaFortaleza, requirePdv } from "@/lib/pdv";
 import { brl, ModuloTag, type Modulo } from "@/components/pdv/primitives";
 import { AtualizaSozinho } from "@/components/pdv/atualiza-sozinho";
 import { PedidoAcoes } from "./acoes";
+import { FinalizarPainel } from "./finalizar";
 
-const EVENTO: Record<string, string> = { CRIADA: "Pedido lançado", STATUS: "Mudou pra", PAGA: "Pago", CANCELADA: "Cancelado" };
+const EVENTO: Record<string, string> = { CRIADA: "Pedido lançado", STATUS: "Mudou pra", PAGA: "Finalizado (pagamento conferido)", CANCELADA: "Cancelado" };
 
-export default async function PedidoPage({ params }: { params: Promise<{ storeId: string; vendaId: string }> }) {
+export default async function PedidoPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ storeId: string; vendaId: string }>;
+  searchParams: Promise<{ finalizar?: string }>;
+}) {
   const { storeId, vendaId } = await params;
+  const { finalizar } = await searchParams;
   const { user, store } = await requirePdv(storeId);
 
   const venda = await prisma.pdvVenda.findFirst({
@@ -27,10 +35,12 @@ export default async function PedidoPage({ params }: { params: Promise<{ storeId
   });
   if (!venda) notFound();
 
-  const [statusLoja, role] = await Promise.all([
+  const [statusLoja, role, formas] = await Promise.all([
     prisma.pdvStatus.findMany({ where: { storeId: store!.id }, orderBy: { ordem: "asc" }, select: { id: true, nome: true, cor: true } }),
     prisma.role.findUnique({ where: { id: user.role.id }, select: { canGerenciarPdv: true } }),
+    prisma.pdvFormaPagamento.findMany({ where: { companyId: store!.companyId, ativo: true }, orderBy: { ordem: "asc" } }),
   ]);
+  const finalizada = venda.situacao === "PAGA";
   const idx = statusLoja.findIndex((s) => s.id === venda.statusId);
   const cancelada = venda.situacao === "CANCELADA";
   const n = (v: unknown) => Number(v);
@@ -102,6 +112,22 @@ export default async function PedidoPage({ params }: { params: Promise<{ storeId
         })}
       </ol>
 
+      {venda.situacao === "ABERTA" ? (
+        <FinalizarPainel
+          storeId={store!.id}
+          vendaId={venda.id}
+          total={n(venda.total)}
+          formas={formas.map((f) => ({ id: f.id, nome: f.nome, tipo: f.tipo as "DINHEIRO" }))}
+          previstos={venda.pagamentos.map((p) => ({ formaId: p.formaId, valor: n(p.valor), trocoPara: p.trocoPara != null ? n(p.trocoPara) : null }))}
+          aberto={finalizar === "1"}
+        />
+      ) : null}
+      {finalizada && venda.fechadaEm ? (
+        <p className="rounded-pdv-md border border-pdv-success p-3 text-sm">
+          <strong className="text-pdv-success">Finalizado às {horaFortaleza(venda.fechadaEm)}</strong> — pagamento conferido e lançado no caixa.
+        </p>
+      ) : null}
+
       {cancelada && venda.cancelMotivo ? (
         <p className="rounded-pdv-md border border-pdv-danger p-3 text-sm">
           <strong className="text-pdv-danger">Motivo do cancelamento:</strong> {venda.cancelMotivo}
@@ -156,7 +182,9 @@ export default async function PedidoPage({ params }: { params: Promise<{ storeId
           </section>
 
           <section aria-labelledby="pag-h" className="flex flex-col gap-2 rounded-pdv-lg bg-pdv-surface p-4">
-            <h2 id="pag-h" className="font-pdv-display text-sm font-extrabold tracking-wider text-pdv-accent uppercase">Pagamento</h2>
+            <h2 id="pag-h" className="font-pdv-display text-sm font-extrabold tracking-wider text-pdv-accent uppercase">
+              {venda.situacao === "ABERTA" ? "Pagamento previsto" : "Pagamento"}
+            </h2>
             {venda.pagamentos.length === 0 ? <p className="text-sm text-pdv-muted">Sem pagamento lançado</p> : null}
             {venda.pagamentos.map((p) => (
               <div key={p.id} className="flex justify-between">

@@ -25,14 +25,19 @@ export function FormaPagamentoPicker({
   formas,
   valor,
   onChange,
+  legenda = "Forma de pagamento",
+  nome = "forma",
 }: {
   formas: Forma[];
   valor: string | null;
   onChange: (id: string) => void;
+  legenda?: string;
+  /** name do grupo de radios — precisa ser diferente quando há mais de um picker na tela */
+  nome?: string;
 }) {
   return (
     <fieldset className="grid grid-cols-2 gap-2">
-      <legend className="mb-2 text-xs font-semibold tracking-wide text-pdv-muted uppercase">Forma de pagamento</legend>
+      <legend className="mb-2 text-xs font-semibold tracking-wide text-pdv-muted uppercase">{legenda}</legend>
       {formas.map((f) => {
         const Icon = ICONE_FORMA[f.tipo];
         const ativo = valor === f.id;
@@ -44,7 +49,7 @@ export function FormaPagamentoPicker({
               ativo ? "border-pdv-accent bg-pdv-accent text-pdv-on-accent" : "border-pdv-line bg-pdv-surface hover:border-pdv-line-input"
             )}
           >
-            <input type="radio" name="forma" value={f.id} checked={ativo} onChange={() => onChange(f.id)} className="sr-only" />
+            <input type="radio" name={nome} value={f.id} checked={ativo} onChange={() => onChange(f.id)} className="sr-only" />
             <Icon className="size-5" aria-hidden />
             {f.nome}
           </label>

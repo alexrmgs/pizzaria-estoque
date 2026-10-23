@@ -93,6 +93,7 @@ export default async function CupomPage({
             <p className="flex justify-between"><span>Desconto</span><span>-{brl(venda.desconto)}</span></p>
           ) : null}
           <p className="flex justify-between text-[15px] font-bold"><span>TOTAL</span><span>R$ {brl(venda.total)}</span></p>
+          {venda.situacao === "ABERTA" ? <p className="mt-1 font-bold">A RECEBER:</p> : null}
           {venda.pagamentos.map((p) => (
             <p key={p.id} className="flex justify-between">
               <span>{p.forma.nome}</span>

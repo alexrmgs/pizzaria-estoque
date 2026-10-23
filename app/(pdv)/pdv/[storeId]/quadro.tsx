@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Phone, Store } from "lucide-react";
+import { CheckCheck, ChevronLeft, ChevronRight, Phone, Store } from "lucide-react";
 import { toast } from "sonner";
 
 import { PedidoCard, StatusColuna, type PedidoResumo } from "@/components/pdv/cards";
@@ -17,6 +17,7 @@ export type ColunaQuadro = {
   cor: string;
   primeira: boolean;
   ultima: boolean;
+  finaliza: boolean;
   pedidos: (PedidoResumo & { id: string })[];
 };
 
@@ -100,6 +101,11 @@ export function QuadroPedidos({ storeId, colunas }: { storeId: string; colunas: 
                   {!c.ultima ? (
                     <PdvButton size="sm" className="flex-1" onClick={() => mover(p.id, 1)} disabled={pendente}>
                       Avançar <ChevronRight />
+                    </PdvButton>
+                  ) : null}
+                  {c.finaliza ? (
+                    <PdvButton size="sm" variant="primary" className="flex-1" onClick={() => router.push(`/pdv/${storeId}/pedido/${p.id}?finalizar=1`)}>
+                      <CheckCheck /> Finalizar
                     </PdvButton>
                   ) : null}
                 </div>

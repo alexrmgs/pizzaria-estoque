@@ -128,7 +128,7 @@ export async function buscarCliente(storeId: string, telefone: string): Promise<
 }
 
 /**
- * Venda de balcão já paga. O servidor recalcula tudo a partir do cardápio —
+ * Lança o pedido (balcão ou delivery) com a forma de pagamento prevista. O servidor recalcula tudo a partir do cardápio —
  * preço vindo da tela é ignorado. Repetir o mesmo clientRequestId devolve a
  * venda já criada (clique duplo / rede lenta).
  */
@@ -240,8 +240,8 @@ export async function criarVenda(storeId: string, input: NovaVendaInput): Promis
           acrescimo: fromCents(acrescimo),
           acrescimoMotivo: acrescimo > 0 ? v.acrescimoMotivo : null,
           total: fromCents(total),
-          situacao: "PAGA",
-          fechadaEm: new Date(),
+          // pagamento aqui é só o previsto: entra no caixa ao finalizar o pedido
+          situacao: "ABERTA",
           clientRequestId: v.clientRequestId,
           createdById: user.id,
           itens: {
@@ -259,7 +259,7 @@ export async function criarVenda(storeId: string, input: NovaVendaInput): Promis
           pagamentos: {
             create: v.pagamentos.map((pg) => ({
               formaId: pg.formaId,
-              caixaId: caixa.id,
+              caixaId: null,
               valor: fromCents(toCents(pg.valor)),
               trocoPara: pg.trocoPara != null ? fromCents(toCents(pg.trocoPara)) : null,
               userId: user.id,
@@ -301,6 +301,69 @@ export async function moverStatus(storeId: string, vendaId: string, sentido: 1 |
   if (count === 0) return { ok: false, error: "Outra tela já moveu esse pedido" };
   await prisma.pdvStatusHistorico.create({ data: { vendaId: venda.id, statusId: destino.id, evento: "STATUS", userId: user.id } });
   revalidatePath(`/pdv/${store!.id}`);
+  return { ok: true };
+}
+
+const pagamentosSchema = z
+  .array(z.object({ formaId: z.string(), valor: z.number().positive(), trocoPara: z.number().positive().optional() }))
+  .min(1, "Falta o pagamento");
+
+/**
+ * Finaliza o pedido: confere a forma de pagamento (pode trocar/dividir) e só
+ * então o valor entra no caixa de quem finalizou. O pedido sai do quadro.
+ */
+export async function finalizarVenda(
+  storeId: string,
+  vendaId: string,
+  pagamentos: z.input<typeof pagamentosSchema>
+): Promise<Resultado> {
+  const { user, store } = await requirePdv(storeId);
+  const parsed = pagamentosSchema.safeParse(pagamentos);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Pagamento inválido" };
+  const caixa = await caixaAberto(store!.id, user.id);
+  if (!caixa) return { ok: false, error: "Abra o seu caixa pra finalizar" };
+
+  const venda = await prisma.pdvVenda.findFirst({ where: { id: vendaId, storeId: store!.id } });
+  if (!venda) return { ok: false, error: "Pedido não encontrado" };
+  if (venda.situacao !== "ABERTA") return { ok: false, error: venda.situacao === "CANCELADA" ? "Pedido cancelado" : "Pedido já finalizado" };
+
+  const formas = await prisma.pdvFormaPagamento.findMany({ where: { companyId: store!.companyId, ativo: true } });
+  const formaPorId = new Map(formas.map((f) => [f.id, f]));
+  let pago = 0;
+  for (const pg of parsed.data) {
+    const f = formaPorId.get(pg.formaId);
+    if (!f) return { ok: false, error: "Forma de pagamento inválida" };
+    if (pg.trocoPara != null && (f.tipo !== "DINHEIRO" || toCents(pg.trocoPara) < toCents(pg.valor))) {
+      return { ok: false, error: "Troco só em dinheiro, e maior que o valor" };
+    }
+    pago += toCents(pg.valor);
+  }
+  const total = toCents(Number(venda.total));
+  if (pago !== total) return { ok: false, error: `Pagamentos somam ${(pago / 100).toFixed(2)}, pedido é ${(total / 100).toFixed(2)}` };
+
+  const ok = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.pdvVenda.updateMany({
+      where: { id: venda.id, situacao: "ABERTA" },
+      data: { situacao: "PAGA", fechadaEm: new Date() },
+    });
+    if (count === 0) return false;
+    // troca o previsto pelo conferido
+    await tx.pdvPagamento.deleteMany({ where: { vendaId: venda.id, caixaId: null } });
+    await tx.pdvPagamento.createMany({
+      data: parsed.data.map((pg) => ({
+        vendaId: venda.id,
+        formaId: pg.formaId,
+        caixaId: caixa.id,
+        valor: fromCents(toCents(pg.valor)),
+        trocoPara: pg.trocoPara != null ? fromCents(toCents(pg.trocoPara)) : null,
+        userId: user.id,
+      })),
+    });
+    await tx.pdvStatusHistorico.create({ data: { vendaId: venda.id, evento: "PAGA", userId: user.id } });
+    return true;
+  });
+  if (!ok) return { ok: false, error: "Outra tela já finalizou esse pedido" };
+  revalidatePath(`/pdv/${store!.id}`, "layout");
   return { ok: true };
 }
 

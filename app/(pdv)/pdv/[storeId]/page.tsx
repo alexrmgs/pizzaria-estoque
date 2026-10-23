@@ -13,7 +13,8 @@ export default async function QuadroPage({ params }: { params: Promise<{ storeId
     prisma.pdvVenda.findMany({
       where: {
         storeId: store!.id,
-        situacao: { not: "CANCELADA" },
+        // finalizado (pago e conferido) ou cancelado sai do quadro
+        situacao: "ABERTA",
         // hoje inteiro + o que sobrou de ontem sem ser entregue
         OR: [{ dia: hoje }, { dia: ontem, status: { tag: { notIn: ["ENTREGUE", "FINALIZADO"] } } }],
       },
@@ -27,6 +28,8 @@ export default async function QuadroPage({ params }: { params: Promise<{ storeId
     nome: s.nome,
     cor: s.cor,
     primeira: i === 0,
+    // finalizar aparece a partir de "Pronto" (balcão entrega no Pronto)
+    finaliza: i === status.length - 1 || s.tag === "PRONTO" || s.tag === "ENTREGUE",
     ultima: i === status.length - 1,
     pedidos: vendas
       .filter((v) => v.statusId === s.id)
