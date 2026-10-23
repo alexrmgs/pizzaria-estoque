@@ -10,6 +10,14 @@ import { cn } from "@/lib/utils";
 export const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+/** "1.234,56" / "1234.56" / "12" → número (vazio ou inválido → 0). */
+export function parseValor(s: string): number {
+  const t = s.trim();
+  if (!t) return 0;
+  const n = Number(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t);
+  return Number.isFinite(n) ? n : 0;
+}
+
 const pdvButtonVariants = cva(
   "inline-flex shrink-0 items-center justify-center gap-2 rounded-pdv-md font-semibold whitespace-nowrap transition-colors duration-100 outline-none select-none focus-visible:ring-3 focus-visible:ring-pdv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pdv-bg active:translate-y-px disabled:pointer-events-none disabled:opacity-40 data-[loading]:cursor-wait [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {

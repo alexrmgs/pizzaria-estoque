@@ -48,6 +48,11 @@ model Role {
   canPrintProducao      Boolean  @default(false)
   // Telas avulsas liberadas sem o grupo inteiro (ver lib/paginas-avulsas.ts).
   paginas               String[] @default([])
+  // PDV: operar = lançar venda, mover status, caixa próprio; gerenciar =
+  // cardápio, status, cancelar, conferir caixa de outro. Lidas direto do
+  // banco (requirePdv), não da sessão — não precisa relogar ao liberar.
+  canOperarPdv          Boolean  @default(false)
+  canGerenciarPdv       Boolean  @default(false)
   createdAt             DateTime @default(now())
 
   users User[]
@@ -78,6 +83,13 @@ model User {
   variableCostRates        VariableCostRate[]
   stockLabelsCreated       StockLabel[]              @relation("StockLabelCreatedBy")
   stockLabelsConsumed      StockLabel[]              @relation("StockLabelConsumedBy")
+  pdvCaixasAbertos         PdvCaixa[]                @relation("PdvCaixaAbertoPor")
+  pdvCaixasFechados        PdvCaixa[]                @relation("PdvCaixaFechadoPor")
+  pdvCaixaMovimentos       PdvCaixaMovimento[]
+  pdvVendas                PdvVenda[]
+  pdvVendaItens            PdvVendaItem[]
+  pdvPagamentos            PdvPagamento[]
+  pdvStatusHistorico       PdvStatusHistorico[]
 
   @@index([roleId])
   @@index([companyId])
@@ -96,6 +108,10 @@ model Company {
   users    User[]
   roles    Role[]
   settings AppSettings?
+
+  pdvCategorias      PdvCategoria[]
+  pdvProdutos        PdvProduto[]
+  pdvFormasPagamento PdvFormaPagamento[]
 }
 
 /**
@@ -375,6 +391,7 @@ model Recipe {
   createdAt    DateTime   @default(now())
 
   ingredients RecipeIngredient[]
+  pdvProdutos PdvProduto[]
 
   @@index([type])
 }
@@ -419,6 +436,10 @@ model Store {
   revenues          Revenue[]
   fixedCosts        FixedCost[]
   variableCostRates VariableCostRate[]
+  pdvStatus         PdvStatus[]
+  pdvContadores     PdvContador[]
+  pdvCaixas         PdvCaixa[]
+  pdvVendas         PdvVenda[]
 
   @@index([companyId])
 }
@@ -446,22 +467,22 @@ enum NotaStatus {
 // digitada. Fica em CONFERINDO até o usuário conferir/casar os itens e lançar
 // a entrada no estoque (vira LANCADA). Se for boleto, gera uma conta a pagar.
 model NotaFiscal {
-  id         String           @id @default(cuid())
-  numero     String?
-  fornecedor String?
-  chave      String?
-  emissao    DateTime?        @db.Date
-  total      Decimal          @default(0) @db.Decimal(10, 2)
-  status     NotaStatus       @default(CONFERINDO)
-  boleto     Boolean          @default(false)
-  vencimento DateTime?        @db.Date
-  jaPago     Boolean          @default(false)
+  id             String           @id @default(cuid())
+  numero         String?
+  fornecedor     String?
+  chave          String?
+  emissao        DateTime?        @db.Date
+  total          Decimal          @default(0) @db.Decimal(10, 2)
+  status         NotaStatus       @default(CONFERINDO)
+  boleto         Boolean          @default(false)
+  vencimento     DateTime?        @db.Date
+  jaPago         Boolean          @default(false)
   formaPagamento String?
-  payableId  String?
-  userId     String?
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
-  items      NotaFiscalItem[]
+  payableId      String?
+  userId         String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  items          NotaFiscalItem[]
 }
 
 model NotaFiscalItem {
@@ -483,20 +504,20 @@ model NotaFiscalItem {
 // Conta a pagar / despesa do financeiro (aluguel, fornecedor, imposto...).
 // Quando paga, guarda a data do pagamento pra entrar no fluxo de caixa.
 model Payable {
-  id          String        @id @default(cuid())
-  companyId   String
-  description String
-  category    String
-  amount      Decimal       @db.Decimal(10, 2)
-  dueDate     DateTime      @db.Date
-  status      PayableStatus @default(PENDENTE)
-  paidDate    DateTime?     @db.Date
+  id            String        @id @default(cuid())
+  companyId     String
+  description   String
+  category      String
+  amount        Decimal       @db.Decimal(10, 2)
+  dueDate       DateTime      @db.Date
+  status        PayableStatus @default(PENDENTE)
+  paidDate      DateTime?     @db.Date
   paymentMethod String?
-  storeId     String?
-  note        String?
-  userId      String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  storeId       String?
+  note          String?
+  userId        String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   @@index([status, dueDate])
   @@index([companyId])
@@ -514,25 +535,25 @@ model BankConnection {
 }
 
 model Employee {
-  id             String    @id @default(cuid())
-  name           String
-  role           String?
-  phone          String?
-  baseSalary     Decimal   @default(0) @db.Decimal(10, 2)
-  dependents     Int       @default(0)
-  hireDate       DateTime? @db.Date
-  scheduledStart String?
-  scheduledEnd   String?
-  weeklyDayOff   Int?
-  active         Boolean   @default(true)
-  carteiraAssinada Boolean @default(true)
-  faceDescriptor Json?
-  userId         String?   @unique
-  user           User?     @relation(fields: [userId], references: [id])
-  storeId        String?
-  store          Store?    @relation(fields: [storeId], references: [id])
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  name             String
+  role             String?
+  phone            String?
+  baseSalary       Decimal   @default(0) @db.Decimal(10, 2)
+  dependents       Int       @default(0)
+  hireDate         DateTime? @db.Date
+  scheduledStart   String?
+  scheduledEnd     String?
+  weeklyDayOff     Int?
+  active           Boolean   @default(true)
+  carteiraAssinada Boolean   @default(true)
+  faceDescriptor   Json?
+  userId           String?   @unique
+  user             User?     @relation(fields: [userId], references: [id])
+  storeId          String?
+  store            Store?    @relation(fields: [storeId], references: [id])
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   timeEntries          TimeEntry[]
   advances             Advance[]
@@ -562,35 +583,35 @@ enum AvisoPrevioTipo {
 // Cálculo de rescisão trabalhista (CLT) guardado como registro auditável de
 // quando/como um funcionário foi desligado, além do próprio valor pago.
 model Termination {
-  id                       String             @id @default(cuid())
+  id                       String            @id @default(cuid())
   companyId                String
-  employee                 Employee           @relation(fields: [employeeId], references: [id])
+  employee                 Employee          @relation(fields: [employeeId], references: [id])
   employeeId               String
-  dismissalDate            DateTime           @db.Date
+  dismissalDate            DateTime          @db.Date
   reason                   TerminationReason
   avisoPrevio              AvisoPrevioTipo?
-  lastVacationDate         DateTime           @db.Date
-  baseSalary               Decimal            @db.Decimal(10, 2)
-  avisoPrevioDays          Int                @default(0)
-  projectedEndDate         DateTime           @db.Date
-  saldoSalario             Decimal            @db.Decimal(10, 2)
-  avisoIndenizadoValor     Decimal            @db.Decimal(10, 2)
-  feriasVencidas           Decimal            @db.Decimal(10, 2)
-  feriasProporcionais      Decimal            @db.Decimal(10, 2)
-  decimoTerceiro           Decimal            @db.Decimal(10, 2)
-  inssDeduzido             Decimal            @db.Decimal(10, 2)
-  irrfDeduzido             Decimal            @db.Decimal(10, 2)
-  adiantamentosDeduzidos   Decimal            @db.Decimal(10, 2)
-  descontoAvisoNaoCumprido Decimal            @db.Decimal(10, 2)
-  totalLiquido             Decimal            @db.Decimal(10, 2)
-  fgtsBalanceInformado     Decimal            @default(0) @db.Decimal(10, 2)
-  multaFgts                Decimal            @db.Decimal(10, 2)
-  jaPago                   Boolean            @default(false)
+  lastVacationDate         DateTime          @db.Date
+  baseSalary               Decimal           @db.Decimal(10, 2)
+  avisoPrevioDays          Int               @default(0)
+  projectedEndDate         DateTime          @db.Date
+  saldoSalario             Decimal           @db.Decimal(10, 2)
+  avisoIndenizadoValor     Decimal           @db.Decimal(10, 2)
+  feriasVencidas           Decimal           @db.Decimal(10, 2)
+  feriasProporcionais      Decimal           @db.Decimal(10, 2)
+  decimoTerceiro           Decimal           @db.Decimal(10, 2)
+  inssDeduzido             Decimal           @db.Decimal(10, 2)
+  irrfDeduzido             Decimal           @db.Decimal(10, 2)
+  adiantamentosDeduzidos   Decimal           @db.Decimal(10, 2)
+  descontoAvisoNaoCumprido Decimal           @db.Decimal(10, 2)
+  totalLiquido             Decimal           @db.Decimal(10, 2)
+  fgtsBalanceInformado     Decimal           @default(0) @db.Decimal(10, 2)
+  multaFgts                Decimal           @db.Decimal(10, 2)
+  jaPago                   Boolean           @default(false)
   formaPagamento           String?
   payableId                String?
   note                     String?
   userId                   String?
-  createdAt                DateTime           @default(now())
+  createdAt                DateTime          @default(now())
 
   advances    Advance[]
   adjustments PayrollAdjustment[]
@@ -687,41 +708,41 @@ enum AdvanceKind {
 }
 
 model PayrollAdjustment {
-  id          String         @id @default(cuid())
-  employee    Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  employeeId  String
-  type        AdjustmentType
-  date        DateTime       @db.Date
-  amount      Decimal        @db.Decimal(10, 2)
-  description String?
+  id            String         @id @default(cuid())
+  employee      Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId    String
+  type          AdjustmentType
+  date          DateTime       @db.Date
+  amount        Decimal        @db.Decimal(10, 2)
+  description   String?
   paymentId     String?
   payment       Payment?       @relation(fields: [paymentId], references: [id])
   terminationId String?
   termination   Termination?   @relation(fields: [terminationId], references: [id])
-  paidAt      DateTime?
-  payableId   String?
-  createdAt   DateTime       @default(now())
+  paidAt        DateTime?
+  payableId     String?
+  createdAt     DateTime       @default(now())
 
   @@index([employeeId])
   @@index([date])
 }
 
 model Advance {
-  id          String   @id @default(cuid())
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  employeeId  String
-  date        DateTime @db.Date
-  amount      Decimal  @db.Decimal(10, 2)
-  description String?
+  id            String       @id @default(cuid())
+  employee      Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId    String
+  date          DateTime     @db.Date
+  amount        Decimal      @db.Decimal(10, 2)
+  description   String?
   kind          AdvanceKind  @default(VALE)
   paymentId     String?
   payment       Payment?     @relation(fields: [paymentId], references: [id])
   terminationId String?
   termination   Termination? @relation(fields: [terminationId], references: [id])
-  payableId   String?
-  createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id])
-  userId      String
+  payableId     String?
+  createdAt     DateTime     @default(now())
+  user          User         @relation(fields: [userId], references: [id])
+  userId        String
 
   @@index([employeeId])
   @@index([date])
@@ -832,4 +853,258 @@ model CoinMovement {
   createdAt DateTime      @default(now())
 
   @@index([companyId, date])
+}
+
+// ───────────── PDV (substituto do SaiPos) ─────────────
+// Plano completo em replica/architecture.md. Dinheiro em Decimal(10,2), como
+// o resto do app; o servidor sempre recalcula totais a partir dos itens.
+
+// Cardápio do PDV — por empresa. Produto pode apontar pra uma Recipe (ficha
+// técnica) pra baixar estoque na venda.
+model PdvCategoria {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  nome      String
+  ordem     Int      @default(0)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  produtos PdvProduto[]
+
+  @@unique([companyId, nome])
+}
+
+model PdvProduto {
+  id           String       @id @default(cuid())
+  companyId    String
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  categoriaId  String
+  categoria    PdvCategoria @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
+  nome         String
+  preco        Decimal      @db.Decimal(10, 2)
+  recipeId     String?
+  recipe       Recipe?      @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  // >1 = aceita meio a meio (até N sabores)
+  maxSabores   Int          @default(1)
+  cobraServico Boolean      @default(true)
+  codigo       String?
+  ordem        Int          @default(0)
+  ativo        Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  itens PdvVendaItem[]
+
+  @@index([companyId, categoriaId, ordem])
+  @@index([categoriaId])
+  @@index([recipeId])
+}
+
+model PdvFormaPagamento {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  nome      String
+  // DINHEIRO | CARTAO_CREDITO | CARTAO_DEBITO | PIX | VOUCHER | FIADO | OUTRO
+  tipo      String
+  ativo     Boolean @default(true)
+  ordem     Int     @default(0)
+
+  pagamentos   PdvPagamento[]
+  conferencias PdvCaixaConferencia[]
+
+  @@unique([companyId, nome])
+}
+
+// Colunas do quadro de pedidos, por loja. A tag diz o que o status significa
+// pro sistema (PRODUCAO aparece na cozinha, ENTREGUE/FINALIZADO fecham).
+model PdvStatus {
+  id      String  @id @default(cuid())
+  storeId String
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  nome    String
+  ordem   Int
+  cor     String  @default("#64748b")
+  // PRODUCAO | PRONTO | EM_ENTREGA | ENTREGUE | FINALIZADO
+  tag     String?
+
+  vendas    PdvVenda[]
+  historico PdvStatusHistorico[]
+
+  @@index([storeId, ordem])
+}
+
+// Número do pedido por loja por dia operacional — incrementado com UPDATE
+// atômico, nunca max()+1 (dois caixas ao mesmo tempo repetiriam o número).
+model PdvContador {
+  storeId String
+  store   Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  dia     DateTime @db.Date
+  ultimo  Int      @default(0)
+
+  @@id([storeId, dia])
+}
+
+model PdvCaixa {
+  id           String    @id @default(cuid())
+  storeId      String
+  store        Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  abertoPorId  String
+  abertoPor    User      @relation("PdvCaixaAbertoPor", fields: [abertoPorId], references: [id], onDelete: Restrict)
+  valorInicial Decimal   @default(0) @db.Decimal(10, 2)
+  abertoEm     DateTime  @default(now())
+  fechadoEm    DateTime?
+  fechadoPorId String?
+  fechadoPor   User?     @relation("PdvCaixaFechadoPor", fields: [fechadoPorId], references: [id], onDelete: Restrict)
+  cego         Boolean   @default(false)
+  obs          String?
+
+  movimentos   PdvCaixaMovimento[]
+  conferencias PdvCaixaConferencia[]
+  pagamentos   PdvPagamento[]
+  vendas       PdvVenda[]
+
+  @@index([storeId, abertoEm])
+  @@index([abertoPorId])
+  @@index([fechadoPorId])
+}
+
+model PdvCaixaMovimento {
+  id        String   @id @default(cuid())
+  caixaId   String
+  caixa     PdvCaixa @relation(fields: [caixaId], references: [id], onDelete: Cascade)
+  // REFORCO | SANGRIA | DESPESA
+  tipo      String
+  valor     Decimal  @db.Decimal(10, 2)
+  motivo    String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+
+  @@index([caixaId])
+  @@index([userId])
+}
+
+model PdvCaixaConferencia {
+  caixaId  String
+  caixa    PdvCaixa          @relation(fields: [caixaId], references: [id], onDelete: Cascade)
+  formaId  String
+  forma    PdvFormaPagamento @relation(fields: [formaId], references: [id], onDelete: Restrict)
+  esperado Decimal           @db.Decimal(10, 2)
+  contado  Decimal           @db.Decimal(10, 2)
+
+  @@id([caixaId, formaId])
+  @@index([formaId])
+}
+
+// Uma venda = um pedido (delivery/balcão/ficha) ou uma comanda de salão.
+model PdvVenda {
+  id              String     @id @default(cuid())
+  storeId         String
+  store           Store      @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  numero          Int
+  // dia operacional (corte às 05:00 de Fortaleza — ver lib/pdv.ts)
+  dia             DateTime   @db.Date
+  // DELIVERY | BALCAO | SALAO | FICHA
+  modulo          String
+  canal           String     @default("LOJA_PROPRIA")
+  clienteNome     String?
+  statusId        String?
+  status          PdvStatus? @relation(fields: [statusId], references: [id], onDelete: Restrict)
+  caixaId         String?
+  caixa           PdvCaixa?  @relation(fields: [caixaId], references: [id], onDelete: Restrict)
+  subtotal        Decimal    @default(0) @db.Decimal(10, 2)
+  acrescimo       Decimal    @default(0) @db.Decimal(10, 2)
+  acrescimoMotivo String?
+  desconto        Decimal    @default(0) @db.Decimal(10, 2)
+  descontoMotivo  String?
+  total           Decimal    @default(0) @db.Decimal(10, 2)
+  obs             String?
+  // ABERTA | PAGA | CANCELADA
+  situacao        String     @default("ABERTA")
+  canceladaEm     DateTime?
+  cancelMotivo    String?
+  // gerado na tela: clique duplo no "Fechar pedido" não cria duas vendas
+  clientRequestId String     @unique
+  createdById     String
+  createdBy       User       @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  fechadaEm       DateTime?
+
+  itens      PdvVendaItem[]
+  pagamentos PdvPagamento[]
+  historico  PdvStatusHistorico[]
+
+  @@unique([storeId, dia, numero])
+  @@index([storeId, situacao, updatedAt])
+  @@index([storeId, dia])
+  @@index([statusId])
+  @@index([caixaId])
+  @@index([createdById])
+}
+
+model PdvVendaItem {
+  id               String     @id @default(cuid())
+  vendaId          String
+  venda            PdvVenda   @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  produtoId        String
+  produto          PdvProduto @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  // nome e preço fotografados — o cardápio pode mudar sem mexer em venda antiga
+  nome             String
+  qtd              Decimal    @db.Decimal(10, 3)
+  precoUnit        Decimal    @db.Decimal(10, 2)
+  total            Decimal    @db.Decimal(10, 2)
+  obs              String?
+  cobraServico     Boolean    @default(true)
+  adicionadoDepois Boolean    @default(false)
+  canceladoEm      DateTime?
+  cancelMotivo     String?
+  userId           String
+  user             User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt        DateTime   @default(now())
+
+  @@index([vendaId])
+  @@index([produtoId])
+  @@index([userId])
+}
+
+model PdvPagamento {
+  id          String            @id @default(cuid())
+  vendaId     String
+  venda       PdvVenda          @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  formaId     String
+  forma       PdvFormaPagamento @relation(fields: [formaId], references: [id], onDelete: Restrict)
+  caixaId     String?
+  caixa       PdvCaixa?         @relation(fields: [caixaId], references: [id], onDelete: Restrict)
+  valor       Decimal           @db.Decimal(10, 2)
+  trocoPara   Decimal?          @db.Decimal(10, 2)
+  estornadoEm DateTime?
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt   DateTime          @default(now())
+
+  @@index([vendaId])
+  @@index([caixaId, formaId])
+  @@index([formaId])
+  @@index([userId])
+}
+
+model PdvStatusHistorico {
+  id        String     @id @default(cuid())
+  vendaId   String
+  venda     PdvVenda   @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  statusId  String?
+  status    PdvStatus? @relation(fields: [statusId], references: [id], onDelete: SetNull)
+  // CRIADA | STATUS | PAGA | CANCELADA
+  evento    String
+  userId    String?
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime   @default(now())
+
+  @@index([vendaId, createdAt])
+  @@index([statusId])
+  @@index([userId])
 }

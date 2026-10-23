@@ -1,0 +1,44 @@
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { caixaAberto, requirePdv } from "@/lib/pdv";
+import { NovaVenda } from "./nova-venda";
+
+export default async function NovaVendaPage({ params }: { params: Promise<{ storeId: string }> }) {
+  const { storeId } = await params;
+  const { user, store } = await requirePdv(storeId);
+  const caixa = await caixaAberto(store!.id, user.id);
+
+  if (!caixa) {
+    return (
+      <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="font-pdv-display text-2xl font-extrabold">Seu caixa está fechado</p>
+        <p className="max-w-sm text-pdv-muted">Pra vender, primeiro abra o caixa com o troco do início do turno.</p>
+        <Link
+          href={`/pdv/${store!.id}/caixa`}
+          className="inline-flex h-12 items-center rounded-pdv-md bg-pdv-accent px-5 font-semibold text-pdv-on-accent outline-none focus-visible:ring-3 focus-visible:ring-pdv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pdv-bg"
+        >
+          Abrir caixa
+        </Link>
+      </main>
+    );
+  }
+
+  const [categorias, formas] = await Promise.all([
+    prisma.pdvCategoria.findMany({
+      where: { companyId: store!.companyId, ativo: true },
+      orderBy: { ordem: "asc" },
+      include: { produtos: { where: { ativo: true }, orderBy: [{ ordem: "asc" }, { nome: "asc" }] } },
+    }),
+    prisma.pdvFormaPagamento.findMany({ where: { companyId: store!.companyId, ativo: true }, orderBy: { ordem: "asc" } }),
+  ]);
+
+  return (
+    <NovaVenda
+      storeId={store!.id}
+      categorias={categorias
+        .filter((c) => c.produtos.length > 0)
+        .map((c) => ({ id: c.id, nome: c.nome, produtos: c.produtos.map((p) => ({ id: p.id, nome: p.nome, preco: Number(p.preco) })) }))}
+      formas={formas.map((f) => ({ id: f.id, nome: f.nome, tipo: f.tipo as "DINHEIRO" }))}
+    />
+  );
+}

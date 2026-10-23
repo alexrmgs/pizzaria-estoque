@@ -140,6 +140,9 @@ export function NavLinks({
       )}
       <NavLink href="/meu-ponto" label="Meu Ponto" />
       <NavLink href="/receitas" label="Receitas" />
+      {/* PDV: o acesso real é conferido no banco (Role.canOperarPdv); o link
+          aparece pra quem administra usuários enquanto o PDV está em teste. */}
+      {permissions.canManageUsuarios && <NavLink href="/pdv" label="PDV (frente de caixa)" />}
 
       <NavGroup title="Gestão de Estoque" items={estoqueItems} />
       <NavGroup title="Gestão de RH" items={rhItems} />

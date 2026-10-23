@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Banknote, CreditCard, QrCode, Wallet, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { brl, PdvField } from "@/components/pdv/primitives";
+import { brl, parseValor, PdvField } from "@/components/pdv/primitives";
 
 // Partes de pagamento e caixa do PDV.
 
@@ -109,12 +109,26 @@ export function PagamentosParciais({ total, pagamentos, onRemover }: {
   );
 }
 
-export type LinhaConferencia = { forma: string; esperado: number };
+export type LinhaConferencia = { id?: string; forma: string; esperado: number };
 
 /** Fechamento de caixa: esperado x contado por forma. `cego` esconde o esperado. */
-export function ConferenciaCaixa({ linhas, cego }: { linhas: LinhaConferencia[]; cego?: boolean }) {
+export function ConferenciaCaixa({
+  linhas,
+  cego,
+  onChange,
+}: {
+  linhas: LinhaConferencia[];
+  cego?: boolean;
+  /** valores digitados, por `id` da linha (ou nome da forma, se não tiver id) */
+  onChange?: (valores: Record<string, number>) => void;
+}) {
   const [contado, setContado] = useState<Record<string, string>>({});
-  const num = (s?: string) => Number((s ?? "").replace(/\./g, "").replace(",", ".")) || 0;
+  const num = (s?: string) => parseValor(s ?? "");
+  const atualizar = (chave: string, texto: string) => {
+    const novo = { ...contado, [chave]: texto };
+    setContado(novo);
+    onChange?.(Object.fromEntries(Object.entries(novo).map(([k, v]) => [k, num(v)])));
+  };
   return (
     <table className="w-full border-separate border-spacing-y-1 text-left">
       <thead className="text-xs tracking-wide text-pdv-muted uppercase">
@@ -127,10 +141,11 @@ export function ConferenciaCaixa({ linhas, cego }: { linhas: LinhaConferencia[];
       </thead>
       <tbody>
         {linhas.map((l) => {
-          const dif = Math.round((num(contado[l.forma]) - l.esperado) * 100) / 100;
-          const preenchido = contado[l.forma] != null && contado[l.forma] !== "";
+          const chave = l.id ?? l.forma;
+          const dif = Math.round((num(contado[chave]) - l.esperado) * 100) / 100;
+          const preenchido = contado[chave] != null && contado[chave] !== "";
           return (
-            <tr key={l.forma} className="bg-pdv-surface">
+            <tr key={chave} className="bg-pdv-surface">
               <td className="rounded-l-pdv-sm px-3 py-2 font-semibold">{l.forma}</td>
               {cego ? null : <td className="px-3 text-right font-mono tabular-nums">{brl(l.esperado)}</td>}
               <td className={cn("px-3 py-2 text-right", cego && "rounded-r-pdv-sm")}>
@@ -138,8 +153,8 @@ export function ConferenciaCaixa({ linhas, cego }: { linhas: LinhaConferencia[];
                   aria-label={`Contado em ${l.forma}`}
                   inputMode="decimal"
                   placeholder="0,00"
-                  value={contado[l.forma] ?? ""}
-                  onChange={(e) => setContado((c) => ({ ...c, [l.forma]: e.target.value }))}
+                  value={contado[chave] ?? ""}
+                  onChange={(e) => atualizar(chave, e.target.value)}
                   className="h-11 w-32 rounded-pdv-sm border border-pdv-line-input bg-pdv-bg px-2 text-right font-mono tabular-nums outline-none focus-visible:border-pdv-accent focus-visible:ring-3 focus-visible:ring-pdv-accent/40"
                 />
               </td>

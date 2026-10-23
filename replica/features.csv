@@ -1,27 +1,27 @@
 feature,area,priority,original,clone,notes
 Buscar cliente por telefone ou nome,delivery,must,yes,no,S02
 Cadastrar cliente e vários endereços,delivery,must,yes,no,S03
-Venda de balcão sem cliente,balcao,must,yes,no,F02
-Lançar itens por categoria com busca,venda,must,yes,no,S04
+Venda de balcão sem cliente,balcao,must,yes,yes,F02
+Lançar itens por categoria com busca,venda,must,yes,yes,busca + Enter adiciona
 Opcionais/adicionais com mín e máx,venda,must,yes,no,cardápio já existe no pizzaria-estoque
 Pizza meio a meio,venda,must,yes,no,essencial para pizzaria
-Observação por item,venda,must,yes,no,
+Observação por item,venda,must,yes,yes,
 Taxa de entrega editável,delivery,must,yes,no,S05
-Desconto e acréscimo com motivo,venda,must,yes,no,
-Formas de pagamento + troco para,pagamento,must,yes,no,
+Desconto e acréscimo com motivo,venda,must,yes,partial,só desconto na tela; acréscimo já existe no servidor
+Formas de pagamento + troco para,pagamento,must,yes,yes,
 Vários pagamentos na mesma venda,pagamento,must,yes,no,
-Kanban de pedidos por status,pedidos,must,yes,no,S01
-Status personalizáveis com tags,pedidos,must,yes,no,S16
-Tempo no status atual no card,pedidos,must,yes,no,
+Kanban de pedidos por status,pedidos,must,yes,yes,botões avançar/voltar; atualiza a cada 4s
+Status personalizáveis com tags,pedidos,must,yes,partial,status padrão criados por loja; falta tela de editar
+Tempo no status atual no card,pedidos,must,yes,yes,
 Filtros por nº/cliente/telefone/entregador/canal,pedidos,must,yes,no,
 Editar venda (itens/pagamento/cliente),pedidos,must,yes,no,S06
-Cancelar venda com motivo,pedidos,must,yes,no,
+Cancelar venda com motivo,pedidos,must,yes,partial,"cancela, mas ainda não estorna estoque (baixa de estoque não existe ainda)"
 Vincular entregador ao pedido,delivery,must,yes,no,
 Impressão de comanda por praça (cozinha/bar),impressao,must,yes,no,hard part
-Reimprimir vias,impressao,must,yes,no,
-Abrir caixa com troco inicial,caixa,must,yes,no,S12
-Sangria/retirada e reforço,caixa,must,yes,no,S13
-Fechar caixa esperado x contado por forma,caixa,must,yes,no,S14
+Reimprimir vias,impressao,must,yes,yes,via 80mm pelo navegador
+Abrir caixa com troco inicial,caixa,must,yes,yes,S12
+Sangria/retirada e reforço,caixa,must,yes,yes,+ despesa
+Fechar caixa esperado x contado por forma,caixa,must,yes,yes,diferença exige observação
 Baixa de estoque por ficha técnica ao vender,estoque,must,yes,no,ligar ao pizzaria-estoque
 Mapa de mesas com estados,salao,should,yes,no,S07
 Abrir mesa/comanda; várias comandas por mesa,salao,should,yes,no,
@@ -33,7 +33,7 @@ Fechamento de caixa às cegas,caixa,should,yes,no,
 Bloquear fechamento com mesa aberta,caixa,should,yes,no,
 KDS com filtro por praça,cozinha,should,yes,no,S11
 KDS timer de atraso e destaque de alterações,cozinha,should,yes,no,
-Histórico de status da venda,pedidos,should,yes,no,
+Histórico de status da venda,pedidos,should,yes,partial,gravado; ainda sem tela
 Histórico de pedidos do cliente,delivery,should,yes,no,
 Trocar delivery <-> balcão,pedidos,should,yes,no,
 Agendar pedido,pedidos,should,yes,no,
