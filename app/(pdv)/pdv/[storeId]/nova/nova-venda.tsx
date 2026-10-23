@@ -2,16 +2,16 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Minus, Plus, Search, Trash2 } from "lucide-react";
+import { MapPin, Minus, Phone, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { ProdutoTile } from "@/components/pdv/cards";
 import { FormaPagamentoPicker, ValorComMotivo, type Forma } from "@/components/pdv/payment";
-import { brl, MODULOS, parseValor, PdvButton, PdvField } from "@/components/pdv/primitives";
+import { brl, ModuloTag, parseValor, PdvButton, PdvField } from "@/components/pdv/primitives";
 import { cn } from "@/lib/utils";
 import { imprimirViaEmSegundoPlano } from "@/components/pdv/imprimir";
-import { criarVenda } from "../actions";
-import { ENTREGA_VAZIA, EntregaForm, enderecoEscolhido, type DadosEntrega } from "./entrega";
+import { criarVenda, type ClienteEncontrado } from "../actions";
+import { IdentificarCliente, type Identificacao } from "./entrega";
 
 type Produto = { id: string; nome: string; preco: number };
 type Categoria = { id: string; nome: string; produtos: Produto[] };
@@ -20,7 +20,19 @@ type Linha = { produto: Produto; qtd: number; obs: string };
 const novoId = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 const cents = (v: number) => Math.round(v * 100);
 
-export function NovaVenda({ storeId, categorias, formas }: { storeId: string; categorias: Categoria[]; formas: Forma[] }) {
+export function NovaVenda({
+  storeId,
+  categorias,
+  formas,
+  inicial,
+  balcaoDireto,
+}: {
+  storeId: string;
+  categorias: Categoria[];
+  formas: Forma[];
+  inicial?: { telefone: string; cliente: ClienteEncontrado | null };
+  balcaoDireto?: boolean;
+}) {
   const router = useRouter();
   const [enviando, startTransition] = useTransition();
   const requestId = useRef(novoId());
@@ -28,8 +40,10 @@ export function NovaVenda({ storeId, categorias, formas }: { storeId: string; ca
   const [categoriaId, setCategoriaId] = useState(categorias[0]?.id ?? "");
   const [busca, setBusca] = useState("");
   const [carrinho, setCarrinho] = useState<Linha[]>([]);
-  const [modulo, setModulo] = useState<"BALCAO" | "DELIVERY">("BALCAO");
-  const [entrega, setEntrega] = useState<DadosEntrega>(ENTREGA_VAZIA);
+  // etapa 1: quem é o cliente / onde entregar. null = ainda identificando.
+  const [ident, setIdent] = useState<Identificacao | null>(balcaoDireto ? { modulo: "BALCAO", nome: "", telefone: "" } : null);
+  const [taxa, setTaxa] = useState("");
+  const [obsEntrega, setObsEntrega] = useState("");
   const [cliente, setCliente] = useState("");
   const [desconto, setDesconto] = useState("");
   const [descontoMotivo, setDescontoMotivo] = useState("");
@@ -44,8 +58,9 @@ export function NovaVenda({ storeId, categorias, formas }: { storeId: string; ca
 
   const subtotal = carrinho.reduce((s, l) => s + cents(l.produto.preco) * l.qtd, 0) / 100;
   const descontoNum = parseValor(desconto);
-  const ehDelivery = modulo === "DELIVERY";
-  const taxaNum = ehDelivery ? parseValor(entrega.taxa) : 0;
+  const ehDelivery = ident?.modulo === "DELIVERY";
+  const endereco = ident?.modulo === "DELIVERY" ? ident.cliente.enderecos.find((e) => e.id === ident.enderecoId) : undefined;
+  const taxaNum = ehDelivery ? parseValor(taxa) : 0;
   const total = Math.max(0, Math.round((subtotal + taxaNum - descontoNum) * 100) / 100);
   const forma = formas.find((f) => f.id === formaId);
   const ehDinheiro = forma?.tipo === "DINHEIRO";
@@ -68,29 +83,22 @@ export function NovaVenda({ storeId, categorias, formas }: { storeId: string; ca
   }
 
   const erroTroco = ehDinheiro && trocoPara.trim() !== "" && trocoParaNum < total ? "Menor que o total" : undefined;
-  const faltaEntrega = ehDelivery
-    ? entrega.telefone.replace(/\D/g, "").length < 10
-      ? "Falta o telefone com DDD"
-      : !entrega.nome.trim()
-        ? "Falta o nome do cliente"
-        : !enderecoEscolhido(entrega)
-          ? "Falta o endereço"
-          : null
-    : null;
   const podeCobrar =
-    carrinho.length > 0 && !!formaId && !erroTroco && !faltaEntrega && !(descontoNum > 0 && !descontoMotivo.trim()) && descontoNum <= subtotal + taxaNum;
+    carrinho.length > 0 && !!formaId && !erroTroco && !(descontoNum > 0 && !descontoMotivo.trim()) && descontoNum <= subtotal + taxaNum;
 
   function cobrar() {
-    if (!podeCobrar || !formaId) return;
+    if (!podeCobrar || !formaId || !ident) return;
     startTransition(async () => {
       const r = await criarVenda(storeId, {
         clientRequestId: requestId.current,
-        modulo,
-        clienteNome: (ehDelivery ? entrega.nome : cliente).trim() || undefined,
-        telefone: ehDelivery ? entrega.telefone : undefined,
-        endereco: ehDelivery ? enderecoEscolhido(entrega) : undefined,
+        modulo: ident.modulo,
+        clienteNome: (ident.modulo === "DELIVERY" ? ident.cliente.nome : ident.nome || cliente).trim() || undefined,
+        telefone: ident.modulo === "DELIVERY" ? ident.cliente.telefone : undefined,
+        endereco: endereco
+          ? { id: endereco.id, logradouro: endereco.logradouro, numero: endereco.numero, bairro: endereco.bairro, complemento: endereco.complemento, referencia: endereco.referencia }
+          : undefined,
         taxaEntrega: taxaNum,
-        obsEntrega: ehDelivery ? entrega.obs.trim() || undefined : undefined,
+        obsEntrega: ehDelivery ? obsEntrega.trim() || undefined : undefined,
         itens: carrinho.map((l) => ({ produtoId: l.produto.id, qtd: l.qtd, obs: l.obs.trim() || undefined })),
         desconto: descontoNum,
         descontoMotivo: descontoMotivo.trim() || undefined,
@@ -105,6 +113,22 @@ export function NovaVenda({ storeId, categorias, formas }: { storeId: string; ca
       imprimirViaEmSegundoPlano(r.vendaId);
       router.push(`/pdv/${storeId}`);
     });
+  }
+
+  if (!ident) {
+    return (
+      <IdentificarCliente
+        storeId={storeId}
+        inicial={inicial}
+        onPronto={(id) => {
+          setIdent(id);
+          if (id.modulo === "DELIVERY") {
+            const e = id.cliente.enderecos.find((x) => x.id === id.enderecoId);
+            setTaxa(e && e.taxaEntrega > 0 ? e.taxaEntrega.toFixed(2).replace(".", ",") : "");
+          }
+        }}
+      />
+    );
   }
 
   return (
@@ -167,37 +191,39 @@ export function NovaVenda({ storeId, categorias, formas }: { storeId: string; ca
 
       {/* Pedido + pagamento */}
       <aside aria-label="Pedido" className="flex flex-col gap-4 border-t border-pdv-line bg-pdv-surface/40 p-3 md:p-4 lg:sticky lg:top-16 lg:h-[calc(100dvh-4rem)] lg:overflow-y-auto lg:border-t-0 lg:border-l">
-        <div className="flex items-center gap-2">
-          <div role="radiogroup" aria-label="Tipo de pedido" className="grid flex-1 grid-cols-2 gap-1 rounded-pdv-md bg-pdv-bg p-1">
-            {(["BALCAO", "DELIVERY"] as const).map((m) => {
-              const M = MODULOS[m];
-              const Icon = M.icon;
-              const ativo = modulo === m;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  role="radio"
-                  aria-checked={ativo}
-                  onClick={() => setModulo(m)}
-                  className={cn(
-                    "flex h-11 items-center justify-center gap-2 rounded-pdv-sm text-sm font-bold uppercase outline-none focus-visible:ring-3 focus-visible:ring-pdv-accent",
-                    ativo ? cn(M.bg, "text-pdv-on-accent") : "text-pdv-muted hover:text-pdv-text"
-                  )}
-                >
-                  <Icon className="size-4" aria-hidden /> {M.label}
-                </button>
-              );
-            })}
+        <div className="flex flex-col gap-2 rounded-pdv-md bg-pdv-surface p-3">
+          <div className="flex items-center gap-2">
+            <ModuloTag modulo={ident.modulo} solid />
+            <span className="ml-auto text-sm text-pdv-muted">{carrinho.reduce((s, l) => s + l.qtd, 0)} itens</span>
+            <PdvButton size="sm" variant="ghost" onClick={() => setIdent(null)}>
+              Trocar
+            </PdvButton>
           </div>
-          <span className="shrink-0 text-sm text-pdv-muted">{carrinho.reduce((s, l) => s + l.qtd, 0)} itens</span>
+          {ident.modulo === "DELIVERY" ? (
+            <>
+              <p className="text-lg font-semibold">{ident.cliente.nome}</p>
+              <p className="flex items-center gap-2 text-sm text-pdv-muted">
+                <Phone className="size-4" aria-hidden /> {ident.cliente.telefone}
+              </p>
+              {endereco ? (
+                <p className="flex items-start gap-2 text-sm">
+                  <MapPin className="mt-0.5 size-4 shrink-0 text-pdv-delivery" aria-hidden /> {endereco.texto}
+                </p>
+              ) : null}
+            </>
+          ) : ident.nome ? (
+            <p className="text-lg font-semibold">{ident.nome}</p>
+          ) : null}
         </div>
 
-        {ehDelivery ? (
-          <EntregaForm storeId={storeId} dados={entrega} onChange={setEntrega} />
-        ) : (
+        {ident.modulo === "DELIVERY" ? (
+          <div className="grid grid-cols-[8rem_1fr] gap-2">
+            <PdvField label="Taxa de entrega" inputMode="decimal" placeholder="0,00" value={taxa} onChange={(e) => setTaxa(e.target.value)} />
+            <PdvField label="Obs. pro entregador" value={obsEntrega} onChange={(e) => setObsEntrega(e.target.value)} maxLength={300} placeholder="ex: interfone quebrado" />
+          </div>
+        ) : !ident.nome ? (
           <PdvField label="Nome pra chamar (opcional)" value={cliente} onChange={(e) => setCliente(e.target.value)} maxLength={80} />
-        )}
+        ) : null}
 
         {carrinho.length === 0 ? (
           <p className="rounded-pdv-md border border-dashed border-pdv-line p-6 text-center text-sm text-pdv-muted">Toque nos produtos pra montar o pedido</p>
@@ -250,7 +276,7 @@ export function NovaVenda({ storeId, categorias, formas }: { storeId: string; ca
               {descontoNum > 0 ? <span>Desconto −{brl(descontoNum)}</span> : null}
             </p>
           ) : null}
-          {faltaEntrega && carrinho.length > 0 ? <p className="text-sm text-pdv-warning">{faltaEntrega}</p> : null}
+
           <PdvButton variant="primary" size="lg" onClick={cobrar} disabled={!podeCobrar} loading={enviando}>
             Cobrar {brl(total)}
           </PdvButton>

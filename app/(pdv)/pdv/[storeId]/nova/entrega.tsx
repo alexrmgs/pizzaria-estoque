@@ -1,154 +1,179 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { MapPin, Phone, Plus } from "lucide-react";
+import { MapPin, Phone, Plus, Store, UserPlus } from "lucide-react";
 
 import { PdvButton, PdvField } from "@/components/pdv/primitives";
-import { cn } from "@/lib/utils";
-import { buscarCliente, type ClienteEncontrado, type EnderecoInput } from "../actions";
+import { buscarCliente, salvarCliente, type ClienteEncontrado, type EnderecoInput } from "../actions";
 
-export type DadosEntrega = {
-  telefone: string;
-  nome: string;
-  cliente: ClienteEncontrado | null;
-  buscado: boolean;
-  enderecoId: string | "novo";
-  novo: Required<Omit<EnderecoInput, "id">>;
-  taxa: string;
-  obs: string;
-};
+// Primeira etapa do pedido: telefone → cliente (cadastra se não existir) →
+// onde entregar (ou retirar no balcão). Só depois abre a tela de itens.
 
-export const ENTREGA_VAZIA: DadosEntrega = {
-  telefone: "",
-  nome: "",
-  cliente: null,
-  buscado: false,
-  enderecoId: "novo",
-  novo: { logradouro: "", numero: "", bairro: "", complemento: "", referencia: "" },
-  taxa: "",
-  obs: "",
-};
+export type Identificacao =
+  | { modulo: "BALCAO"; nome: string; telefone: string }
+  | { modulo: "DELIVERY"; cliente: ClienteEncontrado; enderecoId: string };
 
-const taxaTexto = (v: number) => (v > 0 ? v.toFixed(2).replace(".", ",") : "");
+type NovoEndereco = Required<Omit<EnderecoInput, "id">>;
+const END_VAZIO: NovoEndereco = { logradouro: "", numero: "", bairro: "", complemento: "", referencia: "" };
 
-/** Endereço que vai pro servidor: o escolhido da lista ou o novo digitado. */
-export function enderecoEscolhido(d: DadosEntrega): EnderecoInput | undefined {
-  if (d.enderecoId !== "novo") {
-    const e = d.cliente?.enderecos.find((x) => x.id === d.enderecoId);
-    if (e) return { id: e.id, logradouro: e.logradouro, numero: e.numero, bairro: e.bairro, complemento: e.complemento, referencia: e.referencia };
-  }
-  return d.novo.logradouro.trim() ? d.novo : undefined;
-}
+export function IdentificarCliente({
+  storeId,
+  inicial,
+  onPronto,
+}: {
+  storeId: string;
+  /** veio do campo de telefone do quadro: a busca já foi feita no servidor */
+  inicial?: { telefone: string; cliente: ClienteEncontrado | null };
+  onPronto: (id: Identificacao) => void;
+}) {
+  const [telefone, setTelefone] = useState(inicial?.telefone ?? "");
+  const [erro, setErro] = useState<string>();
+  const [cliente, setCliente] = useState<ClienteEncontrado | null>(inicial?.cliente ?? null);
+  // null = ainda não buscou; "novo" = número sem cadastro; "endereco" = cliente quer endereço novo
+  const [cadastro, setCadastro] = useState<null | "novo" | "endereco" | "achou">(
+    inicial ? (inicial.cliente ? (inicial.cliente.enderecos.length ? "achou" : "endereco") : "novo") : null
+  );
+  const [nome, setNome] = useState(inicial?.cliente?.nome ?? "");
+  const [end, setEnd] = useState<NovoEndereco>(END_VAZIO);
+  const [pendente, start] = useTransition();
 
-export function EntregaForm({ storeId, dados, onChange }: { storeId: string; dados: DadosEntrega; onChange: (d: DadosEntrega) => void }) {
-  const [buscando, start] = useTransition();
-  const [erroBusca, setErroBusca] = useState<string>();
-  const set = (p: Partial<DadosEntrega>) => onChange({ ...dados, ...p });
-  const setNovo = (p: Partial<DadosEntrega["novo"]>) => onChange({ ...dados, novo: { ...dados.novo, ...p } });
-
-  function buscar() {
-    const tel = dados.telefone.replace(/\D/g, "");
-    if (tel.length < 8) return setErroBusca("Digite o telefone com DDD");
-    setErroBusca(undefined);
+  function buscar(tel = telefone) {
+    const digitos = tel.replace(/\D/g, "");
+    if (digitos.length < 8) return setErro("Digite o telefone com DDD");
+    setErro(undefined);
     start(async () => {
-      const c = await buscarCliente(storeId, tel);
-      const primeiro = c?.enderecos[0];
-      onChange({
-        ...dados,
-        cliente: c,
-        buscado: true,
-        telefone: c?.telefone ?? tel,
-        nome: c?.nome ?? dados.nome,
-        enderecoId: primeiro?.id ?? "novo",
-        taxa: primeiro ? taxaTexto(primeiro.taxaEntrega) : dados.taxa,
-      });
+      const c = await buscarCliente(storeId, digitos);
+      setCliente(c);
+      setNome(c?.nome ?? "");
+      setEnd(END_VAZIO);
+      setCadastro(c ? (c.enderecos.length ? "achou" : "endereco") : "novo");
     });
   }
 
+  function cadastrar() {
+    start(async () => {
+      const r = await salvarCliente(storeId, { telefone: cliente?.telefone ?? telefone, nome, endereco: end });
+      if (!r.ok) return setErro(r.error);
+      onPronto({ modulo: "DELIVERY", cliente: r.cliente, enderecoId: r.enderecoId! });
+    });
+  }
+
+  const telDigitos = (cliente?.telefone ?? telefone).replace(/\D/g, "");
+
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-end gap-2">
+    <main className="mx-auto flex w-full max-w-xl flex-col gap-5 p-4 md:p-8">
+      <h1 className="font-pdv-display text-2xl font-extrabold">Novo pedido</h1>
+
+      <form
+        className="flex items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          buscar();
+        }}
+      >
         <PdvField
-          label="Telefone"
+          autoFocus={!inicial}
+          label="Telefone do cliente"
           type="tel"
           inputMode="tel"
           autoComplete="off"
           placeholder="(85) 9 9999-9999"
-          value={dados.telefone}
-          onChange={(e) => set({ telefone: e.target.value, buscado: false, cliente: null })}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              buscar();
-            }
+          value={telefone}
+          onChange={(e) => {
+            setTelefone(e.target.value);
+            setCadastro(null);
+            setCliente(null);
           }}
-          error={erroBusca}
+          error={cadastro === null ? erro : undefined}
           className="flex-1"
         />
-        <PdvButton onClick={buscar} loading={buscando} aria-label="Buscar cliente pelo telefone">
+        <PdvButton type="submit" variant="primary" loading={pendente && cadastro === null}>
           <Phone /> Buscar
         </PdvButton>
-      </div>
+      </form>
 
-      {dados.buscado ? (
-        <p className="text-sm" aria-live="polite">
-          {dados.cliente ? (
-            <span className="text-pdv-success">
-              Cliente da casa · {dados.cliente.ultimosPedidos} pedido{dados.cliente.ultimosPedidos === 1 ? "" : "s"}
-            </span>
-          ) : (
-            <span className="text-pdv-warning">Cliente novo: preencha nome e endereço</span>
-          )}
-        </p>
+      {cadastro === null ? (
+        <PdvButton size="lg" onClick={() => onPronto({ modulo: "BALCAO", nome: "", telefone: "" })} className="border-pdv-balcao text-pdv-balcao">
+          <Store /> Balcão sem cliente
+        </PdvButton>
       ) : null}
 
-      <PdvField label="Nome do cliente" value={dados.nome} onChange={(e) => set({ nome: e.target.value })} maxLength={80} />
-
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-xs font-semibold tracking-wide text-pdv-muted uppercase">Endereço de entrega</legend>
-        {dados.cliente?.enderecos.map((e) => (
-          <label
-            key={e.id}
-            className={cn(
-              "flex cursor-pointer items-start gap-2 rounded-pdv-md border-2 p-3 text-sm has-focus-visible:ring-3 has-focus-visible:ring-pdv-accent",
-              dados.enderecoId === e.id ? "border-pdv-delivery bg-pdv-delivery/10" : "border-pdv-line bg-pdv-surface"
-            )}
-          >
-            <input
-              type="radio"
-              name="endereco"
-              className="sr-only"
-              checked={dados.enderecoId === e.id}
-              onChange={() => set({ enderecoId: e.id, taxa: taxaTexto(e.taxaEntrega) })}
-            />
-            <MapPin className="mt-0.5 size-4 shrink-0 text-pdv-delivery" aria-hidden />
-            <span>{e.texto}</span>
-          </label>
-        ))}
-        <label
-          className={cn(
-            "flex cursor-pointer items-center gap-2 rounded-pdv-md border-2 p-3 text-sm font-semibold has-focus-visible:ring-3 has-focus-visible:ring-pdv-accent",
-            dados.enderecoId === "novo" ? "border-pdv-delivery bg-pdv-delivery/10" : "border-dashed border-pdv-line text-pdv-muted"
-          )}
-        >
-          <input type="radio" name="endereco" className="sr-only" checked={dados.enderecoId === "novo"} onChange={() => set({ enderecoId: "novo" })} />
-          <Plus className="size-4" aria-hidden /> Novo endereço
-        </label>
-        {dados.enderecoId === "novo" ? (
-          <div className="grid grid-cols-[1fr_6rem] gap-2">
-            <PdvField label="Rua" value={dados.novo.logradouro} onChange={(e) => setNovo({ logradouro: e.target.value })} maxLength={150} />
-            <PdvField label="Nº" value={dados.novo.numero} onChange={(e) => setNovo({ numero: e.target.value })} maxLength={20} />
-            <PdvField label="Bairro" value={dados.novo.bairro} onChange={(e) => setNovo({ bairro: e.target.value })} maxLength={80} />
-            <PdvField label="Compl." value={dados.novo.complemento} onChange={(e) => setNovo({ complemento: e.target.value })} maxLength={120} />
-            <PdvField label="Ponto de referência" value={dados.novo.referencia} onChange={(e) => setNovo({ referencia: e.target.value })} maxLength={150} className="col-span-2" />
+      {cadastro === "achou" && cliente ? (
+        <section aria-label="Cliente encontrado" className="flex flex-col gap-3">
+          <div className="rounded-pdv-md bg-pdv-surface p-3">
+            <p className="text-lg font-semibold">{cliente.nome}</p>
+            <p className="text-sm text-pdv-success">
+              Cliente da casa · {cliente.ultimosPedidos} pedido{cliente.ultimosPedidos === 1 ? "" : "s"}
+            </p>
           </div>
-        ) : null}
-      </fieldset>
+          <p className="text-xs font-semibold tracking-wide text-pdv-muted uppercase">Entregar onde?</p>
+          {cliente.enderecos.map((e) => (
+            <button
+              key={e.id}
+              type="button"
+              onClick={() => onPronto({ modulo: "DELIVERY", cliente, enderecoId: e.id })}
+              className="flex min-h-16 items-start gap-3 rounded-pdv-md border-2 border-pdv-line bg-pdv-surface p-3 text-left outline-none hover:border-pdv-delivery focus-visible:ring-3 focus-visible:ring-pdv-accent"
+            >
+              <MapPin className="mt-0.5 size-5 shrink-0 text-pdv-delivery" aria-hidden />
+              <span className="flex-1">{e.texto}</span>
+              {e.taxaEntrega > 0 ? <span className="font-mono text-sm text-pdv-muted">taxa {e.taxaEntrega.toFixed(2).replace(".", ",")}</span> : null}
+            </button>
+          ))}
+          <div className="grid grid-cols-2 gap-2">
+            <PdvButton onClick={() => setCadastro("endereco")}>
+              <Plus /> Outro endereço
+            </PdvButton>
+            <PdvButton onClick={() => onPronto({ modulo: "BALCAO", nome: cliente.nome, telefone: cliente.telefone })}>
+              <Store /> Retira no balcão
+            </PdvButton>
+          </div>
+        </section>
+      ) : null}
 
-      <div className="grid grid-cols-[8rem_1fr] gap-2">
-        <PdvField label="Taxa de entrega" inputMode="decimal" placeholder="0,00" value={dados.taxa} onChange={(e) => set({ taxa: e.target.value })} />
-        <PdvField label="Obs. pro entregador" value={dados.obs} onChange={(e) => set({ obs: e.target.value })} maxLength={300} placeholder="ex: interfone quebrado" />
-      </div>
-    </div>
+      {cadastro === "novo" || cadastro === "endereco" ? (
+        <form
+          aria-label={cadastro === "novo" ? "Cadastrar cliente" : "Novo endereço"}
+          className="flex flex-col gap-3 rounded-pdv-lg border border-pdv-line bg-pdv-surface p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            cadastrar();
+          }}
+        >
+          <p className="flex items-center gap-2 font-semibold">
+            <UserPlus className="size-5 text-pdv-warning" aria-hidden />
+            {cadastro === "novo" ? "Número não cadastrado — cadastre o cliente" : `Novo endereço pra ${cliente?.nome}`}
+          </p>
+          {cadastro === "novo" ? <PdvField label="Nome" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={80} autoFocus /> : null}
+          <div className="grid grid-cols-[1fr_6rem] gap-2">
+            <PdvField label="Rua" value={end.logradouro} onChange={(e) => setEnd({ ...end, logradouro: e.target.value })} maxLength={150} autoFocus={cadastro === "endereco"} />
+            <PdvField label="Nº" value={end.numero} onChange={(e) => setEnd({ ...end, numero: e.target.value })} maxLength={20} />
+            <PdvField label="Bairro" value={end.bairro} onChange={(e) => setEnd({ ...end, bairro: e.target.value })} maxLength={80} />
+            <PdvField label="Compl." value={end.complemento} onChange={(e) => setEnd({ ...end, complemento: e.target.value })} maxLength={120} />
+            <PdvField label="Ponto de referência" value={end.referencia} onChange={(e) => setEnd({ ...end, referencia: e.target.value })} maxLength={150} className="col-span-2" />
+          </div>
+          {erro ? (
+            <p role="alert" className="text-sm text-pdv-danger">
+              {erro}
+            </p>
+          ) : null}
+          <PdvButton type="submit" variant="primary" size="lg" loading={pendente} disabled={!nome.trim() || !end.logradouro.trim()}>
+            Cadastrar e fazer o pedido
+          </PdvButton>
+          {cadastro === "novo" ? (
+            <PdvButton
+              variant="ghost"
+              disabled={!nome.trim()}
+              onClick={() => onPronto({ modulo: "BALCAO", nome: nome.trim(), telefone: telDigitos })}
+            >
+              <Store /> Sem endereço, retira no balcão
+            </PdvButton>
+          ) : (
+            <PdvButton variant="ghost" onClick={() => setCadastro("achou")}>
+              Voltar pros endereços
+            </PdvButton>
+          )}
+        </form>
+      ) : null}
+    </main>
   );
 }

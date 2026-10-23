@@ -53,6 +53,49 @@ export type ClienteEncontrado = {
   ultimosPedidos: number;
 };
 
+/**
+ * Cadastra o cliente (ou atualiza o nome) e, se vier, adiciona um endereço.
+ * Usado na identificação do pedido, antes da tela de itens.
+ */
+export async function salvarCliente(
+  storeId: string,
+  input: { telefone: string; nome: string; endereco?: EnderecoInput }
+): Promise<Resultado<{ cliente: ClienteEncontrado; enderecoId: string | null }>> {
+  const { store } = await requirePdv(storeId);
+  const telefone = input.telefone.replace(/\D/g, "");
+  const nome = input.nome.trim().slice(0, 80);
+  if (telefone.length < 10) return { ok: false, error: "Telefone com DDD, por favor" };
+  if (!nome) return { ok: false, error: "Falta o nome" };
+  let endereco: z.infer<typeof enderecoSchema> | undefined;
+  if (input.endereco) {
+    const e = enderecoSchema.safeParse(input.endereco);
+    if (!e.success) return { ok: false, error: e.error.issues[0]?.message ?? "Endereço inválido" };
+    endereco = e.data;
+  }
+
+  const cliente = await prisma.pdvCliente.upsert({
+    where: { companyId_telefone: { companyId: store!.companyId, telefone } },
+    create: { companyId: store!.companyId, telefone, nome },
+    update: { nome },
+  });
+  let enderecoId: string | null = null;
+  if (endereco) {
+    const novo = await prisma.pdvEndereco.create({
+      data: {
+        clienteId: cliente.id,
+        logradouro: endereco.logradouro,
+        numero: endereco.numero || null,
+        bairro: endereco.bairro || null,
+        complemento: endereco.complemento || null,
+        referencia: endereco.referencia || null,
+      },
+    });
+    enderecoId = novo.id;
+  }
+  const encontrado = await buscarCliente(storeId, telefone);
+  return { ok: true, cliente: encontrado!, enderecoId };
+}
+
 /** Busca o cliente do delivery pelo telefone (só dígitos, com DDD). */
 export async function buscarCliente(storeId: string, telefone: string): Promise<ClienteEncontrado | null> {
   const { store } = await requirePdv(storeId);

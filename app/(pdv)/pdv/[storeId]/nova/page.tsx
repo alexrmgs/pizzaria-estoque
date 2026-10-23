@@ -1,10 +1,18 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { caixaAberto, requirePdv } from "@/lib/pdv";
+import { buscarCliente } from "../actions";
 import { NovaVenda } from "./nova-venda";
 
-export default async function NovaVendaPage({ params }: { params: Promise<{ storeId: string }> }) {
+export default async function NovaVendaPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ storeId: string }>;
+  searchParams: Promise<{ tel?: string; balcao?: string }>;
+}) {
   const { storeId } = await params;
+  const { tel, balcao } = await searchParams;
   const { user, store } = await requirePdv(storeId);
   const caixa = await caixaAberto(store!.id, user.id);
 
@@ -23,6 +31,9 @@ export default async function NovaVendaPage({ params }: { params: Promise<{ stor
     );
   }
 
+  const telDigitos = tel?.replace(/\D/g, "") ?? "";
+  const inicial = telDigitos.length >= 8 ? { telefone: telDigitos, cliente: await buscarCliente(store!.id, telDigitos) } : undefined;
+
   const [categorias, formas] = await Promise.all([
     prisma.pdvCategoria.findMany({
       where: { companyId: store!.companyId, ativo: true },
@@ -39,6 +50,8 @@ export default async function NovaVendaPage({ params }: { params: Promise<{ stor
         .filter((c) => c.produtos.length > 0)
         .map((c) => ({ id: c.id, nome: c.nome, produtos: c.produtos.map((p) => ({ id: p.id, nome: p.nome, preco: Number(p.preco) })) }))}
       formas={formas.map((f) => ({ id: f.id, nome: f.nome, tipo: f.tipo as "DINHEIRO" }))}
+      inicial={inicial}
+      balcaoDireto={balcao === "1"}
     />
   );
 }

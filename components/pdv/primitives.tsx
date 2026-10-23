@@ -95,7 +95,7 @@ export function PdvField({
   className,
   id,
   ...props
-}: React.InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string }) {
+}: React.ComponentProps<"input"> & { label: string; error?: string }) {
   const fieldId = id ?? `f-${label.replace(/\W+/g, "-").toLowerCase()}`;
   return (
     <label htmlFor={fieldId} className={cn("flex flex-col gap-1.5", className)}>

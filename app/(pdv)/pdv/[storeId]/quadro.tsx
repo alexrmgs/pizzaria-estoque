@@ -3,7 +3,7 @@
 import { useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Phone, Store } from "lucide-react";
 import { toast } from "sonner";
 
 import { PedidoCard, StatusColuna, type PedidoResumo } from "@/components/pdv/cards";
@@ -46,14 +46,40 @@ export function QuadroPedidos({ storeId, colunas }: { storeId: string; colunas: 
 
   return (
     <main className="flex flex-1 flex-col gap-3 p-3 md:p-4">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <h1 className="font-pdv-display text-xl font-extrabold">Pedidos de hoje</h1>
         <span className="font-mono text-sm text-pdv-muted">{total}</span>
-        <Link
-          href={`/pdv/${storeId}/nova`}
-          className="ml-auto inline-flex h-12 items-center gap-2 rounded-pdv-md bg-pdv-accent px-4 font-semibold text-pdv-on-accent outline-none hover:bg-pdv-accent-hover focus-visible:ring-3 focus-visible:ring-pdv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pdv-bg"
+        {/* como no balcão de pizzaria: digita o telefone e já cai no cliente */}
+        <form
+          className="ml-auto flex items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const tel = new FormData(e.currentTarget).get("tel")?.toString().replace(/\D/g, "") ?? "";
+            router.push(`/pdv/${storeId}/nova${tel ? `?tel=${tel}` : ""}`);
+          }}
         >
-          <Plus className="size-5" aria-hidden /> Nova venda
+          <div className="relative">
+            <Phone className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-pdv-muted" aria-hidden />
+            <input
+              name="tel"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              aria-label="Telefone do cliente pra novo pedido"
+              placeholder="Telefone do cliente"
+              className="h-12 w-44 rounded-pdv-md border border-pdv-line-input bg-pdv-surface pr-3 pl-9 outline-none placeholder:text-pdv-muted focus-visible:border-pdv-accent focus-visible:ring-3 focus-visible:ring-pdv-accent/40 sm:w-56"
+            />
+          </div>
+          <PdvButton type="submit" variant="primary">
+            Novo pedido
+          </PdvButton>
+        </form>
+        <Link
+          href={`/pdv/${storeId}/nova?balcao=1`}
+          className="inline-flex h-12 items-center gap-2 rounded-pdv-md border border-pdv-balcao px-3 font-semibold text-pdv-balcao outline-none hover:bg-pdv-balcao/10 focus-visible:ring-3 focus-visible:ring-pdv-accent"
+        >
+          <Store className="size-5" aria-hidden /> <span className="hidden sm:inline">Balcão</span>
+          <span className="sr-only sm:hidden">Balcão</span>
         </Link>
       </div>
 
