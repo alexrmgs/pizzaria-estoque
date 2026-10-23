@@ -62,7 +62,7 @@ export function QuadroPedidos({ storeId, colunas }: { storeId: string; colunas: 
           <StatusColuna key={c.id} nome={c.nome} cor={c.cor} quantidade={c.pedidos.length}>
             {c.pedidos.map((p) => (
               <div key={p.id} className="flex snap-start flex-col gap-1">
-                <PedidoCard pedido={p} onAbrir={() => router.push(`/pdv-cupom/${p.id}`)} />
+                <PedidoCard pedido={p} onAbrir={() => router.push(`/pdv/${storeId}/pedido/${p.id}`)} />
                 <div className="flex gap-1">
                   {!c.primeira ? (
                     <PdvButton size="sm" variant="ghost" onClick={() => mover(p.id, -1)} disabled={pendente} aria-label={`Voltar pedido ${p.numero}`}>
