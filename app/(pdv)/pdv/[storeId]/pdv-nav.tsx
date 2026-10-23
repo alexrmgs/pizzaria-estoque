@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bike, LayoutGrid, Plus, Users, Wallet } from "lucide-react";
+import { LayoutGrid, Plus, Settings, Users, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function PdvNav({ storeId }: { storeId: string }) {
@@ -13,7 +13,7 @@ export function PdvNav({ storeId }: { storeId: string }) {
     { href: `${base}/nova`, label: "Nova venda", icon: Plus, ativo: pathname.startsWith(`${base}/nova`) },
     { href: `${base}/caixa`, label: "Caixa", icon: Wallet, ativo: pathname.startsWith(`${base}/caixa`) },
     { href: `${base}/clientes`, label: "Clientes", icon: Users, ativo: pathname.startsWith(`${base}/clientes`) },
-    { href: `${base}/entrega`, label: "Taxas", icon: Bike, ativo: pathname.startsWith(`${base}/entrega`) },
+    { href: `${base}/gestao`, label: "Gestão", icon: Settings, ativo: pathname.startsWith(`${base}/gestao`) },
   ];
   return (
     <nav aria-label="PDV" className="flex items-center gap-1">

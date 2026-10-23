@@ -4,7 +4,7 @@ Cadastrar cliente e vários endereços,delivery,must,yes,yes,cria/atualiza ao fe
 Venda de balcão sem cliente,balcao,must,yes,yes,F02
 Lançar itens por categoria com busca,venda,must,yes,yes,busca + Enter adiciona
 Opcionais/adicionais com mín e máx,venda,must,yes,no,cardápio já existe no pizzaria-estoque
-Pizza meio a meio,venda,must,yes,no,essencial para pizzaria
+Pizza meio a meio,venda,must,yes,yes,item montável no cardápio; ½ de cada sabor gravado na venda
 Observação por item,venda,must,yes,yes,
 Taxa de entrega editável,delivery,must,yes,yes,"automática por km (faixas por loja, OpenStreetMap) + editável"
 Desconto e acréscimo com motivo,venda,must,yes,partial,só desconto na tela; acréscimo já existe no servidor
@@ -53,3 +53,6 @@ TEF/SmartPOS,pagamento,skip,yes,skip,integração com adquirente
 Saipos Bot WhatsApp,canais,skip,yes,skip,produto separado
 Totem autoatendimento,canais,skip,yes,skip,produto separado
 Balança/produtos pesados,venda,skip,yes,skip,não se aplica a pizzaria
+Catálogo de produto mãe (sabor × tamanho) separado do cardápio,catalogo,must,no,yes,"ideia do Alex: relatório por produto mãe, preço por cardápio/categoria"
+Vários cardápios com categorias por dia/horário (promo),catalogo,must,yes,yes,
+Combos,catalogo,should,yes,yes,item com vários produtos mãe

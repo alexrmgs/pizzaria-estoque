@@ -12,10 +12,12 @@ import { cn } from "@/lib/utils";
 import { imprimirViaEmSegundoPlano } from "@/components/pdv/imprimir";
 import { calcularTaxaEntrega, criarVenda, type ClienteEncontrado } from "../actions";
 import { IdentificarCliente, type Identificacao } from "./entrega";
+import { EscolherSabores } from "./sabores";
+import type { CategoriaVenda, ItemVenda, SaborOpcao } from "@/lib/pdv-cardapio";
+import { precoMontavel } from "@/lib/pdv-cardapio-preco";
 
-type Produto = { id: string; nome: string; preco: number };
-type Categoria = { id: string; nome: string; produtos: Produto[] };
-type Linha = { produto: Produto; qtd: number; obs: string };
+// cada linha do carrinho: item do cardápio (+ sabores, se montável) com preço já calculado
+type Linha = { key: string; item: ItemVenda; nome: string; preco: number; sabores?: SaborOpcao[]; qtd: number; obs: string };
 
 const novoId = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 const cents = (v: number) => Math.round(v * 100);
@@ -28,7 +30,7 @@ export function NovaVenda({
   balcaoDireto,
 }: {
   storeId: string;
-  categorias: Categoria[];
+  categorias: CategoriaVenda[];
   formas: Forma[];
   inicial?: { telefone: string; cliente: ClienteEncontrado | null };
   balcaoDireto?: boolean;
@@ -40,6 +42,7 @@ export function NovaVenda({
   const [categoriaId, setCategoriaId] = useState(categorias[0]?.id ?? "");
   const [busca, setBusca] = useState("");
   const [carrinho, setCarrinho] = useState<Linha[]>([]);
+  const [montando, setMontando] = useState<ItemVenda | null>(null);
   // etapa 1: quem é o cliente / onde entregar. null = ainda identificando.
   const [ident, setIdent] = useState<Identificacao | null>(balcaoDireto ? { modulo: "BALCAO", nome: "", telefone: "" } : null);
   const [taxa, setTaxa] = useState("");
@@ -54,11 +57,11 @@ export function NovaVenda({
 
   const visiveis = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    if (q) return categorias.flatMap((c) => c.produtos).filter((p) => p.nome.toLowerCase().includes(q));
-    return categorias.find((c) => c.id === categoriaId)?.produtos ?? [];
+    if (q) return categorias.flatMap((c) => c.itens).filter((p) => p.nome.toLowerCase().includes(q));
+    return categorias.find((c) => c.id === categoriaId)?.itens ?? [];
   }, [busca, categoriaId, categorias]);
 
-  const subtotal = carrinho.reduce((s, l) => s + cents(l.produto.preco) * l.qtd, 0) / 100;
+  const subtotal = carrinho.reduce((s, l) => s + cents(l.preco) * l.qtd, 0) / 100;
   const descontoNum = parseValor(desconto);
   const ehDelivery = ident?.modulo === "DELIVERY";
   const endereco = ident?.modulo === "DELIVERY" ? ident.cliente.enderecos.find((e) => e.id === ident.enderecoId) : undefined;
@@ -68,20 +71,26 @@ export function NovaVenda({
   const ehDinheiro = forma?.tipo === "DINHEIRO";
   const trocoParaNum = parseValor(trocoPara);
   const troco = ehDinheiro && trocoParaNum > total ? trocoParaNum - total : 0;
-  const qtdNoCarrinho = (id: string) => carrinho.find((l) => l.produto.id === id)?.qtd;
+  const qtdNoCarrinho = (id: string) => carrinho.filter((l) => l.item.id === id).reduce((s, l) => s + l.qtd, 0) || undefined;
 
-  function adicionar(p: Produto) {
+  function escolher(it: ItemVenda) {
+    if (it.tipo === "MONTAVEL") return setMontando(it);
+    adicionarLinha(it, it.preco, it.nome);
+  }
+  // simples/combo: soma na mesma linha; montável: cada combinação de sabores é uma linha
+  function adicionarLinha(it: ItemVenda, preco: number, nome: string, sabores?: SaborOpcao[]) {
+    const key = sabores ? `${it.id}:${sabores.map((x) => x.variacaoId).sort().join("+")}` : it.id;
     setCarrinho((c) => {
-      const i = c.findIndex((l) => l.produto.id === p.id);
-      if (i === -1) return [...c, { produto: p, qtd: 1, obs: "" }];
+      const i = c.findIndex((l) => l.key === key);
+      if (i === -1) return [...c, { key, item: it, nome, preco, sabores, qtd: 1, obs: "" }];
       return c.map((l, j) => (j === i ? { ...l, qtd: l.qtd + 1 } : l));
     });
   }
-  function mudarQtd(id: string, delta: number) {
-    setCarrinho((c) => c.flatMap((l) => (l.produto.id !== id ? [l] : l.qtd + delta <= 0 ? [] : [{ ...l, qtd: l.qtd + delta }])));
+  function mudarQtd(key: string, delta: number) {
+    setCarrinho((c) => c.flatMap((l) => (l.key !== key ? [l] : l.qtd + delta <= 0 ? [] : [{ ...l, qtd: l.qtd + delta }])));
   }
-  function mudarObs(id: string, obs: string) {
-    setCarrinho((c) => c.map((l) => (l.produto.id === id ? { ...l, obs } : l)));
+  function mudarObs(key: string, obs: string) {
+    setCarrinho((c) => c.map((l) => (l.key === key ? { ...l, obs } : l)));
   }
 
   const erroTroco = ehDinheiro && trocoPara.trim() !== "" && trocoParaNum < total ? "Menor que o total" : undefined;
@@ -101,7 +110,7 @@ export function NovaVenda({
           : undefined,
         taxaEntrega: taxaNum,
         obsEntrega: ehDelivery ? obsEntrega.trim() || undefined : undefined,
-        itens: carrinho.map((l) => ({ produtoId: l.produto.id, qtd: l.qtd, obs: l.obs.trim() || undefined })),
+        itens: carrinho.map((l) => ({ cardapioItemId: l.item.id, qtd: l.qtd, obs: l.obs.trim() || undefined, sabores: l.sabores?.map((x) => x.variacaoId) })),
         desconto: descontoNum,
         descontoMotivo: descontoMotivo.trim() || undefined,
         pagamentos: [{ formaId, valor: total, trocoPara: ehDinheiro && trocoParaNum > 0 ? trocoParaNum : undefined }],
@@ -132,7 +141,7 @@ export function NovaVenda({
             calcularTaxaEntrega(storeId, id.enderecoId).then((r) => {
               if (!r.ok) return setInfoTaxa({ texto: r.error, aviso: true });
               const km = `${r.km.toFixed(1).replace(".", ",")} km${r.precisao === "bairro" ? " (pelo bairro)" : ""}`;
-              if (r.semFaixas) return setInfoTaxa({ texto: `${km} · cadastre as faixas em Taxas`, aviso: true });
+              if (r.semFaixas) return setInfoTaxa({ texto: `${km} · cadastre as faixas em Gestão → Taxas de entrega`, aviso: true });
               if (r.taxa == null) return setInfoTaxa({ texto: `${km} · fora da área de entrega`, aviso: true });
               setTaxa(r.taxa.toFixed(2).replace(".", ","));
               setInfoTaxa({ texto: `${km} · taxa automática` });
@@ -145,6 +154,16 @@ export function NovaVenda({
 
   return (
     <main className="grid flex-1 lg:grid-cols-[1fr_400px]">
+      {montando ? (
+        <EscolherSabores
+          item={montando}
+          onFechar={() => setMontando(null)}
+          onConfirmar={(sabores) => {
+            adicionarLinha(montando, precoMontavel(montando.regraPreco, sabores.map((x) => x.preco)), montando.nome, sabores);
+            setMontando(null);
+          }}
+        />
+      ) : null}
       {/* Cardápio */}
       <section aria-label="Cardápio" className="flex min-w-0 flex-col gap-3 p-3 md:p-4">
         <div className="relative">
@@ -158,7 +177,7 @@ export function NovaVenda({
             onChange={(e) => setBusca(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && visiveis[0]) {
-                adicionar(visiveis[0]);
+                escolher(visiveis[0]);
                 setBusca("");
               }
             }}
@@ -188,14 +207,21 @@ export function NovaVenda({
 
         {categorias.length === 0 ? (
           <p className="rounded-pdv-md border border-dashed border-pdv-line p-8 text-center text-pdv-muted">
-            Cardápio vazio. Cadastre preço de venda nas Receitas de pizza, esfiha e beirute — o PDV importa sozinho.
+            Nenhum item no cardápio agora. Monte o cardápio em Gestão → Cardápios (confira dias e horários das categorias).
           </p>
         ) : visiveis.length === 0 ? (
           <p className="p-8 text-center text-pdv-muted">Nenhum produto com “{busca}”.</p>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
             {visiveis.map((p) => (
-              <ProdutoTile key={p.id} nome={p.nome} preco={p.preco} quantidadeNoCarrinho={qtdNoCarrinho(p.id)} onEscolher={() => adicionar(p)} />
+              <ProdutoTile
+                key={p.id}
+                nome={p.tipo === "MONTAVEL" ? `${p.nome} · até ${p.maxSabores} sabores` : p.nome}
+                preco={p.tipo === "MONTAVEL" ? (p.sabores.length ? Math.min(...p.sabores.map((x) => x.preco)) : 0) : p.preco}
+                esgotado={p.tipo === "MONTAVEL" && p.sabores.length === 0}
+                quantidadeNoCarrinho={qtdNoCarrinho(p.id)}
+                onEscolher={() => escolher(p)}
+              />
             ))}
           </div>
         )}
@@ -249,25 +275,30 @@ export function NovaVenda({
         ) : (
           <ul className="flex flex-col gap-2">
             {carrinho.map((l) => (
-              <li key={l.produto.id} className="flex flex-col gap-2 rounded-pdv-md bg-pdv-surface p-2">
-                <div className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate font-semibold">{l.produto.nome}</span>
-                  <span className="font-mono text-sm tabular-nums">{brl((cents(l.produto.preco) * l.qtd) / 100)}</span>
+              <li key={l.key} className="flex flex-col gap-2 rounded-pdv-md bg-pdv-surface p-2">
+                <div className="flex items-start gap-2">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">{l.nome}</span>
+                    {l.sabores ? (
+                      <span className="block text-sm text-pdv-muted">{l.sabores.map((x) => (l.sabores!.length > 1 ? `1/${l.sabores!.length} ${x.nome}` : x.nome)).join(" · ")}</span>
+                    ) : null}
+                  </span>
+                  <span className="font-mono text-sm tabular-nums">{brl((cents(l.preco) * l.qtd) / 100)}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <PdvButton size="icon" variant="ghost" onClick={() => mudarQtd(l.produto.id, -1)} aria-label={`Tirar um ${l.produto.nome}`}>
+                  <PdvButton size="icon" variant="ghost" onClick={() => mudarQtd(l.key, -1)} aria-label={`Tirar um ${l.nome}`}>
                     {l.qtd === 1 ? <Trash2 /> : <Minus />}
                   </PdvButton>
                   <span className="w-8 text-center font-mono text-lg font-bold tabular-nums" aria-live="polite">{l.qtd}</span>
-                  <PdvButton size="icon" variant="ghost" onClick={() => mudarQtd(l.produto.id, 1)} aria-label={`Mais um ${l.produto.nome}`}>
+                  <PdvButton size="icon" variant="ghost" onClick={() => mudarQtd(l.key, 1)} aria-label={`Mais um ${l.nome}`}>
                     <Plus />
                   </PdvButton>
                   <input
-                    aria-label={`Observação de ${l.produto.nome}`}
+                    aria-label={`Observação de ${l.nome}`}
                     placeholder="Observação"
                     value={l.obs}
                     maxLength={200}
-                    onChange={(e) => mudarObs(l.produto.id, e.target.value)}
+                    onChange={(e) => mudarObs(l.key, e.target.value)}
                     className="h-10 min-w-0 flex-1 rounded-pdv-sm border border-pdv-line bg-pdv-bg px-2 text-sm outline-none placeholder:text-pdv-muted focus-visible:border-pdv-accent focus-visible:ring-3 focus-visible:ring-pdv-accent/40"
                   />
                 </div>

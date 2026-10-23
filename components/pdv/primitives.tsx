@@ -150,24 +150,25 @@ export function PdvField({
   onChange,
   ...props
 }: React.ComponentProps<"input"> & { label: string; error?: string; /** vírgula automática (ver mascaraDinheiro) */ dinheiro?: boolean }) {
-  const fieldId = id ?? `f-${label.replace(/\W+/g, "-").toLowerCase()}`;
   return (
-    <label htmlFor={fieldId} className={cn("flex flex-col gap-1.5", className)}>
+    // o <label> envolve o input (associação implícita): sem id gerado a partir do
+    // rótulo, que repetia quando a tela tem dois campos com o mesmo nome
+    <label className={cn("flex flex-col gap-1.5", className)}>
       <span className="text-xs font-semibold tracking-wide text-pdv-muted uppercase">{label}</span>
       <input
-        id={fieldId}
+        id={id}
         aria-invalid={error ? true : undefined}
         inputMode={dinheiro ? "numeric" : props.inputMode}
         onChange={(e) => {
           if (dinheiro) e.target.value = mascaraDinheiro(e.target.value);
           onChange?.(e);
         }}
-        aria-describedby={error ? `${fieldId}-err` : undefined}
+        aria-describedby={error && id ? `${id}-err` : undefined}
         className="h-12 rounded-pdv-sm border border-pdv-line-input bg-pdv-bg px-3 text-base text-pdv-text placeholder:text-pdv-muted/70 outline-none focus-visible:border-pdv-accent focus-visible:ring-3 focus-visible:ring-pdv-accent/40 disabled:opacity-40 aria-invalid:border-pdv-danger"
         {...props}
       />
       {error ? (
-        <span id={`${fieldId}-err`} role="alert" className="text-sm text-pdv-danger">
+        <span id={id ? `${id}-err` : undefined} role="alert" className="text-sm text-pdv-danger">
           {error}
         </span>
       ) : null}

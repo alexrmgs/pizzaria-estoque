@@ -22,7 +22,7 @@ export default async function TaxasEntregaPage({ params }: { params: Promise<{ s
   const lng = Number(loja.longitude);
 
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-col gap-5 p-4 md:p-8">
+    <main className="flex w-full max-w-xl flex-col gap-5">
       <div>
         <h1 className="font-pdv-display text-2xl font-extrabold">Taxas de entrega</h1>
         <p className="mt-1 text-sm text-pdv-muted">

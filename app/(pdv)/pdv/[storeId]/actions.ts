@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/lib/generated/prisma/client";
 import { distanciaKm, geocodificar, taxaDaFaixa } from "@/lib/pdv-entrega";
+import { cardapioDaLoja, precoMontavel, saboresDoMontavel } from "@/lib/pdv-cardapio";
 import { caixaAberto, diaOperacional, esperadoDoCaixa, normalizarTelefone, proximoNumero, requirePdv, textoEndereco } from "@/lib/pdv";
 
 type Resultado<T = object> = ({ ok: true } & T) | { ok: false; error: string };
@@ -33,7 +34,15 @@ const vendaSchema = z.object({
   obsEntrega: z.string().trim().max(300).optional(),
   obs: z.string().trim().max(300).optional(),
   itens: z
-    .array(z.object({ produtoId: z.string(), qtd: z.number().int().positive().max(999), obs: z.string().trim().max(200).optional() }))
+    .array(
+      z.object({
+        cardapioItemId: z.string(),
+        qtd: z.number().int().positive().max(999),
+        obs: z.string().trim().max(200).optional(),
+        // montável (meio a meio): variações escolhidas
+        sabores: z.array(z.string()).max(4).optional(),
+      })
+    )
     .min(1, "Pedido sem itens"),
   desconto: z.number().min(0).default(0),
   descontoMotivo: z.string().trim().max(120).optional(),
@@ -144,17 +153,49 @@ export async function criarVenda(storeId: string, input: NovaVendaInput): Promis
   const caixa = await caixaAberto(store!.id, user.id);
   if (!caixa) return { ok: false, error: "Abra o caixa antes de vender" };
 
-  const produtos = await prisma.pdvProduto.findMany({
-    where: { id: { in: v.itens.map((i) => i.produtoId) }, companyId: store!.companyId, ativo: true },
-  });
-  const porId = new Map(produtos.map((p) => [p.id, p]));
-  if (v.itens.some((i) => !porId.has(i.produtoId))) return { ok: false, error: "Algum produto saiu do cardápio. Recarregue a tela." };
+  // Preço e o que cada item entrega vêm do cardápio da loja — nada da tela.
+  const cardapio = await cardapioDaLoja(store!.id, store!.companyId);
+  if (!cardapio) return { ok: false, error: "Loja sem cardápio — monte um em Gestão" };
+  const itensCardapio = new Map(cardapio.categorias.flatMap((c) => c.itens).map((it) => [it.id, it]));
 
-  const itens = v.itens.map((i) => {
-    const p = porId.get(i.produtoId)!;
-    const unit = toCents(Number(p.preco));
-    return { p, qtd: i.qtd, obs: i.obs || null, unit, total: unit * i.qtd };
-  });
+  type ItemCalc = { id: string; nome: string; qtd: number; obs: string | null; unit: number; total: number; cobraServico: boolean; partes: { variacaoId: string; nome: string; fracao: number }[] };
+  const itens: ItemCalc[] = [];
+  for (const i of v.itens) {
+    const it = itensCardapio.get(i.cardapioItemId);
+    if (!it) return { ok: false, error: "Algum item saiu do cardápio. Recarregue a tela." };
+    if (it.maxSabores > 1) {
+      const pool = new Map(saboresDoMontavel(cardapio, it.saborTipo, it.saborVariacao).map((sb) => [sb.variacaoId, sb]));
+      const escolhidos = (i.sabores ?? []).map((id) => pool.get(id));
+      if (!escolhidos.length || escolhidos.length > it.maxSabores || escolhidos.some((x) => !x)) {
+        return { ok: false, error: `Escolha de 1 a ${it.maxSabores} sabores em ${it.nome}` };
+      }
+      const sabores = escolhidos as NonNullable<(typeof escolhidos)[number]>[];
+      const unit = toCents(precoMontavel(it.regraPreco, sabores.map((x) => x.preco)));
+      const fr = 1 / sabores.length;
+      itens.push({
+        id: it.id,
+        nome: `${it.nome} (${sabores.map((x) => (sabores.length > 1 ? `1/${sabores.length} ${x.nome}` : x.nome)).join(", ")})`,
+        qtd: i.qtd,
+        obs: i.obs || null,
+        unit,
+        total: unit * i.qtd,
+        cobraServico: it.cobraServico,
+        partes: sabores.map((x) => ({ variacaoId: x.variacaoId, nome: `${x.nome} ${it.saborVariacao}`, fracao: fr })),
+      });
+    } else {
+      const unit = toCents(Number(it.preco));
+      itens.push({
+        id: it.id,
+        nome: it.nome,
+        qtd: i.qtd,
+        obs: i.obs || null,
+        unit,
+        total: unit * i.qtd,
+        cobraServico: it.cobraServico,
+        partes: it.componentes.map((c) => ({ variacaoId: c.variacaoId, nome: `${c.variacao.produtoMae.nome} ${c.variacao.nome}`, fracao: Number(c.qtd) })),
+      });
+    }
+  }
   const ehDelivery = v.modulo === "DELIVERY";
   const telefone = normalizarTelefone(v.telefone ?? "");
   if (ehDelivery) {
@@ -246,14 +287,15 @@ export async function criarVenda(storeId: string, input: NovaVendaInput): Promis
           createdById: user.id,
           itens: {
             create: itens.map((i) => ({
-              produtoId: i.p.id,
-              nome: i.p.nome,
+              cardapioItemId: i.id,
+              nome: i.nome,
               qtd: i.qtd,
               precoUnit: fromCents(i.unit),
               total: fromCents(i.total),
               obs: i.obs,
-              cobraServico: i.p.cobraServico,
+              cobraServico: i.cobraServico,
               userId: user.id,
+              partes: { create: i.partes.map((pt) => ({ variacaoId: pt.variacaoId, nome: pt.nome, fracao: pt.fracao.toFixed(3) })) },
             })),
           },
           pagamentos: {
@@ -492,6 +534,6 @@ export async function salvarFaixas(storeId: string, faixas: { ateKm: number; tax
       data: limpas.map((f) => ({ storeId: store!.id, ateKm: fromCents(toCents(f.ateKm)), taxa: fromCents(toCents(f.taxa)) })),
     }),
   ]);
-  revalidatePath(`/pdv/${store!.id}/entrega`);
+  revalidatePath(`/pdv/${store!.id}/gestao/entrega`);
   return { ok: true };
 }

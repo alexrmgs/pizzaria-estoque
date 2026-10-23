@@ -6,7 +6,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { mascaraDinheiro, parseValor, PdvButton } from "@/components/pdv/primitives";
-import { salvarFaixas } from "../actions";
+import { salvarFaixas } from "../../actions";
 
 type Linha = { ateKm: string; taxa: string };
 const txt = (n: number) => n.toFixed(2).replace(".", ",").replace(/,00$/, "");

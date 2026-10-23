@@ -113,6 +113,8 @@ model Company {
   pdvProdutos        PdvProduto[]
   pdvFormasPagamento PdvFormaPagamento[]
   pdvClientes        PdvCliente[]
+  pdvProdutosMae     PdvProdutoMae[]
+  pdvCardapios       PdvCardapio[]
 }
 
 /**
@@ -391,8 +393,9 @@ model Recipe {
   order        Int        @default(0)
   createdAt    DateTime   @default(now())
 
-  ingredients RecipeIngredient[]
-  pdvProdutos PdvProduto[]
+  ingredients  RecipeIngredient[]
+  pdvProdutos  PdvProduto[]
+  pdvVariacoes PdvVariacao[]
 
   @@index([type])
 }
@@ -442,6 +445,9 @@ model Store {
   pdvCaixas         PdvCaixa[]
   pdvVendas         PdvVenda[]
   pdvFaixasEntrega  PdvFaixaEntrega[]
+  // cardápio que o PDV dessa loja usa
+  pdvCardapioId     String?
+  pdvCardapio       PdvCardapio?       @relation(fields: [pdvCardapioId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
 }
@@ -1056,27 +1062,32 @@ model PdvVenda {
 }
 
 model PdvVendaItem {
-  id               String     @id @default(cuid())
+  id               String              @id @default(cuid())
   vendaId          String
-  venda            PdvVenda   @relation(fields: [vendaId], references: [id], onDelete: Cascade)
-  produtoId        String
-  produto          PdvProduto @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  venda            PdvVenda            @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  // legado (cardápio antigo); vendas novas usam cardapioItemId + partes
+  produtoId        String?
+  produto          PdvProduto?         @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  cardapioItemId   String?
+  cardapioItem     PdvCardapioItem?    @relation(fields: [cardapioItemId], references: [id], onDelete: SetNull)
+  partes           PdvVendaItemParte[]
   // nome e preço fotografados — o cardápio pode mudar sem mexer em venda antiga
   nome             String
-  qtd              Decimal    @db.Decimal(10, 3)
-  precoUnit        Decimal    @db.Decimal(10, 2)
-  total            Decimal    @db.Decimal(10, 2)
+  qtd              Decimal             @db.Decimal(10, 3)
+  precoUnit        Decimal             @db.Decimal(10, 2)
+  total            Decimal             @db.Decimal(10, 2)
   obs              String?
-  cobraServico     Boolean    @default(true)
-  adicionadoDepois Boolean    @default(false)
+  cobraServico     Boolean             @default(true)
+  adicionadoDepois Boolean             @default(false)
   canceladoEm      DateTime?
   cancelMotivo     String?
   userId           String
-  user             User       @relation(fields: [userId], references: [id], onDelete: Restrict)
-  createdAt        DateTime   @default(now())
+  user             User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt        DateTime            @default(now())
 
   @@index([vendaId])
   @@index([produtoId])
+  @@index([cardapioItemId])
   @@index([userId])
 }
 
@@ -1167,4 +1178,135 @@ model PdvFaixaEntrega {
   taxa    Decimal @db.Decimal(10, 2)
 
   @@unique([storeId, ateKm])
+}
+
+// ───────────── Catálogo: produto mãe → cardápios ─────────────
+// Produto mãe = o que a casa produz (Calabresa, Esfiha de Carne, Coca 2L),
+// sem preço. Variação = tamanho (P/M/G, "Unidade"), com a ficha técnica.
+// Cardápio = vitrine de um canal: categorias (com dias/horários) e itens com
+// preço próprio que apontam pras variações. Relatório olha pras variações,
+// não pro nome do item — o mesmo produto em promo e em preço cheio soma junto.
+
+model PdvProdutoMae {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  nome      String
+  // PIZZA | ESFIHA | BEIRUTE | BEBIDA | ADICIONAL | DOCE | OUTRO
+  tipo      String
+  ativo     Boolean  @default(true)
+  ordem     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  variacoes PdvVariacao[]
+
+  @@unique([companyId, nome])
+  @@index([companyId, tipo])
+}
+
+model PdvVariacao {
+  id              String        @id @default(cuid())
+  produtoMaeId    String
+  produtoMae      PdvProdutoMae @relation(fields: [produtoMaeId], references: [id], onDelete: Cascade)
+  nome            String
+  recipeId        String?
+  recipe          Recipe?       @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  // preço "cheio" de referência — mede quanto a promoção custou
+  precoReferencia Decimal?      @db.Decimal(10, 2)
+  ordem           Int           @default(0)
+  ativo           Boolean       @default(true)
+
+  componentes PdvCardapioComponente[]
+  partes      PdvVendaItemParte[]
+
+  @@unique([produtoMaeId, nome])
+  @@index([recipeId])
+}
+
+model PdvCardapio {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  nome      String
+  // PDV | IFOOD | CARDAPIOWEB | OUTRO
+  canal     String   @default("PDV")
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  categorias PdvCardapioCategoria[]
+  lojas      Store[]
+
+  @@unique([companyId, nome])
+}
+
+model PdvCardapioCategoria {
+  id         String      @id @default(cuid())
+  cardapioId String
+  cardapio   PdvCardapio @relation(fields: [cardapioId], references: [id], onDelete: Cascade)
+  nome       String
+  ordem      Int         @default(0)
+  ativo      Boolean     @default(true)
+  // dias da semana em que aparece (0=dom … 6=sáb); vazio = todos
+  dias       Int[]       @default([])
+  // "18:00" – "23:59"; vazio = o dia todo
+  horaInicio String?
+  horaFim    String?
+
+  itens PdvCardapioItem[]
+
+  @@index([cardapioId, ordem])
+}
+
+model PdvCardapioItem {
+  id            String               @id @default(cuid())
+  categoriaId   String
+  categoria     PdvCardapioCategoria @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  nome          String
+  descricao     String?
+  preco         Decimal              @db.Decimal(10, 2)
+  ordem         Int                  @default(0)
+  ativo         Boolean              @default(true)
+  // montável (meio a meio): escolhe até maxSabores entre os itens simples do
+  // mesmo cardápio cujo produto é do tipo saborTipo na variação saborVariacao
+  maxSabores    Int                  @default(1)
+  saborTipo     String?
+  saborVariacao String?
+  // MAIOR | MEDIA — preço do montável a partir dos sabores escolhidos
+  regraPreco    String               @default("MAIOR")
+  cobraServico  Boolean              @default(true)
+
+  componentes PdvCardapioComponente[]
+  vendaItens  PdvVendaItem[]
+
+  @@index([categoriaId, ordem])
+}
+
+// O que um item do cardápio entrega: simples = 1 variação; combo = várias.
+model PdvCardapioComponente {
+  id         String          @id @default(cuid())
+  itemId     String
+  item       PdvCardapioItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  variacaoId String
+  variacao   PdvVariacao     @relation(fields: [variacaoId], references: [id], onDelete: Restrict)
+  qtd        Decimal         @default(1) @db.Decimal(10, 3)
+
+  @@index([itemId])
+  @@index([variacaoId])
+}
+
+// O que saiu de verdade em cada item vendido (base dos relatórios):
+// quantidade de cada variação por unidade do item — ½ no meio a meio.
+model PdvVendaItemParte {
+  id          String       @id @default(cuid())
+  vendaItemId String
+  vendaItem   PdvVendaItem @relation(fields: [vendaItemId], references: [id], onDelete: Cascade)
+  variacaoId  String
+  variacao    PdvVariacao  @relation(fields: [variacaoId], references: [id], onDelete: Restrict)
+  nome        String
+  fracao      Decimal      @db.Decimal(10, 3)
+
+  @@index([vendaItemId])
+  @@index([variacaoId])
 }

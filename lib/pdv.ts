@@ -130,10 +130,11 @@ const CATEGORIA_POR_TIPO = { PIZZA: "Pizzas", ESFIHA: "Esfihas", BEIRUTE: "Beiru
  * pizza/esfiha/beirute com preço). Idempotente — só cria o que falta.
  */
 export async function garantirSetupPdv(companyId: string, storeId: string) {
-  const [nStatus, nFormas, nProdutos] = await Promise.all([
+  const [nStatus, nFormas, nProdutosMae, loja] = await Promise.all([
     prisma.pdvStatus.count({ where: { storeId } }),
     prisma.pdvFormaPagamento.count({ where: { companyId } }),
-    prisma.pdvProduto.count({ where: { companyId } }),
+    prisma.pdvProdutoMae.count({ where: { companyId } }),
+    prisma.store.findUnique({ where: { id: storeId }, select: { pdvCardapioId: true } }),
   ]);
 
   if (nStatus === 0) {
@@ -145,32 +146,44 @@ export async function garantirSetupPdv(companyId: string, storeId: string) {
       skipDuplicates: true,
     });
   }
-  if (nProdutos === 0) {
+
+  // Primeira vez: monta o catálogo a partir das Receitas com preço (cada
+  // receita vira um produto mãe com uma variação "Padrão") e um cardápio "PDV"
+  // com esses itens — dá pra ajustar tudo depois em Gestão.
+  if (nProdutosMae === 0) {
     const receitas = await prisma.recipe.findMany({
       where: { type: { in: ["PIZZA", "ESFIHA", "BEIRUTE"] }, currentPrice: { gt: 0 } },
       orderBy: [{ type: "asc" }, { order: "asc" }, { name: "asc" }],
     });
-    let ordemCat = 0;
-    for (const [tipo, nome] of Object.entries(CATEGORIA_POR_TIPO)) {
-      const daCategoria = receitas.filter((r) => r.type === tipo);
-      if (daCategoria.length === 0) continue;
-      const cat = await prisma.pdvCategoria.upsert({
-        where: { companyId_nome: { companyId, nome } },
-        create: { companyId, nome, ordem: ordemCat++ },
+    if (receitas.length) {
+      const cardapio = await prisma.pdvCardapio.upsert({
+        where: { companyId_nome: { companyId, nome: "PDV" } },
+        create: { companyId, nome: "PDV", canal: "PDV" },
         update: {},
       });
-      await prisma.pdvProduto.createMany({
-        data: daCategoria.map((r, i) => ({
-          companyId,
-          categoriaId: cat.id,
-          nome: r.name,
-          preco: r.currentPrice!,
-          recipeId: r.id,
-          maxSabores: tipo === "PIZZA" ? 2 : 1,
-          ordem: i,
-        })),
-      });
+      let ordemCat = 0;
+      for (const [tipo, nomeCat] of Object.entries(CATEGORIA_POR_TIPO)) {
+        const daCategoria = receitas.filter((r) => r.type === tipo);
+        if (daCategoria.length === 0) continue;
+        const cat = await prisma.pdvCardapioCategoria.create({ data: { cardapioId: cardapio.id, nome: nomeCat, ordem: ordemCat++ } });
+        for (const [i, r] of daCategoria.entries()) {
+          const mae = await prisma.pdvProdutoMae.upsert({
+            where: { companyId_nome: { companyId, nome: r.name } },
+            create: { companyId, nome: r.name, tipo, ordem: i, variacoes: { create: { nome: "Padrão", recipeId: r.id, precoReferencia: r.currentPrice } } },
+            update: {},
+            include: { variacoes: true },
+          });
+          await prisma.pdvCardapioItem.create({
+            data: { categoriaId: cat.id, nome: r.name, preco: r.currentPrice!, ordem: i, componentes: { create: { variacaoId: mae.variacoes[0].id } } },
+          });
+        }
+      }
     }
+  }
+
+  if (!loja?.pdvCardapioId) {
+    const primeiro = await prisma.pdvCardapio.findFirst({ where: { companyId, ativo: true }, orderBy: { createdAt: "asc" } });
+    if (primeiro) await prisma.store.update({ where: { id: storeId }, data: { pdvCardapioId: primeiro.id } });
   }
 }
 

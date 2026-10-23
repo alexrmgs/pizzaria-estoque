@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { caixaAberto, normalizarTelefone, requirePdv } from "@/lib/pdv";
 import { buscarCliente } from "../actions";
 import { NovaVenda } from "./nova-venda";
+import { cardapioDaLoja, itensParaVenda } from "@/lib/pdv-cardapio";
 
 export default async function NovaVendaPage({
   params,
@@ -34,21 +35,16 @@ export default async function NovaVendaPage({
   const telDigitos = normalizarTelefone(tel ?? "");
   const inicial = telDigitos.length >= 8 ? { telefone: telDigitos, cliente: await buscarCliente(store!.id, telDigitos) } : undefined;
 
-  const [categorias, formas] = await Promise.all([
-    prisma.pdvCategoria.findMany({
-      where: { companyId: store!.companyId, ativo: true },
-      orderBy: { ordem: "asc" },
-      include: { produtos: { where: { ativo: true }, orderBy: [{ ordem: "asc" }, { nome: "asc" }] } },
-    }),
+  const [cardapio, formas] = await Promise.all([
+    cardapioDaLoja(store!.id, store!.companyId),
     prisma.pdvFormaPagamento.findMany({ where: { companyId: store!.companyId, ativo: true }, orderBy: { ordem: "asc" } }),
   ]);
+  const categorias = cardapio ? itensParaVenda(cardapio) : [];
 
   return (
     <NovaVenda
       storeId={store!.id}
-      categorias={categorias
-        .filter((c) => c.produtos.length > 0)
-        .map((c) => ({ id: c.id, nome: c.nome, produtos: c.produtos.map((p) => ({ id: p.id, nome: p.nome, preco: Number(p.preco) })) }))}
+      categorias={categorias}
       formas={formas.map((f) => ({ id: f.id, nome: f.nome, tipo: f.tipo as "DINHEIRO" }))}
       inicial={inicial}
       balcaoDireto={balcao === "1"}

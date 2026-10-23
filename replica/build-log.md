@@ -15,3 +15,4 @@ Não testado de ponta a ponta ainda: depende de rodar `prisma/migrations/2026102
 Sem screenshots em replica/clone-screens: as telas exigem login + tabelas no banco.
 | S02/S03 cliente e endereço (delivery) | 2026-10-23 | parcial | busca por nome, CEP → endereço, editar cadastro | — |
 | ajuste: cobrar → vai pro quadro | 2026-10-23 | feito | — | via imprime num iframe escondido pra não prender a tela |
+| Gestão: produtos mãe + cardápios | 2026-10-23 | feito | opcionais (borda/adicionais), relatório por produto mãe, de-para iFood/CardápioWeb/SaiPos | separar sabor×tamanho (variação) do item de cardápio (preço) deu mais trabalho na venda: montável busca sabores/preço nos itens simples do mesmo cardápio |
