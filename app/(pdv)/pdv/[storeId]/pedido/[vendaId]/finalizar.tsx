@@ -85,12 +85,12 @@ export function FinalizarPainel({
           <div key={i} className="flex flex-col gap-3 rounded-pdv-md bg-pdv-bg p-3">
             <FormaPagamentoPicker formas={formas} valor={l.formaId} onChange={(id) => set(i, { formaId: id })} legenda={linhas.length > 1 ? `Pagamento ${i + 1}` : "Como o cliente pagou"} nome={`forma-${i}`} />
             <div className="flex items-end gap-2">
-              <PdvField label="Valor" inputMode="decimal" value={l.valor} onChange={(e) => set(i, { valor: e.target.value })} className="w-32" />
+              <PdvField label="Valor" dinheiro value={l.valor} onChange={(e) => set(i, { valor: e.target.value })} className="w-32" />
               {ehDinheiro(l.formaId) ? (
                 <>
                   <PdvField
                     label="Troco para"
-                    inputMode="decimal"
+                    dinheiro
                     placeholder="0,00"
                     value={l.trocoPara}
                     onChange={(e) => set(i, { trocoPara: e.target.value })}

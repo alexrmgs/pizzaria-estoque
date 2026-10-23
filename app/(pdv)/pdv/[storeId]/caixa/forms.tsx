@@ -27,7 +27,7 @@ export function AbrirCaixaForm({ storeId }: { storeId: string }) {
       }}
     >
       <h1 className="font-pdv-display text-2xl font-extrabold">Abrir caixa</h1>
-      <PdvField label="Troco no início do turno" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} autoFocus />
+      <PdvField label="Troco no início do turno" dinheiro placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} autoFocus />
       <PdvButton type="submit" variant="primary" size="lg" loading={pendente}>
         Abrir caixa
       </PdvButton>
@@ -78,7 +78,7 @@ export function MovimentoCaixaForm({ storeId }: { storeId: string }) {
         ))}
       </fieldset>
       <div className="grid grid-cols-[8rem_1fr] gap-2">
-        <PdvField label="Valor" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} />
+        <PdvField label="Valor" dinheiro placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} />
         <PdvField label="Motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} maxLength={200} />
       </div>
       <PdvButton type="submit" loading={pendente} disabled={!(parseValor(valor) > 0) || !motivo.trim()}>

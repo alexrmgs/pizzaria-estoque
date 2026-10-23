@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { ProdutoTile } from "@/components/pdv/cards";
 import { FormaPagamentoPicker, ValorComMotivo, type Forma } from "@/components/pdv/payment";
-import { brl, ModuloTag, parseValor, PdvButton, PdvField } from "@/components/pdv/primitives";
+import { brl, formatarTelefone, ModuloTag, parseValor, PdvButton, PdvField } from "@/components/pdv/primitives";
 import { cn } from "@/lib/utils";
 import { imprimirViaEmSegundoPlano } from "@/components/pdv/imprimir";
 import { calcularTaxaEntrega, criarVenda, type ClienteEncontrado } from "../actions";
@@ -215,7 +215,7 @@ export function NovaVenda({
             <>
               <p className="text-lg font-semibold">{ident.cliente.nome}</p>
               <p className="flex items-center gap-2 text-sm text-pdv-muted">
-                <Phone className="size-4" aria-hidden /> {ident.cliente.telefone}
+                <Phone className="size-4" aria-hidden /> {formatarTelefone(ident.cliente.telefone)}
               </p>
               {endereco ? (
                 <p className="flex items-start gap-2 text-sm">
@@ -231,7 +231,7 @@ export function NovaVenda({
         {ident.modulo === "DELIVERY" ? (
           <div className="flex flex-col gap-1">
             <div className="grid grid-cols-[8rem_1fr] gap-2">
-              <PdvField label="Taxa de entrega" inputMode="decimal" placeholder="0,00" value={taxa} onChange={(e) => setTaxa(e.target.value)} />
+              <PdvField label="Taxa de entrega" dinheiro placeholder="0,00" value={taxa} onChange={(e) => setTaxa(e.target.value)} />
               <PdvField label="Obs. pro entregador" value={obsEntrega} onChange={(e) => setObsEntrega(e.target.value)} maxLength={300} placeholder="ex: interfone quebrado" />
             </div>
             {infoTaxa ? (
@@ -280,7 +280,7 @@ export function NovaVenda({
         <FormaPagamentoPicker formas={formas} valor={formaId} onChange={setFormaId} legenda="Pagamento previsto (confere ao finalizar)" />
         {ehDinheiro ? (
           <div className="flex items-end gap-3">
-            <PdvField label="Troco para" inputMode="decimal" placeholder="0,00" value={trocoPara} onChange={(e) => setTrocoPara(e.target.value)} error={erroTroco} className="flex-1" />
+            <PdvField label="Troco para" dinheiro placeholder="0,00" value={trocoPara} onChange={(e) => setTrocoPara(e.target.value)} error={erroTroco} className="flex-1" />
             <p className="pb-3 text-sm text-pdv-muted" aria-live="polite">
               Troco: <span className="font-mono font-bold text-pdv-text">{brl(troco)}</span>
             </p>

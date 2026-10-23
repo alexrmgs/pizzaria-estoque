@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { parseValor, PdvButton } from "@/components/pdv/primitives";
+import { mascaraDinheiro, parseValor, PdvButton } from "@/components/pdv/primitives";
 import { salvarFaixas } from "../actions";
 
 type Linha = { ateKm: string; taxa: string };
@@ -52,7 +52,7 @@ export function FaixasForm({ storeId, inicial, sugestao }: { storeId: string; in
                 <input aria-label={`Faixa ${i + 1}: até quantos km`} inputMode="decimal" value={l.ateKm} onChange={(e) => set(i, { ateKm: e.target.value })} className={inputCls} />
               </td>
               <td className="pr-2">
-                <input aria-label={`Faixa ${i + 1}: taxa`} inputMode="decimal" value={l.taxa} onChange={(e) => set(i, { taxa: e.target.value })} className={inputCls} />
+                <input aria-label={`Faixa ${i + 1}: taxa`} inputMode="numeric" value={l.taxa} onChange={(e) => set(i, { taxa: mascaraDinheiro(e.target.value) })} className={inputCls} />
               </td>
               <td>
                 <PdvButton size="icon" variant="ghost" onClick={() => setLinhas((x) => x.filter((_, j) => j !== i))} aria-label={`Remover faixa ${i + 1}`}>

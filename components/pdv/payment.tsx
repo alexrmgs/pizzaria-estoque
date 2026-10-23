@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Banknote, CreditCard, QrCode, Wallet, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { brl, parseValor, PdvField } from "@/components/pdv/primitives";
+import { brl, mascaraDinheiro, parseValor, PdvField } from "@/components/pdv/primitives";
 
 // Partes de pagamento e caixa do PDV.
 
@@ -70,7 +70,7 @@ export function ValorComMotivo({ label, valor, motivo, onValor, onMotivo }: {
   const temValor = Number(valor.replace(",", ".")) > 0;
   return (
     <div className="grid grid-cols-[8rem_1fr] gap-2">
-      <PdvField label={label} inputMode="decimal" value={valor} onChange={(e) => onValor(e.target.value)} placeholder="0,00" />
+      <PdvField label={label} dinheiro value={valor} onChange={(e) => onValor(e.target.value)} placeholder="0,00" />
       <PdvField
         label="Motivo"
         value={motivo}
@@ -156,10 +156,10 @@ export function ConferenciaCaixa({
               <td className={cn("px-3 py-2 text-right", cego && "rounded-r-pdv-sm")}>
                 <input
                   aria-label={`Contado em ${l.forma}`}
-                  inputMode="decimal"
+                  inputMode="numeric"
                   placeholder="0,00"
                   value={contado[chave] ?? ""}
-                  onChange={(e) => atualizar(chave, e.target.value)}
+                  onChange={(e) => atualizar(chave, mascaraDinheiro(e.target.value))}
                   className="h-11 w-32 rounded-pdv-sm border border-pdv-line-input bg-pdv-bg px-2 text-right font-mono tabular-nums outline-none focus-visible:border-pdv-accent focus-visible:ring-3 focus-visible:ring-pdv-accent/40"
                 />
               </td>

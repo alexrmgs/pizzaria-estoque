@@ -125,7 +125,7 @@ export default function PdvDesignPage() {
           <Secao titulo="Pagamento">
             <FormaPagamentoPicker formas={FORMAS} valor={forma} onChange={setForma} />
             <ValorComMotivo label="Desconto" valor={desc} motivo={motivo} onValor={setDesc} onMotivo={setMotivo} />
-            <PdvField label="Troco para" inputMode="decimal" placeholder="100,00" />
+            <PdvField label="Troco para" dinheiro placeholder="100,00" />
             <PagamentosParciais total={214} pagamentos={[{ forma: "PIX", valor: 100 }, { forma: "Crédito", valor: 71.33 }]} onRemover={() => {}} />
             <PagamentosParciais total={89.9} pagamentos={[{ forma: "Dinheiro", valor: 89.9 }]} />
           </Secao>

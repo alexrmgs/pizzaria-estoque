@@ -18,6 +18,15 @@ export function juntarTelefone(ddd: string, numero: string): string {
   return n.length >= 10 ? n : ddd.replace(/\D/g, "") + n;
 }
 
+/** "85999998888" → "(85) 99999-8888" */
+export function formatarTelefone(t: string): string {
+  const d = t.replace(/\D/g, "");
+  if (d.length < 10) return t;
+  const ddd = d.slice(0, 2);
+  const n = d.slice(2);
+  return `(${ddd}) ${n.slice(0, n.length - 4)}-${n.slice(-4)}`;
+}
+
 /** "85999998888" → { ddd: "85", numero: "999998888" } */
 export function separarTelefone(t: string): { ddd: string; numero: string } {
   const d = t.replace(/\D/g, "");
@@ -41,6 +50,16 @@ export function DddField({ value, onChange, name }: { value: string; onChange?: 
       />
     </label>
   );
+}
+
+/**
+ * Máscara de dinheiro de caixa registradora: os dígitos entram pela direita,
+ * a vírgula é automática — "5" → "0,05", "500" → "5,00", "4590" → "45,90".
+ */
+export function mascaraDinheiro(s: string): string {
+  const d = s.replace(/\D/g, "").replace(/^0+/, "").slice(0, 9);
+  if (!d) return "";
+  return (Number(d) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /** "1.234,56" / "1234.56" / "12" → número (vazio ou inválido → 0). */
@@ -127,8 +146,10 @@ export function PdvField({
   error,
   className,
   id,
+  dinheiro,
+  onChange,
   ...props
-}: React.ComponentProps<"input"> & { label: string; error?: string }) {
+}: React.ComponentProps<"input"> & { label: string; error?: string; /** vírgula automática (ver mascaraDinheiro) */ dinheiro?: boolean }) {
   const fieldId = id ?? `f-${label.replace(/\W+/g, "-").toLowerCase()}`;
   return (
     <label htmlFor={fieldId} className={cn("flex flex-col gap-1.5", className)}>
@@ -136,6 +157,11 @@ export function PdvField({
       <input
         id={fieldId}
         aria-invalid={error ? true : undefined}
+        inputMode={dinheiro ? "numeric" : props.inputMode}
+        onChange={(e) => {
+          if (dinheiro) e.target.value = mascaraDinheiro(e.target.value);
+          onChange?.(e);
+        }}
         aria-describedby={error ? `${fieldId}-err` : undefined}
         className="h-12 rounded-pdv-sm border border-pdv-line-input bg-pdv-bg px-3 text-base text-pdv-text placeholder:text-pdv-muted/70 outline-none focus-visible:border-pdv-accent focus-visible:ring-3 focus-visible:ring-pdv-accent/40 disabled:opacity-40 aria-invalid:border-pdv-danger"
         {...props}

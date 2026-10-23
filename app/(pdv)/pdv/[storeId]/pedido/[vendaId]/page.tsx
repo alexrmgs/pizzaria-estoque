@@ -4,7 +4,7 @@ import { ArrowLeft, MapPin, Phone } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
 import { etapasDoPedido, horaFortaleza, requirePdv } from "@/lib/pdv";
-import { brl, ModuloTag, type Modulo } from "@/components/pdv/primitives";
+import { brl, formatarTelefone, ModuloTag, type Modulo } from "@/components/pdv/primitives";
 import { AtualizaSozinho } from "@/components/pdv/atualiza-sozinho";
 import { PedidoAcoes } from "./acoes";
 import { FinalizarPainel } from "./finalizar";
@@ -170,7 +170,7 @@ export default async function PedidoPage({
             <p className="text-lg font-semibold">{venda.clienteNome || "Sem nome (balcão)"}</p>
             {venda.cliente?.telefone ? (
               <a href={`tel:${venda.cliente.telefone}`} className="flex items-center gap-2 text-pdv-delivery underline-offset-4 hover:underline">
-                <Phone className="size-4" aria-hidden /> {venda.cliente.telefone}
+                <Phone className="size-4" aria-hidden /> {formatarTelefone(venda.cliente.telefone)}
               </a>
             ) : null}
             {venda.enderecoTexto ? (
