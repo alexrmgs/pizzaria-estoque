@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
+import { useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Phone, Store } from "lucide-react";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { PedidoCard, StatusColuna, type PedidoResumo } from "@/components/pdv/cards";
 import { PdvButton } from "@/components/pdv/primitives";
+import { AtualizaSozinho } from "@/components/pdv/atualiza-sozinho";
 import { moverStatus } from "./actions";
 
 export type ColunaQuadro = {
@@ -19,20 +20,9 @@ export type ColunaQuadro = {
   pedidos: (PedidoResumo & { id: string })[];
 };
 
-const ATUALIZA_MS = 4000;
-
 export function QuadroPedidos({ storeId, colunas }: { storeId: string; colunas: ColunaQuadro[] }) {
   const router = useRouter();
   const [pendente, startTransition] = useTransition();
-
-  // "tempo real" da fatia 1: recarrega os dados do servidor a cada 4s
-  // enquanto a aba está visível (outra tela/caixa lançou ou moveu pedido).
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (document.visibilityState === "visible") router.refresh();
-    }, ATUALIZA_MS);
-    return () => clearInterval(id);
-  }, [router]);
 
   function mover(vendaId: string, sentido: 1 | -1) {
     startTransition(async () => {
@@ -46,6 +36,7 @@ export function QuadroPedidos({ storeId, colunas }: { storeId: string; colunas: 
 
   return (
     <main className="flex flex-1 flex-col gap-3 p-3 md:p-4">
+      <AtualizaSozinho />
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="font-pdv-display text-xl font-extrabold">Pedidos de hoje</h1>
         <span className="font-mono text-sm text-pdv-muted">{total}</span>

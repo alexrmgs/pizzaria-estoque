@@ -5,6 +5,7 @@ import { ArrowLeft, MapPin, Phone } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { etapasDoPedido, horaFortaleza, requirePdv } from "@/lib/pdv";
 import { brl, ModuloTag, type Modulo } from "@/components/pdv/primitives";
+import { AtualizaSozinho } from "@/components/pdv/atualiza-sozinho";
 import { PedidoAcoes } from "./acoes";
 
 const EVENTO: Record<string, string> = { CRIADA: "Pedido lançado", STATUS: "Mudou pra", PAGA: "Pago", CANCELADA: "Cancelado" };
@@ -45,6 +46,7 @@ export default async function PedidoPage({ params }: { params: Promise<{ storeId
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-3 md:p-6">
+      <AtualizaSozinho ms={15000} />
       <div className="flex flex-wrap items-center gap-3">
         <Link
           href={`/pdv/${store!.id}`}
