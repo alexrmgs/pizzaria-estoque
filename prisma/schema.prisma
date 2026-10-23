@@ -441,6 +441,7 @@ model Store {
   pdvContadores     PdvContador[]
   pdvCaixas         PdvCaixa[]
   pdvVendas         PdvVenda[]
+  pdvFaixasEntrega  PdvFaixaEntrega[]
 
   @@index([companyId])
 }
@@ -1147,8 +1148,23 @@ model PdvEndereco {
   referencia  String?
   // última taxa cobrada nesse endereço — já vem preenchida no próximo pedido
   taxaEntrega Decimal    @default(0) @db.Decimal(10, 2)
+  // ponto no mapa (achado pelo endereço) — calculado uma vez, reaproveitado
+  latitude    Decimal?   @db.Decimal(10, 7)
+  longitude   Decimal?   @db.Decimal(10, 7)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
   @@index([clienteId])
+}
+
+// Taxa de entrega por distância (raio em linha reta a partir da loja, como no
+// SaiPos): a taxa é a da primeira faixa cujo "até km" cobre a distância.
+model PdvFaixaEntrega {
+  id      String  @id @default(cuid())
+  storeId String
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  ateKm   Decimal @db.Decimal(5, 2)
+  taxa    Decimal @db.Decimal(10, 2)
+
+  @@unique([storeId, ateKm])
 }

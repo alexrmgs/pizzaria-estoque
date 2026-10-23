@@ -6,7 +6,7 @@ Lançar itens por categoria com busca,venda,must,yes,yes,busca + Enter adiciona
 Opcionais/adicionais com mín e máx,venda,must,yes,no,cardápio já existe no pizzaria-estoque
 Pizza meio a meio,venda,must,yes,no,essencial para pizzaria
 Observação por item,venda,must,yes,yes,
-Taxa de entrega editável,delivery,must,yes,yes,lembra a última taxa de cada endereço
+Taxa de entrega editável,delivery,must,yes,yes,"automática por km (faixas por loja, OpenStreetMap) + editável"
 Desconto e acréscimo com motivo,venda,must,yes,partial,só desconto na tela; acréscimo já existe no servidor
 Formas de pagamento + troco para,pagamento,must,yes,yes,
 Vários pagamentos na mesma venda,pagamento,must,yes,no,

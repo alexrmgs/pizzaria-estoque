@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/lib/generated/prisma/client";
+import { distanciaKm, geocodificar, taxaDaFaixa } from "@/lib/pdv-entrega";
 import { caixaAberto, diaOperacional, esperadoDoCaixa, normalizarTelefone, proximoNumero, requirePdv, textoEndereco } from "@/lib/pdv";
 
 type Resultado<T = object> = ({ ok: true } & T) | { ok: false; error: string };
@@ -375,4 +376,59 @@ export async function fecharCaixa(storeId: string, contado: Record<string, numbe
   if (!fechou) return { ok: false, error: "Esse caixa já foi fechado" };
   revalidatePath(`/pdv/${store!.id}`, "layout");
   return { ok: true, caixaId: caixa.id };
+}
+
+export type TaxaCalculada =
+  | { ok: true; km: number; taxa: number | null; precisao: "rua" | "bairro"; semFaixas: boolean }
+  | { ok: false; error: string };
+
+/**
+ * Taxa de entrega pela distância da loja até o endereço (linha reta, como o
+ * raio do SaiPos). O ponto do endereço é achado uma vez e guardado.
+ */
+export async function calcularTaxaEntrega(storeId: string, enderecoId: string): Promise<TaxaCalculada> {
+  const { store } = await requirePdv(storeId);
+  const [loja, end, faixas] = await Promise.all([
+    prisma.store.findUniqueOrThrow({ where: { id: store!.id }, select: { latitude: true, longitude: true } }),
+    prisma.pdvEndereco.findFirst({ where: { id: enderecoId, cliente: { companyId: store!.companyId } } }),
+    prisma.pdvFaixaEntrega.findMany({ where: { storeId: store!.id } }),
+  ]);
+  if (!end) return { ok: false, error: "Endereço não encontrado" };
+  const pontoLoja = { lat: Number(loja.latitude), lng: Number(loja.longitude) };
+
+  let ponto = end.latitude != null && end.longitude != null ? { lat: Number(end.latitude), lng: Number(end.longitude), precisao: "rua" as const } : null;
+  if (!ponto) {
+    const achado = await geocodificar(end, pontoLoja);
+    if (!achado) return { ok: false, error: "Não achei esse endereço no mapa — digite a taxa" };
+    // só guarda quando achou a rua; centro do bairro é aproximado, tenta de novo da próxima vez
+    if (achado.precisao === "rua") {
+      await prisma.pdvEndereco.update({ where: { id: end.id }, data: { latitude: achado.lat, longitude: achado.lng } });
+    }
+    ponto = achado as typeof achado & { precisao: "rua" };
+  }
+
+  const km = distanciaKm(pontoLoja, ponto);
+  return {
+    ok: true,
+    km,
+    taxa: taxaDaFaixa(faixas.map((f) => ({ ateKm: Number(f.ateKm), taxa: Number(f.taxa) })), km),
+    precisao: ponto.precisao,
+    semFaixas: faixas.length === 0,
+  };
+}
+
+/** Troca todas as faixas de taxa da loja de uma vez (tela Taxas de entrega). */
+export async function salvarFaixas(storeId: string, faixas: { ateKm: number; taxa: number }[]): Promise<Resultado> {
+  const { store } = await requirePdv(storeId, "gerenciar");
+  const limpas = faixas.filter((f) => f.ateKm > 0);
+  if (limpas.some((f) => !(f.taxa >= 0) || f.ateKm > 100)) return { ok: false, error: "Confira os valores (km até 100, taxa ≥ 0)" };
+  if (new Set(limpas.map((f) => f.ateKm)).size !== limpas.length) return { ok: false, error: "Tem duas faixas com o mesmo km" };
+  await prisma.$transaction([
+    prisma.pdvFaixaEntrega.deleteMany({ where: { storeId: store!.id } }),
+    prisma.pdvFaixaEntrega.createMany({
+      data: limpas.map((f) => ({ storeId: store!.id, ateKm: fromCents(toCents(f.ateKm)), taxa: fromCents(toCents(f.taxa)) })),
+    }),
+  ]);
+  revalidatePath(`/pdv/${store!.id}/entrega`);
+  return { ok: true };
 }

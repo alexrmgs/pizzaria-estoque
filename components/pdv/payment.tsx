@@ -31,7 +31,7 @@ export function FormaPagamentoPicker({
   onChange: (id: string) => void;
 }) {
   return (
-    <fieldset className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <fieldset className="grid grid-cols-2 gap-2">
       <legend className="mb-2 text-xs font-semibold tracking-wide text-pdv-muted uppercase">Forma de pagamento</legend>
       {formas.map((f) => {
         const Icon = ICONE_FORMA[f.tipo];

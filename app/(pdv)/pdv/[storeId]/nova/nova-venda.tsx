@@ -10,7 +10,7 @@ import { FormaPagamentoPicker, ValorComMotivo, type Forma } from "@/components/p
 import { brl, ModuloTag, parseValor, PdvButton, PdvField } from "@/components/pdv/primitives";
 import { cn } from "@/lib/utils";
 import { imprimirViaEmSegundoPlano } from "@/components/pdv/imprimir";
-import { criarVenda, type ClienteEncontrado } from "../actions";
+import { calcularTaxaEntrega, criarVenda, type ClienteEncontrado } from "../actions";
 import { IdentificarCliente, type Identificacao } from "./entrega";
 
 type Produto = { id: string; nome: string; preco: number };
@@ -44,6 +44,8 @@ export function NovaVenda({
   const [ident, setIdent] = useState<Identificacao | null>(balcaoDireto ? { modulo: "BALCAO", nome: "", telefone: "" } : null);
   const [taxa, setTaxa] = useState("");
   const [obsEntrega, setObsEntrega] = useState("");
+  // resultado do cálculo por km: "calculando…", "7,8 km · faixa até 8 km" ou aviso
+  const [infoTaxa, setInfoTaxa] = useState<{ texto: string; aviso?: boolean } | null>(null);
   const [cliente, setCliente] = useState("");
   const [desconto, setDesconto] = useState("");
   const [descontoMotivo, setDescontoMotivo] = useState("");
@@ -124,7 +126,17 @@ export function NovaVenda({
           setIdent(id);
           if (id.modulo === "DELIVERY") {
             const e = id.cliente.enderecos.find((x) => x.id === id.enderecoId);
+            // enquanto calcula, deixa a última taxa usada nesse endereço
             setTaxa(e && e.taxaEntrega > 0 ? e.taxaEntrega.toFixed(2).replace(".", ",") : "");
+            setInfoTaxa({ texto: "Calculando distância…" });
+            calcularTaxaEntrega(storeId, id.enderecoId).then((r) => {
+              if (!r.ok) return setInfoTaxa({ texto: r.error, aviso: true });
+              const km = `${r.km.toFixed(1).replace(".", ",")} km${r.precisao === "bairro" ? " (pelo bairro)" : ""}`;
+              if (r.semFaixas) return setInfoTaxa({ texto: `${km} · cadastre as faixas em Taxas`, aviso: true });
+              if (r.taxa == null) return setInfoTaxa({ texto: `${km} · fora da área de entrega`, aviso: true });
+              setTaxa(r.taxa.toFixed(2).replace(".", ","));
+              setInfoTaxa({ texto: `${km} · taxa automática` });
+            });
           }
         }}
       />
@@ -217,9 +229,16 @@ export function NovaVenda({
         </div>
 
         {ident.modulo === "DELIVERY" ? (
-          <div className="grid grid-cols-[8rem_1fr] gap-2">
-            <PdvField label="Taxa de entrega" inputMode="decimal" placeholder="0,00" value={taxa} onChange={(e) => setTaxa(e.target.value)} />
-            <PdvField label="Obs. pro entregador" value={obsEntrega} onChange={(e) => setObsEntrega(e.target.value)} maxLength={300} placeholder="ex: interfone quebrado" />
+          <div className="flex flex-col gap-1">
+            <div className="grid grid-cols-[8rem_1fr] gap-2">
+              <PdvField label="Taxa de entrega" inputMode="decimal" placeholder="0,00" value={taxa} onChange={(e) => setTaxa(e.target.value)} />
+              <PdvField label="Obs. pro entregador" value={obsEntrega} onChange={(e) => setObsEntrega(e.target.value)} maxLength={300} placeholder="ex: interfone quebrado" />
+            </div>
+            {infoTaxa ? (
+              <p className={cn("text-sm", infoTaxa.aviso ? "text-pdv-warning" : "text-pdv-muted")} aria-live="polite">
+                {infoTaxa.texto}
+              </p>
+            ) : null}
           </div>
         ) : !ident.nome ? (
           <PdvField label="Nome pra chamar (opcional)" value={cliente} onChange={(e) => setCliente(e.target.value)} maxLength={80} />
