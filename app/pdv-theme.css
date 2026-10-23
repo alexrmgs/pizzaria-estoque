@@ -1,0 +1,72 @@
+/* Tema do PDV — escuro de alto contraste, tirado da logo FB (círculo
+   carvão, FB laranja, letreiro branco). Fonte da verdade:
+   replica/design/tokens.json (conferido com contrast.py, 0 falhas AA).
+   Só vale dentro de .pdv — o resto do app continua no tema atual. */
+
+@theme inline {
+  --color-pdv-bg: var(--pdv-bg);
+  --color-pdv-surface: var(--pdv-surface);
+  --color-pdv-raised: var(--pdv-raised);
+  --color-pdv-line: var(--pdv-border);
+  --color-pdv-line-input: var(--pdv-border-input);
+  --color-pdv-text: var(--pdv-text);
+  --color-pdv-muted: var(--pdv-text-muted);
+  --color-pdv-accent: var(--pdv-accent);
+  --color-pdv-accent-hover: var(--pdv-accent-hover);
+  --color-pdv-on-accent: var(--pdv-on-accent);
+  --color-pdv-danger: var(--pdv-danger);
+  --color-pdv-success: var(--pdv-success);
+  --color-pdv-warning: var(--pdv-warning);
+  --color-pdv-delivery: var(--pdv-delivery);
+  --color-pdv-balcao: var(--pdv-balcao);
+  --color-pdv-mesa: var(--pdv-mesa);
+  --color-pdv-ficha: var(--pdv-ficha);
+
+  --font-pdv-display: var(--font-montserrat), system-ui, sans-serif;
+
+  --radius-pdv-sm: 8px;
+  --radius-pdv-md: 14px;
+  --radius-pdv-lg: 22px;
+
+  --shadow-pdv-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 2px 6px rgba(0, 0, 0, 0.45);
+  --shadow-pdv-pop: 0 18px 48px rgba(0, 0, 0, 0.6);
+}
+
+.pdv {
+  --pdv-bg: #141213;
+  --pdv-surface: #262324;
+  --pdv-raised: #322e2f;
+  --pdv-border: #433d3e;
+  --pdv-border-input: #8f8580;
+  --pdv-text: #f6f1ea;
+  --pdv-text-muted: #b8ada2;
+  --pdv-accent: #fe9400;
+  --pdv-accent-hover: #ffa82e;
+  --pdv-on-accent: #1b1918;
+  --pdv-danger: #ff6b57;
+  --pdv-success: #4ade80;
+  --pdv-warning: #ffd84d;
+  --pdv-delivery: #6cb4ff;
+  --pdv-balcao: #3ddbc4;
+  --pdv-mesa: #c99bff;
+  --pdv-ficha: #ff8ac4;
+
+  color-scheme: dark;
+  background: var(--pdv-bg);
+  color: var(--pdv-text);
+}
+
+/* Timer atrasado no kanban/KDS: pisca devagar, respeita quem desliga animação. */
+@keyframes pdv-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+.pdv-late {
+  animation: pdv-pulse 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pdv-late {
+    animation: none;
+  }
+}
