@@ -10,6 +10,39 @@ import { cn } from "@/lib/utils";
 export const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+export const DDD_PADRAO = "85";
+
+/** DDD + número → só dígitos. Se o número já veio com DDD (10–11 dígitos), usa ele. */
+export function juntarTelefone(ddd: string, numero: string): string {
+  const n = numero.replace(/\D/g, "");
+  return n.length >= 10 ? n : ddd.replace(/\D/g, "") + n;
+}
+
+/** "85999998888" → { ddd: "85", numero: "999998888" } */
+export function separarTelefone(t: string): { ddd: string; numero: string } {
+  const d = t.replace(/\D/g, "");
+  return d.length >= 10 ? { ddd: d.slice(0, 2), numero: d.slice(2) } : { ddd: DDD_PADRAO, numero: d };
+}
+
+/** Campo pequeno de DDD que fica do lado do telefone — já vem 85, dá pra trocar. */
+export function DddField({ value, onChange, name }: { value: string; onChange?: (v: string) => void; name?: string }) {
+  return (
+    <label className="flex w-16 shrink-0 flex-col gap-1.5">
+      <span className="text-xs font-semibold tracking-wide text-pdv-muted uppercase">DDD</span>
+      <input
+        name={name}
+        inputMode="numeric"
+        maxLength={2}
+        value={value}
+        onChange={(e) => onChange?.(e.target.value.replace(/\D/g, "").slice(0, 2))}
+        onFocus={(e) => e.target.select()}
+        aria-label="DDD"
+        className="h-12 rounded-pdv-sm border border-pdv-line-input bg-pdv-bg text-center font-mono text-base outline-none focus-visible:border-pdv-accent focus-visible:ring-3 focus-visible:ring-pdv-accent/40"
+      />
+    </label>
+  );
+}
+
 /** "1.234,56" / "1234.56" / "12" → número (vazio ou inválido → 0). */
 export function parseValor(s: string): number {
   const t = s.trim();

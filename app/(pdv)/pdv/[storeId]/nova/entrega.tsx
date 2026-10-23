@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { MapPin, Phone, Plus, Store, UserPlus } from "lucide-react";
 
-import { PdvButton, PdvField } from "@/components/pdv/primitives";
+import { DddField, juntarTelefone, PdvButton, PdvField, separarTelefone } from "@/components/pdv/primitives";
 import { buscarCliente, salvarCliente, type ClienteEncontrado, type EnderecoInput } from "../actions";
 
 // Primeira etapa do pedido: telefone → cliente (cadastra se não existir) →
@@ -26,7 +26,9 @@ export function IdentificarCliente({
   inicial?: { telefone: string; cliente: ClienteEncontrado | null };
   onPronto: (id: Identificacao) => void;
 }) {
-  const [telefone, setTelefone] = useState(inicial?.telefone ?? "");
+  const ini = separarTelefone(inicial?.telefone ?? "");
+  const [ddd, setDdd] = useState(ini.ddd);
+  const [telefone, setTelefone] = useState(ini.numero);
   const [erro, setErro] = useState<string>();
   const [cliente, setCliente] = useState<ClienteEncontrado | null>(inicial?.cliente ?? null);
   // null = ainda não buscou; "novo" = número sem cadastro; "endereco" = cliente quer endereço novo
@@ -37,9 +39,10 @@ export function IdentificarCliente({
   const [end, setEnd] = useState<NovoEndereco>(END_VAZIO);
   const [pendente, start] = useTransition();
 
-  function buscar(tel = telefone) {
-    const digitos = tel.replace(/\D/g, "");
-    if (digitos.length < 8) return setErro("Digite o telefone");
+  function buscar() {
+    if (telefone.replace(/\D/g, "").length < 8) return setErro("Digite o telefone");
+    if (ddd.length !== 2) return setErro("DDD com 2 dígitos");
+    const digitos = juntarTelefone(ddd, telefone);
     setErro(undefined);
     start(async () => {
       const c = await buscarCliente(storeId, digitos);
@@ -52,13 +55,13 @@ export function IdentificarCliente({
 
   function cadastrar() {
     start(async () => {
-      const r = await salvarCliente(storeId, { telefone: cliente?.telefone ?? telefone, nome, endereco: end });
+      const r = await salvarCliente(storeId, { telefone: cliente?.telefone ?? juntarTelefone(ddd, telefone), nome, endereco: end });
       if (!r.ok) return setErro(r.error);
       onPronto({ modulo: "DELIVERY", cliente: r.cliente, enderecoId: r.enderecoId! });
     });
   }
 
-  const telDigitos = (cliente?.telefone ?? telefone).replace(/\D/g, "");
+  const telDigitos = cliente?.telefone ?? juntarTelefone(ddd, telefone);
 
   return (
     <main className="mx-auto flex w-full max-w-xl flex-col gap-5 p-4 md:p-8">
@@ -71,9 +74,17 @@ export function IdentificarCliente({
           buscar();
         }}
       >
+        <DddField
+          value={ddd}
+          onChange={(v) => {
+            setDdd(v);
+            setCadastro(null);
+            setCliente(null);
+          }}
+        />
         <PdvField
           autoFocus={!inicial}
-          label="Telefone do cliente (DDD 85 já incluso)"
+          label="Telefone do cliente"
           type="tel"
           inputMode="tel"
           autoComplete="off"

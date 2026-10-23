@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, Phone, Store } from "lucide-react";
 import { toast } from "sonner";
 
 import { PedidoCard, StatusColuna, type PedidoResumo } from "@/components/pdv/cards";
-import { PdvButton } from "@/components/pdv/primitives";
+import { DDD_PADRAO, juntarTelefone, PdvButton } from "@/components/pdv/primitives";
 import { AtualizaSozinho } from "@/components/pdv/atualiza-sozinho";
 import { moverStatus } from "./actions";
 
@@ -42,13 +42,24 @@ export function QuadroPedidos({ storeId, colunas }: { storeId: string; colunas: 
         <span className="font-mono text-sm text-pdv-muted">{total}</span>
         {/* como no balcão de pizzaria: digita o telefone e já cai no cliente */}
         <form
-          className="ml-auto flex items-center gap-2"
+          className="ml-auto flex items-center gap-1.5"
           onSubmit={(e) => {
             e.preventDefault();
-            const tel = new FormData(e.currentTarget).get("tel")?.toString().replace(/\D/g, "") ?? "";
+            const f = new FormData(e.currentTarget);
+            const num = f.get("tel")?.toString() ?? "";
+            const tel = num.replace(/\D/g, "") ? juntarTelefone(f.get("ddd")?.toString() || DDD_PADRAO, num) : "";
             router.push(`/pdv/${storeId}/nova${tel ? `?tel=${tel}` : ""}`);
           }}
         >
+          <input
+            name="ddd"
+            inputMode="numeric"
+            maxLength={2}
+            defaultValue={DDD_PADRAO}
+            aria-label="DDD"
+            onFocus={(e) => e.target.select()}
+            className="h-12 w-14 rounded-pdv-md border border-pdv-line-input bg-pdv-surface text-center font-mono outline-none focus-visible:border-pdv-accent focus-visible:ring-3 focus-visible:ring-pdv-accent/40"
+          />
           <div className="relative">
             <Phone className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-pdv-muted" aria-hidden />
             <input
