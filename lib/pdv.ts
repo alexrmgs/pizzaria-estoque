@@ -83,6 +83,18 @@ export function etapasDoPedido(status: { id: string; nome: string }[], historico
   }));
 }
 
+/** Etapas já percorridas com quanto tempo ficou em cada (a atual conta até agora). */
+export function temposPorStatus(etapas: ReturnType<typeof etapasDoPedido>, fim: Date | null = null) {
+  const agora = fim ?? new Date();
+  return etapas
+    .map((e, i) => {
+      if (!e.em) return null;
+      const saida = etapas[i + 1]?.em ?? (e.atual ? agora : null);
+      return { nome: e.nome, hora: horaFortaleza(e.em), minutos: saida ? Math.max(0, Math.round((saida.getTime() - e.em.getTime()) / 60_000)) : null, atual: e.atual };
+    })
+    .filter((x) => x !== null);
+}
+
 export function minutosDesde(d: Date): number {
   return Math.max(0, Math.floor((Date.now() - d.getTime()) / 60_000));
 }

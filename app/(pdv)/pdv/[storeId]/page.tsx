@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { diaOperacional, etapasDoPedido, horaFortaleza, minutosDesde, requirePdv } from "@/lib/pdv";
+import { diaOperacional, etapasDoPedido, horaFortaleza, minutosDesde, requirePdv, temposPorStatus } from "@/lib/pdv";
 import { QuadroPedidos, type ColunaQuadro } from "./quadro";
 
 export default async function QuadroPage({ params }: { params: Promise<{ storeId: string }> }) {
@@ -40,9 +40,7 @@ export default async function QuadroPage({ params }: { params: Promise<{ storeId
         total: Number(v.total),
         hora: horaFortaleza(v.createdAt),
         minutosNoStatus: minutosDesde(v.historico.at(-1)?.createdAt ?? v.createdAt),
-        etapas: etapasDoPedido(status, v.historico, v.statusId)
-          .filter((e) => e.em)
-          .map((e) => ({ nome: e.nome, hora: horaFortaleza(e.em!) })),
+        etapas: temposPorStatus(etapasDoPedido(status, v.historico, v.statusId)),
       })),
   }));
 

@@ -16,8 +16,8 @@ export type PedidoResumo = {
   minutosNoStatus: number;
   hora: string;
   entregador?: string;
-  /** hora em que entrou em cada status, na ordem */
-  etapas?: { nome: string; hora: string }[];
+  /** status já percorridos: hora de entrada e quanto tempo ficou em cada */
+  etapas?: { nome: string; hora: string; minutos: number | null; atual: boolean }[];
 };
 
 export function PedidoCard({ pedido, onAbrir }: { pedido: PedidoResumo; onAbrir?: () => void }) {
@@ -43,11 +43,11 @@ export function PedidoCard({ pedido, onAbrir }: { pedido: PedidoResumo; onAbrir?
         <span className="font-mono text-lg font-bold tabular-nums">{brl(pedido.total)}</span>
       </div>
       {pedido.etapas && pedido.etapas.length > 1 ? (
-        <ol className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-pdv-muted" aria-label="Horário de cada status">
+        <ol className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-pdv-muted" aria-label="Tempo em cada status">
           {pedido.etapas.map((e, i) => (
-            <li key={i} className={i === pedido.etapas!.length - 1 ? "font-semibold text-pdv-text" : undefined}>
+            <li key={i} title={`entrou às ${e.hora}`} className={e.atual ? "font-semibold text-pdv-text" : undefined}>
               {i > 0 ? "→ " : ""}
-              {e.nome} <span className="font-mono">{e.hora}</span>
+              {e.nome} <span className="font-mono">{e.minutos ?? 0}min</span>
             </li>
           ))}
         </ol>
