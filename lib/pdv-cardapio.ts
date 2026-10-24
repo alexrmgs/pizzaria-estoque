@@ -59,18 +59,18 @@ type CardapioCompleto = NonNullable<Awaited<ReturnType<typeof cardapioDaLoja>>>;
 
 /**
  * Sabores possíveis de um montável: os itens simples do cardápio (em
- * categorias valendo agora) cujo produto é do tipo/tamanho pedido. Se o mesmo
+ * categorias valendo agora) cujo produto é da categoria/tamanho pedidos. Se o mesmo
  * sabor aparece em duas categorias (normal e promo), vale o menor preço.
  */
-export function saboresDoMontavel(cardapio: CardapioCompleto, tipo: string | null, variacao: string | null, quando = new Date()): SaborOpcao[] {
-  if (!tipo || !variacao) return [];
+export function saboresDoMontavel(cardapio: CardapioCompleto, categoriaProdutoId: string | null, variacao: string | null, quando = new Date()): SaborOpcao[] {
+  if (!categoriaProdutoId || !variacao) return [];
   const melhor = new Map<string, SaborOpcao>();
   for (const cat of cardapio.categorias) {
     if (!categoriaValeAgora(cat, quando)) continue;
     for (const it of cat.itens) {
       if (it.maxSabores > 1 || it.componentes.length !== 1) continue;
       const v = it.componentes[0].variacao;
-      if (v.produtoMae.tipo !== tipo || v.nome.toLowerCase() !== variacao.toLowerCase() || !v.produtoMae.ativo) continue;
+      if (v.produtoMae.categoriaId !== categoriaProdutoId || v.nome.toLowerCase() !== variacao.toLowerCase() || !v.produtoMae.ativo) continue;
       const preco = Number(it.preco);
       const atual = melhor.get(v.id);
       if (!atual || preco < atual.preco) melhor.set(v.id, { variacaoId: v.id, nome: v.produtoMae.nome, preco });
@@ -93,7 +93,7 @@ export function itensParaVenda(cardapio: CardapioCompleto, quando = new Date()):
         tipo: it.maxSabores > 1 ? ("MONTAVEL" as const) : it.componentes.length > 1 ? ("COMBO" as const) : ("SIMPLES" as const),
         maxSabores: it.maxSabores,
         regraPreco: it.regraPreco,
-        sabores: it.maxSabores > 1 ? saboresDoMontavel(cardapio, it.saborTipo, it.saborVariacao, quando) : [],
+        sabores: it.maxSabores > 1 ? saboresDoMontavel(cardapio, it.saborCategoriaId, it.saborVariacao, quando) : [],
       })),
     }))
     .filter((c) => c.itens.length > 0);

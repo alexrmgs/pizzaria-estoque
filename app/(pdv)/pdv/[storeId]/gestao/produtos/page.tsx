@@ -5,23 +5,38 @@ import { ProdutosEditor } from "./editor";
 export default async function ProdutosMaePage({ params }: { params: Promise<{ storeId: string }> }) {
   const { storeId } = await params;
   const { store } = await requirePdv(storeId, "gerenciar");
-  const [produtos, receitas] = await Promise.all([
+  const companyId = store!.companyId;
+  const [categorias, produtos, comFoto, receitas] = await Promise.all([
+    prisma.pdvProdutoCategoria.findMany({ where: { companyId }, orderBy: [{ ordem: "asc" }, { nome: "asc" }] }),
+    // sem fotoUrl: foto pesa; o formulário busca a foto quando abre o produto
     prisma.pdvProdutoMae.findMany({
-      where: { companyId: store!.companyId },
-      orderBy: [{ tipo: "asc" }, { nome: "asc" }],
-      include: { variacoes: { where: { ativo: true }, orderBy: { ordem: "asc" }, include: { recipe: { select: { name: true } } } } },
+      where: { companyId },
+      orderBy: { nome: "asc" },
+      select: {
+        id: true,
+        nome: true,
+        categoriaId: true,
+        descricao: true,
+        ativo: true,
+        variacoes: { where: { ativo: true }, orderBy: { ordem: "asc" }, include: { recipe: { select: { name: true } } } },
+      },
     }),
-    prisma.recipe.findMany({ select: { id: true, name: true, type: true }, orderBy: [{ type: "asc" }, { name: "asc" }] }),
+    prisma.$queryRaw<{ id: string }[]>`SELECT "id" FROM "PdvProdutoMae" WHERE "companyId" = ${companyId} AND "fotoUrl" IS NOT NULL`,
+    prisma.recipe.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
+  const temFoto = new Set(comFoto.map((r) => r.id));
 
   return (
     <ProdutosEditor
       storeId={store!.id}
-      receitas={receitas.map((r) => ({ id: r.id, nome: r.name, tipo: r.type }))}
+      categorias={categorias.map((c) => ({ id: c.id, nome: c.nome }))}
+      receitas={receitas.map((r) => ({ id: r.id, nome: r.name }))}
       produtos={produtos.map((p) => ({
         id: p.id,
         nome: p.nome,
-        tipo: p.tipo,
+        categoriaId: p.categoriaId,
+        descricao: p.descricao ?? "",
+        temFoto: temFoto.has(p.id),
         ativo: p.ativo,
         variacoes: p.variacoes.map((v) => ({
           id: v.id,

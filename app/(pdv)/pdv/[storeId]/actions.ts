@@ -164,7 +164,7 @@ export async function criarVenda(storeId: string, input: NovaVendaInput): Promis
     const it = itensCardapio.get(i.cardapioItemId);
     if (!it) return { ok: false, error: "Algum item saiu do cardápio. Recarregue a tela." };
     if (it.maxSabores > 1) {
-      const pool = new Map(saboresDoMontavel(cardapio, it.saborTipo, it.saborVariacao).map((sb) => [sb.variacaoId, sb]));
+      const pool = new Map(saboresDoMontavel(cardapio, it.saborCategoriaId, it.saborVariacao).map((sb) => [sb.variacaoId, sb]));
       const escolhidos = (i.sabores ?? []).map((id) => pool.get(id));
       if (!escolhidos.length || escolhidos.length > it.maxSabores || escolhidos.some((x) => !x)) {
         return { ok: false, error: `Escolha de 1 a ${it.maxSabores} sabores em ${it.nome}` };

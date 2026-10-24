@@ -165,11 +165,16 @@ export async function garantirSetupPdv(companyId: string, storeId: string) {
       for (const [tipo, nomeCat] of Object.entries(CATEGORIA_POR_TIPO)) {
         const daCategoria = receitas.filter((r) => r.type === tipo);
         if (daCategoria.length === 0) continue;
+        const catProduto = await prisma.pdvProdutoCategoria.upsert({
+          where: { companyId_nome: { companyId, nome: nomeCat } },
+          create: { companyId, nome: nomeCat, ordem: ordemCat },
+          update: {},
+        });
         const cat = await prisma.pdvCardapioCategoria.create({ data: { cardapioId: cardapio.id, nome: nomeCat, ordem: ordemCat++ } });
         for (const [i, r] of daCategoria.entries()) {
           const mae = await prisma.pdvProdutoMae.upsert({
             where: { companyId_nome: { companyId, nome: r.name } },
-            create: { companyId, nome: r.name, tipo, ordem: i, variacoes: { create: { nome: "Padrão", recipeId: r.id, precoReferencia: r.currentPrice } } },
+            create: { companyId, nome: r.name, tipo, categoriaId: catProduto.id, descricao: r.description, fotoUrl: r.imageUrl, ordem: i, variacoes: { create: { nome: "Padrão", recipeId: r.id, precoReferencia: r.currentPrice } } },
             update: {},
             include: { variacoes: true },
           });

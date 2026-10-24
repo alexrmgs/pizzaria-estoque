@@ -6,11 +6,12 @@ import { Clock, ListPlus, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { brl, mascaraDinheiro, parseValor, PdvButton, PdvField } from "@/components/pdv/primitives";
-import { DIAS_SEMANA, TIPOS_PRODUTO } from "@/lib/pdv-cardapio-preco";
+import { DIAS_SEMANA } from "@/lib/pdv-cardapio-preco";
 import { cn } from "@/lib/utils";
 import { adicionarTodos, excluirCategoria, excluirItem, salvarCategoria, salvarItem } from "../../actions";
 
-type Variacao = { id: string; nome: string; produto: string; tipo: string; precoReferencia: number | null };
+type Variacao = { id: string; nome: string; produto: string; categoriaId: string | null; precoReferencia: number | null };
+type CatProduto = { id: string; nome: string };
 type TipoItem = "SIMPLES" | "COMBO" | "MONTAVEL";
 type Item = {
   id?: string;
@@ -21,7 +22,7 @@ type Item = {
   tipo: TipoItem;
   componentes: { variacaoId: string; qtd: number; rotulo?: string }[];
   maxSabores: number;
-  saborTipo: string | null;
+  saborCategoriaId: string | null;
   saborVariacao: string | null;
   regraPreco: string;
 };
@@ -36,7 +37,19 @@ function resumoHorario(c: Categoria) {
   return c.horaInicio && c.horaFim ? `${dias} · ${c.horaInicio}–${c.horaFim}` : dias;
 }
 
-export function CardapioEditor({ storeId, cardapioId, categorias, variacoes }: { storeId: string; cardapioId: string; categorias: Categoria[]; variacoes: Variacao[] }) {
+export function CardapioEditor({
+  storeId,
+  cardapioId,
+  categorias,
+  variacoes,
+  categoriasProduto,
+}: {
+  storeId: string;
+  cardapioId: string;
+  categorias: Categoria[];
+  variacoes: Variacao[];
+  categoriasProduto: CatProduto[];
+}) {
   const [editandoCat, setEditandoCat] = useState<string | "nova" | null>(categorias.length ? null : "nova");
   const [editandoItem, setEditandoItem] = useState<{ cat: string; item: string | "novo" } | null>(null);
   const [lote, setLote] = useState<string | null>(null);
@@ -91,9 +104,9 @@ export function CardapioEditor({ storeId, cardapioId, categorias, variacoes }: {
             </div>
           )}
 
-          {lote === c.id ? <AdicionarLote storeId={storeId} categoriaId={c.id!} variacoes={variacoes} onFechar={() => setLote(null)} /> : null}
+          {lote === c.id ? <AdicionarLote storeId={storeId} categoriaId={c.id!} variacoes={variacoes} categoriasProduto={categoriasProduto} onFechar={() => setLote(null)} /> : null}
           {editandoItem?.cat === c.id && editandoItem?.item === "novo" ? (
-            <ItemForm storeId={storeId} categoriaId={c.id!} variacoes={variacoes} inicial={null} ordem={c.itens.length} onFechar={() => setEditandoItem(null)} />
+            <ItemForm storeId={storeId} categoriaId={c.id!} variacoes={variacoes} categoriasProduto={categoriasProduto} inicial={null} ordem={c.itens.length} onFechar={() => setEditandoItem(null)} />
           ) : null}
 
           {c.itens.length === 0 ? <p className="p-3 text-sm text-pdv-muted">Categoria vazia.</p> : null}
@@ -101,7 +114,7 @@ export function CardapioEditor({ storeId, cardapioId, categorias, variacoes }: {
             {c.itens.map((it) =>
               editandoItem?.item === it.id ? (
                 <li key={it.id} className="py-2">
-                  <ItemForm storeId={storeId} categoriaId={c.id!} variacoes={variacoes} inicial={it} ordem={it.ordem} onFechar={() => setEditandoItem(null)} />
+                  <ItemForm storeId={storeId} categoriaId={c.id!} variacoes={variacoes} categoriasProduto={categoriasProduto} inicial={it} ordem={it.ordem} onFechar={() => setEditandoItem(null)} />
                 </li>
               ) : (
                 <li key={it.id} className="flex items-center gap-2 py-2">
@@ -118,7 +131,7 @@ export function CardapioEditor({ storeId, cardapioId, categorias, variacoes }: {
                     </span>
                     <span className="truncate text-xs text-pdv-muted">
                       {it.tipo === "MONTAVEL"
-                        ? `sabores: ${TIPOS_PRODUTO.find((t) => t.id === it.saborTipo)?.label ?? it.saborTipo} ${it.saborVariacao} · preço pelo ${it.regraPreco === "MEDIA" ? "médio" : "maior"}`
+                        ? `sabores: ${categoriasProduto.find((t) => t.id === it.saborCategoriaId)?.nome ?? "?"} ${it.saborVariacao} · preço pelo ${it.regraPreco === "MEDIA" ? "médio" : "maior"}`
                         : it.componentes.map((k) => `${k.qtd !== 1 ? `${k.qtd}× ` : ""}${k.rotulo}`).join(" + ")}
                     </span>
                   </button>
@@ -213,15 +226,33 @@ function CategoriaForm({ storeId, cardapioId, inicial, onFechar }: { storeId: st
   );
 }
 
-function VariacaoSelect({ variacoes, value, onChange, label }: { variacoes: Variacao[]; value: string; onChange: (id: string) => void; label: string }) {
-  const grupos = useMemo(() => TIPOS_PRODUTO.map((t) => ({ ...t, vs: variacoes.filter((v) => v.tipo === t.id) })).filter((g) => g.vs.length), [variacoes]);
+function VariacaoSelect({
+  variacoes,
+  categoriasProduto,
+  value,
+  onChange,
+  label,
+}: {
+  variacoes: Variacao[];
+  categoriasProduto: CatProduto[];
+  value: string;
+  onChange: (id: string) => void;
+  label: string;
+}) {
+  const grupos = useMemo(
+    () =>
+      [...categoriasProduto, { id: "", nome: "Sem categoria" }]
+        .map((t) => ({ ...t, vs: variacoes.filter((v) => (v.categoriaId ?? "") === t.id) }))
+        .filter((g) => g.vs.length),
+    [variacoes, categoriasProduto]
+  );
   return (
     <label className="flex min-w-0 flex-1 flex-col gap-1.5">
       <span className="text-xs font-semibold tracking-wide text-pdv-muted uppercase">{label}</span>
       <select value={value} onChange={(e) => onChange(e.target.value)} className={selectCls}>
         <option value="">— escolha o produto —</option>
         {grupos.map((g) => (
-          <optgroup key={g.id} label={g.label}>
+          <optgroup key={g.id || "sem"} label={g.nome}>
             {g.vs.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.produto} · {v.nome}
@@ -238,6 +269,7 @@ function ItemForm({
   storeId,
   categoriaId,
   variacoes,
+  categoriasProduto,
   inicial,
   ordem,
   onFechar,
@@ -245,6 +277,7 @@ function ItemForm({
   storeId: string;
   categoriaId: string;
   variacoes: Variacao[];
+  categoriasProduto: CatProduto[];
   inicial: Item | null;
   ordem: number;
   onFechar: () => void;
@@ -256,12 +289,12 @@ function ItemForm({
   const [preco, setPreco] = useState(inicial ? dinheiroTxt(inicial.preco) : "");
   const [descricao, setDescricao] = useState(inicial?.descricao ?? "");
   const [comps, setComps] = useState(inicial?.componentes.length ? inicial.componentes.map((k) => ({ variacaoId: k.variacaoId, qtd: String(k.qtd) })) : [{ variacaoId: "", qtd: "1" }]);
-  const [saborTipo, setSaborTipo] = useState(inicial?.saborTipo ?? "PIZZA");
+  const [saborCat, setSaborCat] = useState(inicial?.saborCategoriaId ?? categoriasProduto[0]?.id ?? "");
   const [saborVariacao, setSaborVariacao] = useState(inicial?.saborVariacao ?? "");
   const [maxSabores, setMaxSabores] = useState(inicial && inicial.maxSabores > 1 ? inicial.maxSabores : 2);
   const [regra, setRegra] = useState(inicial?.regraPreco ?? "MAIOR");
 
-  const tamanhos = useMemo(() => [...new Set(variacoes.filter((v) => v.tipo === saborTipo).map((v) => v.nome))], [variacoes, saborTipo]);
+  const tamanhos = useMemo(() => [...new Set(variacoes.filter((v) => v.categoriaId === saborCat).map((v) => v.nome))], [variacoes, saborCat]);
 
   function escolherSimples(id: string) {
     setComps([{ variacaoId: id, qtd: "1" }]);
@@ -283,7 +316,7 @@ function ItemForm({
         tipo,
         componentes: tipo === "MONTAVEL" ? [] : comps.filter((k) => k.variacaoId).map((k) => ({ variacaoId: k.variacaoId, qtd: Number(k.qtd.replace(",", ".")) || 1 })),
         maxSabores: tipo === "MONTAVEL" ? maxSabores : undefined,
-        saborTipo: tipo === "MONTAVEL" ? (saborTipo as "PIZZA") : undefined,
+        saborCategoriaId: tipo === "MONTAVEL" ? saborCat : undefined,
         saborVariacao: tipo === "MONTAVEL" ? saborVariacao : undefined,
         regraPreco: regra as "MAIOR",
       });
@@ -327,14 +360,14 @@ function ItemForm({
         ))}
       </div>
 
-      {tipo === "SIMPLES" ? <VariacaoSelect label="Produto mãe" variacoes={variacoes} value={comps[0]?.variacaoId ?? ""} onChange={escolherSimples} /> : null}
+      {tipo === "SIMPLES" ? <VariacaoSelect label="Produto mãe" variacoes={variacoes} categoriasProduto={categoriasProduto} value={comps[0]?.variacaoId ?? ""} onChange={escolherSimples} /> : null}
 
       {tipo === "COMBO" ? (
         <div className="flex flex-col gap-2">
           {comps.map((k, i) => (
             <div key={i} className="flex items-end gap-2">
               <PdvField label="Qtd" inputMode="decimal" value={k.qtd} onChange={(e) => setComps((l) => l.map((x, j) => (j === i ? { ...x, qtd: e.target.value } : x)))} className="w-20" />
-              <VariacaoSelect label={`Produto ${i + 1}`} variacoes={variacoes} value={k.variacaoId} onChange={(id) => setComps((l) => l.map((x, j) => (j === i ? { ...x, variacaoId: id } : x)))} />
+              <VariacaoSelect label={`Produto ${i + 1}`} variacoes={variacoes} categoriasProduto={categoriasProduto} value={k.variacaoId} onChange={(id) => setComps((l) => l.map((x, j) => (j === i ? { ...x, variacaoId: id } : x)))} />
               <PdvButton size="icon" variant="ghost" disabled={comps.length === 1} onClick={() => setComps((l) => l.filter((_, j) => j !== i))} aria-label={`Remover produto ${i + 1}`}>
                 <Trash2 />
               </PdvButton>
@@ -349,10 +382,10 @@ function ItemForm({
       {tipo === "MONTAVEL" ? (
         <div className="grid gap-2 sm:grid-cols-4">
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-semibold tracking-wide text-pdv-muted uppercase">Sabores do tipo</span>
-            <select value={saborTipo} onChange={(e) => { setSaborTipo(e.target.value); setSaborVariacao(""); }} className={selectCls}>
-              {TIPOS_PRODUTO.map((t) => (
-                <option key={t.id} value={t.id}>{t.label}</option>
+            <span className="text-xs font-semibold tracking-wide text-pdv-muted uppercase">Sabores da categoria</span>
+            <select value={saborCat} onChange={(e) => { setSaborCat(e.target.value); setSaborVariacao(""); }} className={selectCls}>
+              {categoriasProduto.map((t) => (
+                <option key={t.id} value={t.id}>{t.nome}</option>
               ))}
             </select>
           </label>
@@ -381,7 +414,7 @@ function ItemForm({
             </select>
           </label>
           <p className="text-xs text-pdv-muted sm:col-span-4">
-            Os sabores e preços saem dos itens simples deste cardápio desse tipo e tamanho (ex: todas as pizzas G). Promo valendo no dia entra com o preço da promo.
+            Os sabores e preços saem dos itens simples deste cardápio dessa categoria e tamanho (ex: todas as Pizzas G). Promo valendo no dia entra com o preço da promo.
           </p>
         </div>
       ) : null}
@@ -404,21 +437,33 @@ function ItemForm({
   );
 }
 
-function AdicionarLote({ storeId, categoriaId, variacoes, onFechar }: { storeId: string; categoriaId: string; variacoes: Variacao[]; onFechar: () => void }) {
+function AdicionarLote({
+  storeId,
+  categoriaId,
+  variacoes,
+  categoriasProduto,
+  onFechar,
+}: {
+  storeId: string;
+  categoriaId: string;
+  variacoes: Variacao[];
+  categoriasProduto: CatProduto[];
+  onFechar: () => void;
+}) {
   const router = useRouter();
   const [pendente, start] = useTransition();
-  const [tipo, setTipo] = useState("PIZZA");
-  const tamanhos = useMemo(() => [...new Set(variacoes.filter((v) => v.tipo === tipo).map((v) => v.nome))], [variacoes, tipo]);
+  const [catProd, setCatProd] = useState(categoriasProduto[0]?.id ?? "");
+  const tamanhos = useMemo(() => [...new Set(variacoes.filter((v) => v.categoriaId === catProd).map((v) => v.nome))], [variacoes, catProd]);
   const [tam, setTam] = useState("");
   const tamanho = tam || tamanhos[0] || "";
-  const qtd = variacoes.filter((v) => v.tipo === tipo && v.nome === tamanho).length;
+  const qtd = variacoes.filter((v) => v.categoriaId === catProd && v.nome === tamanho).length;
   return (
     <div className="flex flex-wrap items-end gap-2 rounded-pdv-md border border-dashed border-pdv-accent p-3">
       <label className="flex flex-col gap-1.5">
-        <span className="text-xs font-semibold tracking-wide text-pdv-muted uppercase">Todos os produtos do tipo</span>
-        <select value={tipo} onChange={(e) => { setTipo(e.target.value); setTam(""); }} className={selectCls}>
-          {TIPOS_PRODUTO.map((t) => (
-            <option key={t.id} value={t.id}>{t.label}</option>
+        <span className="text-xs font-semibold tracking-wide text-pdv-muted uppercase">Todos os produtos da categoria</span>
+        <select value={catProd} onChange={(e) => { setCatProd(e.target.value); setTam(""); }} className={selectCls}>
+          {categoriasProduto.map((t) => (
+            <option key={t.id} value={t.id}>{t.nome}</option>
           ))}
         </select>
       </label>
@@ -436,7 +481,7 @@ function AdicionarLote({ storeId, categoriaId, variacoes, onFechar }: { storeId:
         loading={pendente}
         onClick={() =>
           start(async () => {
-            const r = await adicionarTodos(storeId, categoriaId, tipo, tamanho);
+            const r = await adicionarTodos(storeId, categoriaId, catProd, tamanho);
             if (!r.ok) return void toast.error(r.error);
             toast.success(r.criados ? `${r.criados} itens adicionados com o preço de referência` : "Nada novo pra adicionar");
             onFechar();

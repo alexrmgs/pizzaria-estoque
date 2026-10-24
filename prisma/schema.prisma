@@ -109,12 +109,13 @@ model Company {
   roles    Role[]
   settings AppSettings?
 
-  pdvCategorias      PdvCategoria[]
-  pdvProdutos        PdvProduto[]
-  pdvFormasPagamento PdvFormaPagamento[]
-  pdvClientes        PdvCliente[]
-  pdvProdutosMae     PdvProdutoMae[]
-  pdvCardapios       PdvCardapio[]
+  pdvCategorias        PdvCategoria[]
+  pdvProdutos          PdvProduto[]
+  pdvFormasPagamento   PdvFormaPagamento[]
+  pdvClientes          PdvCliente[]
+  pdvProdutosMae       PdvProdutoMae[]
+  pdvProdutoCategorias PdvProdutoCategoria[]
+  pdvCardapios         PdvCardapio[]
 }
 
 /**
@@ -1188,21 +1189,27 @@ model PdvFaixaEntrega {
 // não pro nome do item — o mesmo produto em promo e em preço cheio soma junto.
 
 model PdvProdutoMae {
-  id        String   @id @default(cuid())
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  nome      String
-  // PIZZA | ESFIHA | BEIRUTE | BEBIDA | ADICIONAL | DOCE | OUTRO
-  tipo      String
-  ativo     Boolean  @default(true)
-  ordem     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String               @id @default(cuid())
+  companyId   String
+  company     Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  nome        String
+  // legado (lista fixa antiga); o agrupamento agora é a categoria do usuário
+  tipo        String               @default("OUTRO")
+  categoriaId String?
+  categoria   PdvProdutoCategoria? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+  descricao   String?
+  // foto reduzida no navegador (JPEG em data URL), como nas Receitas
+  fotoUrl     String?
+  ativo       Boolean              @default(true)
+  ordem       Int                  @default(0)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
 
   variacoes PdvVariacao[]
 
   @@unique([companyId, nome])
   @@index([companyId, tipo])
+  @@index([categoriaId])
 }
 
 model PdvVariacao {
@@ -1260,27 +1267,31 @@ model PdvCardapioCategoria {
 }
 
 model PdvCardapioItem {
-  id            String               @id @default(cuid())
-  categoriaId   String
-  categoria     PdvCardapioCategoria @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
-  nome          String
-  descricao     String?
-  preco         Decimal              @db.Decimal(10, 2)
-  ordem         Int                  @default(0)
-  ativo         Boolean              @default(true)
+  id               String               @id @default(cuid())
+  categoriaId      String
+  categoria        PdvCardapioCategoria @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  nome             String
+  descricao        String?
+  preco            Decimal              @db.Decimal(10, 2)
+  ordem            Int                  @default(0)
+  ativo            Boolean              @default(true)
   // montável (meio a meio): escolhe até maxSabores entre os itens simples do
   // mesmo cardápio cujo produto é do tipo saborTipo na variação saborVariacao
-  maxSabores    Int                  @default(1)
-  saborTipo     String?
-  saborVariacao String?
+  maxSabores       Int                  @default(1)
+  saborTipo        String?
+  // sabores = produtos desta categoria (substitui saborTipo)
+  saborCategoriaId String?
+  saborCategoria   PdvProdutoCategoria? @relation(fields: [saborCategoriaId], references: [id], onDelete: SetNull)
+  saborVariacao    String?
   // MAIOR | MEDIA — preço do montável a partir dos sabores escolhidos
-  regraPreco    String               @default("MAIOR")
-  cobraServico  Boolean              @default(true)
+  regraPreco       String               @default("MAIOR")
+  cobraServico     Boolean              @default(true)
 
   componentes PdvCardapioComponente[]
   vendaItens  PdvVendaItem[]
 
   @@index([categoriaId, ordem])
+  @@index([saborCategoriaId])
 }
 
 // O que um item do cardápio entrega: simples = 1 variação; combo = várias.
@@ -1309,4 +1320,19 @@ model PdvVendaItemParte {
 
   @@index([vendaItemId])
   @@index([variacaoId])
+}
+
+// Categorias dos produtos mãe, criadas pelo usuário (Pizzas, Bordas,
+// Adicionais, Esfihas…). Agrupam o catálogo e definem os sabores do meio a meio.
+model PdvProdutoCategoria {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  nome      String
+  ordem     Int     @default(0)
+
+  produtos       PdvProdutoMae[]
+  itensMontaveis PdvCardapioItem[]
+
+  @@unique([companyId, nome])
 }

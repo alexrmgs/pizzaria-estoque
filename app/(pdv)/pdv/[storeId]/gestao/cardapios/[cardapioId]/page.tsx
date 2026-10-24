@@ -8,7 +8,7 @@ import { CardapioEditor } from "./editor";
 export default async function CardapioPage({ params }: { params: Promise<{ storeId: string; cardapioId: string }> }) {
   const { storeId, cardapioId } = await params;
   const { store } = await requirePdv(storeId, "gerenciar");
-  const [cardapio, variacoes] = await Promise.all([
+  const [cardapio, variacoes, categoriasProduto] = await Promise.all([
     prisma.pdvCardapio.findFirst({
       where: { id: cardapioId, companyId: store!.companyId },
       include: {
@@ -27,9 +27,10 @@ export default async function CardapioPage({ params }: { params: Promise<{ store
     }),
     prisma.pdvVariacao.findMany({
       where: { ativo: true, produtoMae: { companyId: store!.companyId, ativo: true } },
-      include: { produtoMae: { select: { nome: true, tipo: true } } },
-      orderBy: [{ produtoMae: { tipo: "asc" } }, { produtoMae: { nome: "asc" } }, { ordem: "asc" }],
+      include: { produtoMae: { select: { nome: true, categoriaId: true } } },
+      orderBy: [{ produtoMae: { nome: "asc" } }, { ordem: "asc" }],
     }),
+    prisma.pdvProdutoCategoria.findMany({ where: { companyId: store!.companyId }, orderBy: [{ ordem: "asc" }, { nome: "asc" }], select: { id: true, nome: true } }),
   ]);
   if (!cardapio) notFound();
 
@@ -48,11 +49,12 @@ export default async function CardapioPage({ params }: { params: Promise<{ store
       <CardapioEditor
         storeId={store!.id}
         cardapioId={cardapio.id}
+        categoriasProduto={categoriasProduto}
         variacoes={variacoes.map((v) => ({
           id: v.id,
           nome: v.nome,
           produto: v.produtoMae.nome,
-          tipo: v.produtoMae.tipo,
+          categoriaId: v.produtoMae.categoriaId,
           precoReferencia: v.precoReferencia != null ? Number(v.precoReferencia) : null,
         }))}
         categorias={cardapio.categorias.map((c) => ({
@@ -71,7 +73,7 @@ export default async function CardapioPage({ params }: { params: Promise<{ store
             tipo: it.maxSabores > 1 ? ("MONTAVEL" as const) : it.componentes.length > 1 ? ("COMBO" as const) : ("SIMPLES" as const),
             componentes: it.componentes.map((k) => ({ variacaoId: k.variacaoId, qtd: Number(k.qtd), rotulo: `${k.variacao.produtoMae.nome} ${k.variacao.nome}` })),
             maxSabores: it.maxSabores,
-            saborTipo: it.saborTipo,
+            saborCategoriaId: it.saborCategoriaId,
             saborVariacao: it.saborVariacao,
             regraPreco: it.regraPreco,
           })),
