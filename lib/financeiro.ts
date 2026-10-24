@@ -258,12 +258,16 @@ export type RevenueProjection = {
   currentMonth: number;
   currentMonthActual: number;
   currentMonthProjected: number;
+  /** dias do mês usados na média (até o último dia lançado) */
+  diasBase: number;
 };
 
 /**
  * Projeta o fechamento do ano e do mês corrente a partir do histórico.
  * Meses já fechados entram como estão; o mês em andamento é extrapolado
- * pelo ritmo diário (total até agora ÷ dias passados × dias do mês); os
+ * pelo ritmo diário (total lançado ÷ dias até o último lançamento × dias do
+ * mês) — a base é o último dia que já tem faturamento lançado, não o dia de
+ * hoje (que normalmente ainda não foi lançado e puxaria a média pra baixo); os
  * meses futuros usam o mesmo mês do ano anterior ajustado pela taxa de
  * crescimento observada nos meses já fechados deste ano (sem histórico do
  * ano anterior pra aquele mês, assume a média do que já rendeu esse ano).
@@ -281,6 +285,8 @@ export function computeRevenueProjection(
   const byMonthThisYear = Array.from({ length: 12 }, () => 0);
   const byMonthLastYear = Array.from({ length: 12 }, () => 0);
   let yearActualSoFar = 0;
+  // último dia do mês corrente com faturamento lançado
+  let ultimoDiaLancado = 0;
 
   for (const r of records) {
     const y = Number(r.date.slice(0, 4));
@@ -288,6 +294,7 @@ export function computeRevenueProjection(
     if (y === year) {
       byMonthThisYear[m] += r.amount;
       yearActualSoFar += r.amount;
+      if (m === month && r.amount !== 0) ultimoDiaLancado = Math.max(ultimoDiaLancado, Number(r.date.slice(8, 10)));
     } else if (y === year - 1) {
       byMonthLastYear[m] += r.amount;
     }
@@ -303,7 +310,8 @@ export function computeRevenueProjection(
 
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   const currentMonthActual = byMonthThisYear[month];
-  const currentMonthProjected = day > 0 ? (currentMonthActual / day) * daysInMonth : currentMonthActual;
+  const diasBase = Math.min(ultimoDiaLancado, day, daysInMonth);
+  const currentMonthProjected = diasBase > 0 ? (currentMonthActual / diasBase) * daysInMonth : currentMonthActual;
 
   const avgThisYearSoFar = month > 0 ? completedThis / month : currentMonthActual;
   let projectedRemaining = 0;
@@ -325,5 +333,6 @@ export function computeRevenueProjection(
     currentMonth: month,
     currentMonthActual,
     currentMonthProjected,
+    diasBase,
   };
 }

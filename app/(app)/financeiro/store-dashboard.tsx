@@ -388,7 +388,7 @@ export function StoreDashboard({
             <CardContent>
               <p className="text-2xl font-semibold">{currency(projection.currentMonthProjected)}</p>
               <p className="text-xs text-neutral-500">
-                {currency(projection.currentMonthActual)} já faturado nesse mês
+                {currency(projection.currentMonthActual)} já faturado nesse mês{projection.diasBase > 0 ? ` · média de ${projection.diasBase} dias lançados` : ""}
               </p>
             </CardContent>
           </Card>

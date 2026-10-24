@@ -452,7 +452,7 @@ export default async function FinanceiroPage({
                   <CardContent>
                     <p className="text-2xl font-semibold">{currency(networkProjection.currentMonthProjected)}</p>
                     <p className="text-xs text-neutral-500">
-                      {currency(networkProjection.currentMonthActual)} já faturado nesse mês
+                      {currency(networkProjection.currentMonthActual)} já faturado nesse mês{networkProjection.diasBase > 0 ? ` · média de ${networkProjection.diasBase} dias lançados` : ""}
                     </p>
                   </CardContent>
                 </Card>
