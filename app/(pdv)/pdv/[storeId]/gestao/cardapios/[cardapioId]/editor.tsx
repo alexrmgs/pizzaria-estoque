@@ -226,6 +226,7 @@ function CategoriaForm({ storeId, cardapioId, inicial, onFechar }: { storeId: st
   );
 }
 
+/** Escolhe o produto em duas etapas: primeiro a categoria (Pizzas, Bordas…), depois só os produtos dela. */
 function VariacaoSelect({
   variacoes,
   categoriasProduto,
@@ -246,22 +247,43 @@ function VariacaoSelect({
         .filter((g) => g.vs.length),
     [variacoes, categoriasProduto]
   );
+  // começa na categoria do produto já escolhido (edição) ou na primeira com produtos
+  const [cat, setCat] = useState(() => {
+    const atual = variacoes.find((v) => v.id === value);
+    return atual ? (atual.categoriaId ?? "") : (grupos[0]?.id ?? "");
+  });
+  const doGrupo = grupos.find((g) => g.id === cat)?.vs ?? [];
   return (
-    <label className="flex min-w-0 flex-1 flex-col gap-1.5">
-      <span className="text-xs font-semibold tracking-wide text-pdv-muted uppercase">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className={selectCls}>
-        <option value="">— escolha o produto —</option>
-        {grupos.map((g) => (
-          <optgroup key={g.id || "sem"} label={g.nome}>
-            {g.vs.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.produto} · {v.nome}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
-    </label>
+    <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
+      <label className="flex flex-col gap-1.5 sm:w-44">
+        <span className="text-xs font-semibold tracking-wide text-pdv-muted uppercase">Categoria</span>
+        <select
+          value={cat}
+          onChange={(e) => {
+            setCat(e.target.value);
+            onChange("");
+          }}
+          className={selectCls}
+        >
+          {grupos.map((g) => (
+            <option key={g.id || "sem"} value={g.id}>
+              {g.nome} ({g.vs.length})
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <span className="text-xs font-semibold tracking-wide text-pdv-muted uppercase">{label}</span>
+        <select value={value} onChange={(e) => onChange(e.target.value)} className={selectCls}>
+          <option value="">— escolha —</option>
+          {doGrupo.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.produto} · {v.nome}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
   );
 }
 
