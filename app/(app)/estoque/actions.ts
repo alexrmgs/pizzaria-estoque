@@ -292,3 +292,19 @@ export async function setIngredientActive(id: string, active: boolean) {
   revalidatePath("/producao");
   revalidatePath("/receitas");
 }
+
+/**
+ * Atalho da tabela de Estoque: muda só o estoque mínimo, sem abrir o
+ * cadastro do item.
+ */
+export async function setIngredientMinStock(id: string, minStock: number): Promise<{ error?: string }> {
+  await requirePermission("canManageEstoque");
+  if (!Number.isFinite(minStock) || minStock < 0 || minStock > 9_999_999) return { error: "Valor inválido" };
+
+  await prisma.ingredient.update({ where: { id }, data: { minStock: Math.round(minStock * 1000) / 1000 } });
+
+  revalidatePath("/estoque");
+  revalidatePath("/dashboard");
+  revalidatePath("/lista-compras");
+  return {};
+}

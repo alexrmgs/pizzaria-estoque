@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { IngredientDialog } from "./ingredient-dialog";
+import { MinStockInput } from "./min-stock-input";
 import { DeleteIngredientButton } from "./delete-ingredient-button";
 import { ExcludeProducedFromCmvButton } from "./exclude-produced-from-cmv-button";
 import { RecalcularEstoqueAceitavelButton } from "./recalcular-estoque-aceitavel-button";
@@ -88,7 +89,9 @@ function IngredientsTable({
                 <TableCell>{ingredient.unit}</TableCell>
                 {showValues && <TableCell>{currency(price)}</TableCell>}
                 <TableCell>{current}</TableCell>
-                <TableCell>{min}</TableCell>
+                <TableCell>
+                  {canManage ? <MinStockInput id={ingredient.id} name={ingredient.name} value={min} /> : min}
+                </TableCell>
                 {showValues && <TableCell>{currency(current * price)}</TableCell>}
                 <TableCell>
                   {low ? (
