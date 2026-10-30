@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/lib/generated/prisma/client";
 import { requireUser, requirePermission } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import { todayInBrazil } from "@/lib/payroll";
@@ -40,7 +41,11 @@ export async function removeFaceDescriptor(employeeId: string): Promise<{ error?
   // Cadastro de rosto só pra quem administra o RH inteiro — quem tem só a
   // tela do Ponto por Facial (totem) apenas bate ponto.
   await requirePermission("canManageFuncionarios");
-  await prisma.employee.update({ where: { id: employeeId }, data: { faceDescriptor: undefined } });
+  await prisma.employee.update({
+    where: { id: employeeId },
+    // undefined o Prisma ignora (não apagava nada); DbNull grava NULL no campo.
+    data: { faceDescriptor: Prisma.DbNull },
+  });
   revalidatePath("/ponto-totem");
   return {};
 }
