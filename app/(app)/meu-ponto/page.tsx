@@ -93,7 +93,7 @@ export default async function MeuPontoPage() {
       orderBy: { clockIn: "desc" },
       take: 30,
     }),
-    // Todo vale ainda não descontado + os 20 mais recentes já pagos. Antes era
+    // Todo vale ainda não descontado + os já pagos dos últimos 30 dias. Antes era
     // só os 20 mais recentes no total, e o "pendente" somava só eles — quem
     // pega muitos vales pequenos via um valor bem menor que o real.
     prisma.advance.findMany({
