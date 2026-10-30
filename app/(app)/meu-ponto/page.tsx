@@ -93,10 +93,17 @@ export default async function MeuPontoPage() {
       orderBy: { clockIn: "desc" },
       take: 30,
     }),
+    // Todo vale ainda não descontado + os 20 mais recentes já pagos. Antes era
+    // só os 20 mais recentes no total, e o "pendente" somava só eles — quem
+    // pega muitos vales pequenos via um valor bem menor que o real.
     prisma.advance.findMany({
-      where: { employeeId: employee.id, kind: "VALE" },
+      where: {
+        employeeId: employee.id,
+        kind: "VALE",
+        OR: [{ paymentId: null }, { date: { gte: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) } }],
+      },
       orderBy: { date: "desc" },
-      take: 20,
+      take: 300,
     }),
     prisma.payment.findMany({
       where: { employeeId: employee.id },
