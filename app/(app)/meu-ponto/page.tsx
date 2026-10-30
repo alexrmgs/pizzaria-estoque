@@ -100,7 +100,7 @@ export default async function MeuPontoPage() {
       where: {
         employeeId: employee.id,
         kind: "VALE",
-        OR: [{ paymentId: null }, { date: { gte: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) } }],
+        OR: [{ paymentId: null }, { date: { gte: thirtyDaysAgo } }],
       },
       orderBy: { date: "desc" },
       take: 300,
