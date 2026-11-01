@@ -38,7 +38,9 @@ export function FinalizarPainel({
   const [linhas, setLinhas] = useState<Linha[]>(
     previstos.length
       ? previstos.map((p) => ({ formaId: p.formaId, valor: txt(p.valor), trocoPara: p.trocoPara ? txt(p.trocoPara) : "" }))
-      : [{ formaId: formas[0]?.id ?? "", valor: txt(total), trocoPara: "" }]
+      // Sem previsto, parte já selecionado em dinheiro (forma mais comum) em
+      // vez do primeiro da lista, que pode ser qualquer uma cadastrada.
+      : [{ formaId: formas.find((f) => f.tipo === "DINHEIRO")?.id ?? formas[0]?.id ?? "", valor: txt(total), trocoPara: "" }]
   );
 
   const set = (i: number, p: Partial<Linha>) => setLinhas((l) => l.map((x, j) => (j === i ? { ...x, ...p } : x)));

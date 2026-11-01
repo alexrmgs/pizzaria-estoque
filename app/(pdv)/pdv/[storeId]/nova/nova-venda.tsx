@@ -52,7 +52,7 @@ export function NovaVenda({
   const [cliente, setCliente] = useState("");
   const [desconto, setDesconto] = useState("");
   const [descontoMotivo, setDescontoMotivo] = useState("");
-  const [formaId, setFormaId] = useState<string | null>(formas[0]?.id ?? null);
+  const [formaId, setFormaId] = useState<string | null>(formas.find((f) => f.tipo === "DINHEIRO")?.id ?? formas[0]?.id ?? null);
   const [trocoPara, setTrocoPara] = useState("");
 
   const visiveis = useMemo(() => {
