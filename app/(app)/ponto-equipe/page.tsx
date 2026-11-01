@@ -11,7 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatShiftDuration, lateMinutes, shiftHours } from "@/lib/payroll";
+import { brazilTime, formatShiftDuration, lateMinutes, shiftHours, todayInBrazil } from "@/lib/payroll";
+import { AVISOS_DIAS, buildAvisosPonto, linkAvisoWhatsapp } from "@/lib/ponto-avisos";
 import { EditPontoDialog } from "./edit-ponto-dialog";
 import { DeletePontoButton } from "./delete-ponto-button";
 
@@ -33,14 +34,10 @@ function toISODate(date: Date) {
 }
 
 function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
-function formatTime(date: Date) {
-  return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-}
+const formatTime = brazilTime;
 
 /** Foto tirada pela facial no momento da batida, como prova. Clica pra abrir
  * maior numa nova aba. */
@@ -67,10 +64,10 @@ export default async function PontoEquipePage({
 
   const params = await searchParams;
   const dateParam = typeof params.date === "string" ? params.date : undefined;
-  const date = dateParam ? new Date(`${dateParam}T00:00:00`) : new Date(new Date().toDateString());
+  const date = dateParam ? new Date(`${dateParam}T00:00:00Z`) : todayInBrazil();
   const dateISO = toISODate(date);
 
-  const [employees, dayOffs] = await Promise.all([
+  const [employees, dayOffs, avisosEquipe] = await Promise.all([
     prisma.employee.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
@@ -83,7 +80,9 @@ export default async function PontoEquipePage({
       where: { date },
       select: { employeeId: true, type: true },
     }),
+    buildAvisosPonto(),
   ]);
+  const comAvisos = avisosEquipe.filter((f) => f.avisos.length > 0);
 
   const dayOffByEmployee = new Map(dayOffs.map((d) => [d.employeeId, d.type]));
 
@@ -100,7 +99,7 @@ export default async function PontoEquipePage({
   const rows: Row[] = employees.map((employee) => {
     const entry = employee.timeEntries[0] ?? null;
     const dayOffType = dayOffByEmployee.get(employee.id);
-    const isWeeklyDayOff = employee.weeklyDayOff !== null && date.getDay() === employee.weeklyDayOff;
+    const isWeeklyDayOff = employee.weeklyDayOff !== null && date.getUTCDay() === employee.weeklyDayOff;
     const isWorkOverride = dayOffType === "TRABALHA";
     const isFolga = !isWorkOverride && (dayOffType === "FOLGA" || isWeeklyDayOff);
 
@@ -136,12 +135,13 @@ export default async function PontoEquipePage({
   ).length;
   const folgaRows = rows.filter((r) => r.status === "FOLGA");
 
-  const weekdayLabel = WEEKDAY_LONG[date.getDay()];
+  const weekdayLabel = WEEKDAY_LONG[date.getUTCDay()];
   const dataCompleta = date.toLocaleDateString("pt-BR", {
     weekday: "long",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    timeZone: "UTC",
   });
 
   return (
@@ -223,6 +223,43 @@ export default async function PontoEquipePage({
           </CardContent>
         </Card>
       </div>
+
+      {comAvisos.length > 0 && (
+        <Card className="border-amber-300 bg-amber-50">
+          <CardHeader>
+            <CardTitle className="text-lg">⚠️ Avisos da equipe (últimos {AVISOS_DIAS} dias)</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {comAvisos.map((f) => {
+              const whatsapp = linkAvisoWhatsapp(f);
+              return (
+                <div key={f.id} className="flex flex-wrap items-start justify-between gap-2 border-b border-amber-200 pb-3 last:border-0 last:pb-0">
+                  <div>
+                    <p className="font-medium">{f.name}</p>
+                    <ul className="text-sm text-neutral-700">
+                      {f.avisos.map((a, i) => (
+                        <li key={i}>• {a.texto}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  {whatsapp ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      nativeButton={false}
+                      render={<a href={whatsapp} target="_blank" rel="noreferrer" />}
+                    >
+                      Avisar no WhatsApp
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-neutral-500">Sem telefone no cadastro</span>
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

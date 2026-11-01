@@ -102,10 +102,12 @@ export function lateMinutes(scheduledStart: string | null | undefined, clockIn: 
   const [hour, minute] = scheduledStart.split(":").map(Number);
   if (Number.isNaN(hour) || Number.isNaN(minute)) return 0;
 
-  const scheduled = new Date(clockIn);
-  scheduled.setHours(hour, minute, 0, 0);
+  // Compara no relógio de Brasília: o servidor roda em UTC e o horário
+  // cadastrado é de Brasília (setHours aqui dava 3h de atraso a mais).
+  const wall = toBrazilWallClock(clockIn);
+  const scheduled = Date.UTC(wall.getUTCFullYear(), wall.getUTCMonth(), wall.getUTCDate(), hour, minute);
 
-  const diffMinutes = Math.round((clockIn.getTime() - scheduled.getTime()) / 60_000);
+  const diffMinutes = Math.round((wall.getTime() - scheduled) / 60_000);
   return diffMinutes > 0 ? diffMinutes : 0;
 }
 
@@ -122,10 +124,10 @@ export function minutesBeforeScheduledStart(
   const [hour, minute] = scheduledStart.split(":").map(Number);
   if (Number.isNaN(hour) || Number.isNaN(minute)) return 0;
 
-  const scheduled = new Date(now);
-  scheduled.setHours(hour, minute, 0, 0);
+  const wall = toBrazilWallClock(now);
+  const scheduled = Date.UTC(wall.getUTCFullYear(), wall.getUTCMonth(), wall.getUTCDate(), hour, minute);
 
-  const diffMinutes = Math.round((scheduled.getTime() - now.getTime()) / 60_000);
+  const diffMinutes = Math.round((scheduled - wall.getTime()) / 60_000);
   return diffMinutes > 0 ? diffMinutes : 0;
 }
 
@@ -135,6 +137,15 @@ export const EARLY_CLOCK_IN_TOLERANCE_MINUTES = 10;
 // nem computadas. Acima disso, o atraso inteiro passa a ser descontável
 // (a tolerância é um limite, não um abatimento parcial).
 export const LATE_TOLERANCE_MINUTES = 5;
+// Acima disso o turno não existe: é saída esquecida, e a próxima batida da
+// pessoa é entrada nova, não a saída de ontem.
+export const TURNO_MAX_HORAS = 16;
+// Entrada tão atrasada que provavelmente é a saída de quem esqueceu a entrada.
+export const SUSPEITA_SEM_ENTRADA_MINUTOS = 180;
+
+export function turnoEsquecido(clockIn: Date, now: Date = new Date()): boolean {
+  return now.getTime() - clockIn.getTime() > TURNO_MAX_HORAS * 60 * 60 * 1000;
+}
 
 export function discountableLateMinutes(lateMinutesForDay: number): number {
   return lateMinutesForDay > LATE_TOLERANCE_MINUTES ? lateMinutesForDay : 0;
@@ -414,6 +425,18 @@ const BRAZIL_UTC_OFFSET_HOURS = 3;
  */
 function toBrazilWallClock(instant: Date): Date {
   return new Date(instant.getTime() - BRAZIL_UTC_OFFSET_HOURS * 60 * 60 * 1000);
+}
+
+/** "HH:mm" de um instante no horário de Brasília. */
+export function brazilTime(instant: Date): string {
+  return toBrazilWallClock(instant).toISOString().slice(11, 16);
+}
+
+/** Instante de um dia ("AAAA-MM-DD") e hora ("HH:mm") digitados em horário de Brasília. */
+export function brazilDateTime(date: string, time: string): Date {
+  const [y, m, d] = date.split("-").map(Number);
+  const [h, min] = time.split(":").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, h + BRAZIL_UTC_OFFSET_HOURS, min));
 }
 
 /** Data de hoje em Brasília (meia-noite UTC), independente do fuso do processo. */

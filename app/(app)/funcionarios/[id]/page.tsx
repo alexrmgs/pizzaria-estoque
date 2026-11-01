@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAccess } from "@/lib/dal";
-import { lateMinutes, nightHours, shiftHours, todayInBrazil } from "@/lib/payroll";
+import { brazilTime, lateMinutes, nightHours, shiftHours, todayInBrazil } from "@/lib/payroll";
 import { computePaymentPreview } from "@/lib/payment-preview";
 import { getAppSettings } from "@/lib/settings";
 
@@ -274,9 +274,9 @@ export default async function FuncionarioDetalhePage({
             entries={timeEntries.map((entry) => ({
               id: entry.id,
               date: entry.date.toISOString().slice(0, 10),
-              clockIn: entry.clockIn.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+              clockIn: brazilTime(entry.clockIn),
               clockOut: entry.clockOut
-                ? entry.clockOut.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+                ? brazilTime(entry.clockOut)
                 : null,
               hours: entry.clockOut ? shiftHours(entry.clockIn, entry.clockOut) : null,
               nightHours: entry.clockOut ? nightHours(entry.clockIn, entry.clockOut) : 0,

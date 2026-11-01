@@ -5,7 +5,7 @@ import { useCamera } from "./use-camera";
 import { detectDescriptor, loadFaceApi } from "@/lib/face-recognition";
 import { registerFacialPonto } from "./actions";
 
-type Feedback = { kind: "ok" | "done" | "unknown" | "error"; text: string } | null;
+type Feedback = { kind: "ok" | "done" | "unknown" | "error"; text: string; aviso?: string } | null;
 
 const FEEDBACK_STYLES: Record<NonNullable<Feedback>["kind"], string> = {
   ok: "bg-emerald-600",
@@ -53,7 +53,14 @@ export function TotemKiosk() {
         const photo = capturePhoto(videoRef.current);
         const result = await registerFacialPonto(descriptor, photo);
         if (result.status === "ok") {
-          setFeedback({ kind: "ok", text: `${result.employeeName} — ${result.action} às ${result.time}` });
+          setFeedback({
+            kind: "ok",
+            text: `${result.employeeName} — ${result.action} às ${result.time}`,
+            aviso: result.aviso,
+          });
+          cooldownRef.current = Date.now() + (result.aviso ? 12000 : 6000);
+        } else if (result.status === "recent") {
+          setFeedback({ kind: "done", text: `${result.employeeName}, seu ponto acabou de ser registrado.` });
           cooldownRef.current = Date.now() + 6000;
         } else if (result.status === "done") {
           setFeedback({ kind: "done", text: `${result.employeeName}, você já registrou entrada e saída hoje.` });
@@ -72,7 +79,7 @@ export function TotemKiosk() {
 
   useEffect(() => {
     if (!feedback) return;
-    const timeout = setTimeout(() => setFeedback(null), 6000);
+    const timeout = setTimeout(() => setFeedback(null), feedback.aviso ? 12000 : 6000);
     return () => clearTimeout(timeout);
   }, [feedback]);
 
@@ -88,6 +95,9 @@ export function TotemKiosk() {
             {feedback.kind === "done" && "ℹ️ "}
             {feedback.kind === "error" && "⚠️ "}
             {feedback.text}
+            {feedback.aviso && (
+              <p className="mt-2 rounded bg-amber-400 p-2 text-base text-black">⚠️ {feedback.aviso}</p>
+            )}
           </div>
         )}
       </div>

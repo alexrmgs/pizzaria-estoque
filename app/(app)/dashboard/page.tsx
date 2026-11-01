@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
-import { LATE_TOLERANCE_MINUTES, todayInBrazil, weekdayInBrazil } from "@/lib/payroll";
+import { brazilTime, LATE_TOLERANCE_MINUTES, todayInBrazil, weekdayInBrazil } from "@/lib/payroll";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -464,10 +464,7 @@ export default async function DashboardPage({
                     <span>{item.name}</span>
                     <span className="text-neutral-500">
                       desde{" "}
-                      {item.clockIn.toLocaleTimeString("pt-BR", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {brazilTime(item.clockIn)}
                     </span>
                   </li>
                 ))}

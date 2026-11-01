@@ -3,13 +3,16 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/dal";
 import {
+  brazilTime,
   formatShiftDuration,
   lateMinutes,
   nightHours,
   shiftHours,
   todayInBrazil,
+  turnoEsquecido,
   type AttendanceStreakTier,
 } from "@/lib/payroll";
+import { AVISOS_DIAS, buildAvisosPonto } from "@/lib/ponto-avisos";
 import { computePaymentPreview } from "@/lib/payment-preview";
 import { getAppSettings } from "@/lib/settings";
 import { upcomingFolgas } from "@/lib/schedule";
@@ -87,7 +90,7 @@ export default async function MeuPontoPage() {
     .sort((a, b) => a.months - b.months);
   const nextStreakTier = streakTiers.find((t) => t.months > preview.attendanceStreakMonths);
 
-  const [entries, advances, pastPayments] = await Promise.all([
+  const [entries, advances, pastPayments, avisosPonto] = await Promise.all([
     prisma.timeEntry.findMany({
       where: { employeeId: employee.id, date: { gte: thirtyDaysAgo } },
       orderBy: { clockIn: "desc" },
@@ -110,9 +113,11 @@ export default async function MeuPontoPage() {
       orderBy: { periodStart: "desc" },
       take: 12,
     }),
+    buildAvisosPonto(employee.id, now),
   ]);
+  const meusAvisos = avisosPonto[0]?.avisos ?? [];
 
-  const openEntry = entries.find((entry) => !entry.clockOut);
+  const openEntry = entries.find((entry) => !entry.clockOut && !turnoEsquecido(entry.clockIn, now));
   // "Meus vales" é só vale (produto pego na pizzaria) — o adiantamento
   // quinzenal de 40% é outra coisa (gerado em lote pro RH) e já vem excluído
   // pela busca acima (kind: "VALE"), mesmo descontando do mesmo jeito no
@@ -246,16 +251,24 @@ export default async function MeuPontoPage() {
         </TabsList>
 
         <TabsContent value="ponto" className="flex flex-col gap-6 pt-4">
+          {meusAvisos.length > 0 && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900">
+              <p className="font-semibold">⚠️ Avisos do seu ponto (últimos {AVISOS_DIAS} dias)</p>
+              <ul className="mt-2 flex flex-col gap-1 text-sm">
+                {meusAvisos.map((a, i) => (
+                  <li key={i}>• {a.texto}</li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs">Se esqueceu de bater, fale com a gerência pra corrigir.</p>
+            </div>
+          )}
           <Card>
             <CardContent className="flex flex-col items-center gap-3 py-8">
               {openEntry ? (
                 <p className="text-sm text-neutral-500">
                   Trabalhando desde{" "}
                   <span className="font-medium text-foreground">
-                    {openEntry.clockIn.toLocaleTimeString("pt-BR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {brazilTime(openEntry.clockIn)}
                   </span>
                 </p>
               ) : (
@@ -309,18 +322,11 @@ export default async function MeuPontoPage() {
                         <TableRow key={entry.id}>
                           <TableCell>{entry.date.toISOString().slice(0, 10)}</TableCell>
                           <TableCell>
-                            {entry.clockIn.toLocaleTimeString("pt-BR", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {brazilTime(entry.clockIn)}
                           </TableCell>
                           <TableCell>
                             {entry.clockOut
-                              ? entry.clockOut.toLocaleTimeString("pt-BR", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
-                              : "—"}
+                              ? brazilTime(entry.clockOut) : "—"}
                           </TableCell>
                           <TableCell>
                             {entry.clockOut

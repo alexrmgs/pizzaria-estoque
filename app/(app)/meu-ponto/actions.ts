@@ -17,11 +17,17 @@ async function ensureCelularPonto(companyId: string) {
 import {
   EARLY_CLOCK_IN_TOLERANCE_MINUTES,
   minutesBeforeScheduledStart,
+  TURNO_MAX_HORAS,
   todayInBrazil,
   weekdayInBrazil,
 } from "@/lib/payroll";
 
 type Coords = { latitude: number; longitude: number } | null;
+
+/** Turno esquecido aberto não conta: a batida de hoje não pode virar a saída dele. */
+function openEntrySince(now: Date) {
+  return new Date(now.getTime() - TURNO_MAX_HORAS * 60 * 60 * 1000);
+}
 
 async function getOwnEmployee() {
   const user = await requireUser();
@@ -68,14 +74,14 @@ export async function clockIn(coords: Coords) {
   await ensureCelularPonto(user.companyId);
   const employee = await getOwnEmployee();
 
+  const now = new Date();
   const openEntry = await prisma.timeEntry.findFirst({
-    where: { employeeId: employee.id, clockOut: null },
+    where: { employeeId: employee.id, clockOut: null, clockIn: { gte: openEntrySince(now) } },
   });
   if (openEntry) {
     throw new Error("Você já bateu entrada e ainda não bateu saída.");
   }
 
-  const now = new Date();
   const date = todayInBrazil(now);
 
   const todaysEntry = await prisma.timeEntry.findFirst({
@@ -130,7 +136,7 @@ export async function clockOut(coords: Coords) {
   const employee = await getOwnEmployee();
 
   const openEntry = await prisma.timeEntry.findFirst({
-    where: { employeeId: employee.id, clockOut: null },
+    where: { employeeId: employee.id, clockOut: null, clockIn: { gte: openEntrySince(new Date()) } },
     orderBy: { clockIn: "desc" },
   });
   if (!openEntry) {

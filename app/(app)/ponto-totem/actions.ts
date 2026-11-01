@@ -5,9 +5,18 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/lib/generated/prisma/client";
 import { requireUser, requirePermission } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
-import { todayInBrazil } from "@/lib/payroll";
+import {
+  brazilTime,
+  LATE_TOLERANCE_MINUTES,
+  lateMinutes,
+  SUSPEITA_SEM_ENTRADA_MINUTOS,
+  todayInBrazil,
+  TURNO_MAX_HORAS,
+} from "@/lib/payroll";
 
 const FACE_MATCH_THRESHOLD = 0.55;
+// Quem continua na frente da câmera depois de bater não pode virar saída.
+const REBATIDA_MINUTOS = 5;
 
 /** Distância euclidiana entre dois descritores de rosto (128 números). Quanto
  * menor, mais parecidos. Abaixo do threshold consideramos a mesma pessoa. */
@@ -51,8 +60,9 @@ export async function removeFaceDescriptor(employeeId: string): Promise<{ error?
 }
 
 type FacialPontoResult =
-  | { status: "ok"; employeeName: string; action: "entrada" | "saída"; time: string }
+  | { status: "ok"; employeeName: string; action: "entrada" | "saída"; time: string; aviso?: string }
   | { status: "done"; employeeName: string }
+  | { status: "recent"; employeeName: string }
   | { status: "unknown" }
   | { status: "error"; message: string };
 
@@ -84,14 +94,16 @@ export async function registerFacialPonto(
 
     const employees = await prisma.employee.findMany({
       where: { active: true, NOT: { faceDescriptor: { equals: undefined } } },
-      select: { id: true, name: true, faceDescriptor: true },
+      select: { id: true, name: true, faceDescriptor: true, scheduledStart: true },
     });
 
-    let best: { id: string; name: string; distance: number } | null = null;
+    let best: { id: string; name: string; scheduledStart: string | null; distance: number } | null = null;
     for (const emp of employees) {
       if (!isDescriptor(emp.faceDescriptor)) continue;
       const distance = faceDistance(descriptor, emp.faceDescriptor);
-      if (!best || distance < best.distance) best = { id: emp.id, name: emp.name, distance };
+      if (!best || distance < best.distance) {
+        best = { id: emp.id, name: emp.name, scheduledStart: emp.scheduledStart, distance };
+      }
     }
 
     if (!best || best.distance > FACE_MATCH_THRESHOLD) return { status: "unknown" };
@@ -103,8 +115,15 @@ export async function registerFacialPonto(
       where: { employeeId: best.id, clockOut: null },
       orderBy: { clockIn: "desc" },
     });
+    // Entrada aberta há mais que um turno é saída esquecida: a batida de hoje
+    // é entrada nova (senão gravava um turno de 24h+ como se fosse trabalhado).
+    const esquecida =
+      openEntry && now.getTime() - openEntry.clockIn.getTime() > TURNO_MAX_HORAS * 60 * 60 * 1000;
 
-    if (openEntry) {
+    if (openEntry && !esquecida) {
+      if (now.getTime() - openEntry.clockIn.getTime() < REBATIDA_MINUTOS * 60_000) {
+        return { status: "recent", employeeName: best.name };
+      }
       await prisma.timeEntry.update({
         where: { id: openEntry.id },
         data: { clockOut: now, clockOutPhoto: safePhoto },
@@ -125,11 +144,25 @@ export async function registerFacialPonto(
       data: { employeeId: best.id, date, clockIn: now, clockInPhoto: safePhoto },
     });
     revalidatePath("/ponto-equipe");
+
+    const late = lateMinutes(best.scheduledStart, now);
+    const avisos: string[] = [];
+    if (esquecida) {
+      const dia = openEntry.date.toISOString().slice(0, 10).split("-").reverse().slice(0, 2).join("/");
+      avisos.push(`Você não bateu a saída de ${dia} (entrada ${brazilTime(openEntry.clockIn)}). Fale com a gerência.`);
+    }
+    if (late > SUSPEITA_SEM_ENTRADA_MINUTOS) {
+      avisos.push(`Seu horário é ${best.scheduledStart}. Se esqueceu a entrada, fale com a gerência.`);
+    } else if (late > LATE_TOLERANCE_MINUTES) {
+      avisos.push(`Atraso de ${late} min.`);
+    }
+
     return {
       status: "ok",
       employeeName: best.name,
       action: "entrada",
       time: now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Fortaleza" }),
+      aviso: avisos.join(" ") || undefined,
     };
   } catch (error) {
     return { status: "error", message: error instanceof Error ? error.message : "Erro ao bater ponto." };

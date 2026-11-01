@@ -13,6 +13,7 @@ import {
   FOLGA_PAGA_TAG,
 } from "@/lib/folga-comprada";
 import {
+  brazilDateTime,
   faltaAmount,
   holidayWorkedBonusAmount,
   inssAmount,
@@ -22,11 +23,9 @@ import {
 } from "@/lib/payroll";
 
 function combineDateTime(date: string, time: string, baseDate?: Date) {
-  const [year, month, day] = date.split("-").map(Number);
-  const [hour, minute] = time.split(":").map(Number);
-  const result = new Date(year, month - 1, day, hour, minute);
+  const result = brazilDateTime(date, time);
   if (baseDate && result < baseDate) {
-    result.setDate(result.getDate() + 1);
+    return new Date(result.getTime() + 24 * 60 * 60 * 1000);
   }
   return result;
 }
@@ -59,7 +58,7 @@ export async function addTimeEntry(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const date = new Date(`${parsed.data.date}T00:00:00`);
+  const date = new Date(`${parsed.data.date}T00:00:00Z`);
   const clockIn = combineDateTime(parsed.data.date, parsed.data.clockIn);
   const clockOut = parsed.data.clockOut
     ? combineDateTime(parsed.data.date, parsed.data.clockOut, clockIn)
@@ -95,7 +94,7 @@ export async function editTimeEntry(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const date = new Date(`${parsed.data.date}T00:00:00`);
+  const date = new Date(`${parsed.data.date}T00:00:00Z`);
   const clockIn = combineDateTime(parsed.data.date, parsed.data.clockIn);
   const clockOut = parsed.data.clockOut
     ? combineDateTime(parsed.data.date, parsed.data.clockOut, clockIn)
@@ -222,7 +221,7 @@ export async function addAdvance(
   const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
   if (!employee) return { error: "Funcionário não encontrado." };
 
-  const date = new Date(`${parsed.data.date}T00:00:00`);
+  const date = new Date(`${parsed.data.date}T00:00:00Z`);
 
   await prisma.$transaction(async (tx) => {
     const payable = await tx.payable.create({
