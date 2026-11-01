@@ -7,6 +7,7 @@ import { requireUser, requirePermission } from "@/lib/dal";
 import { getAppSettings } from "@/lib/settings";
 import {
   brazilTime,
+  INTERVALO_MINIMO_MINUTOS,
   LATE_TOLERANCE_MINUTES,
   lateMinutes,
   SUSPEITA_SEM_ENTRADA_MINUTOS,
@@ -60,7 +61,8 @@ export async function removeFaceDescriptor(employeeId: string): Promise<{ error?
 }
 
 type FacialPontoResult =
-  | { status: "ok"; employeeName: string; action: "entrada" | "saída"; time: string; aviso?: string }
+  | { status: "ok"; employeeName: string; action: string; time: string; aviso?: string }
+  | { status: "choose"; employeeName: string }
   | { status: "done"; employeeName: string }
   | { status: "recent"; employeeName: string }
   | { status: "unknown" }
@@ -77,6 +79,9 @@ function sanitizePhoto(photo: string | undefined): string | undefined {
 export async function registerFacialPonto(
   descriptor: number[],
   photo?: string,
+  // Só vem depois que a pessoa toca no botão: o rosto sozinho não diz se é
+  // intervalo ou fim do turno. Reenvia o rosto pra não confiar num id do cliente.
+  escolha?: "intervalo" | "saida",
 ): Promise<FacialPontoResult> {
   const totemUser = await requireUser();
   try {
@@ -121,9 +126,31 @@ export async function registerFacialPonto(
       openEntry && now.getTime() - openEntry.clockIn.getTime() > TURNO_MAX_HORAS * 60 * 60 * 1000;
 
     if (openEntry && !esquecida) {
-      if (now.getTime() - openEntry.clockIn.getTime() < REBATIDA_MINUTOS * 60_000) {
+      const ultimaBatida = openEntry.breakEnd ?? openEntry.breakStart ?? openEntry.clockIn;
+      if (now.getTime() - ultimaBatida.getTime() < REBATIDA_MINUTOS * 60_000) {
         return { status: "recent", employeeName: best.name };
       }
+      const time = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Fortaleza" });
+
+      if (openEntry.breakStart && !openEntry.breakEnd) {
+        await prisma.timeEntry.update({ where: { id: openEntry.id }, data: { breakEnd: now } });
+        revalidatePath("/ponto-equipe");
+        const minutos = Math.round((now.getTime() - openEntry.breakStart.getTime()) / 60_000);
+        return {
+          status: "ok",
+          employeeName: best.name,
+          action: "volta do intervalo",
+          time,
+          aviso: minutos < INTERVALO_MINIMO_MINUTOS ? `Intervalo de só ${minutos} min.` : undefined,
+        };
+      }
+      if (!openEntry.breakStart && !escolha) return { status: "choose", employeeName: best.name };
+      if (!openEntry.breakStart && escolha === "intervalo") {
+        await prisma.timeEntry.update({ where: { id: openEntry.id }, data: { breakStart: now } });
+        revalidatePath("/ponto-equipe");
+        return { status: "ok", employeeName: best.name, action: "saída pro intervalo", time };
+      }
+
       await prisma.timeEntry.update({
         where: { id: openEntry.id },
         data: { clockOut: now, clockOutPhoto: safePhoto },

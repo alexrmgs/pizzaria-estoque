@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAccess } from "@/lib/dal";
-import { brazilTime, lateMinutes, nightHours, shiftHours, todayInBrazil } from "@/lib/payroll";
+import { brazilTime, lateMinutes, todayInBrazil, workedHours, workedNightHours } from "@/lib/payroll";
 import { computePaymentPreview } from "@/lib/payment-preview";
 import { getAppSettings } from "@/lib/settings";
 
@@ -278,8 +278,10 @@ export default async function FuncionarioDetalhePage({
               clockOut: entry.clockOut
                 ? brazilTime(entry.clockOut)
                 : null,
-              hours: entry.clockOut ? shiftHours(entry.clockIn, entry.clockOut) : null,
-              nightHours: entry.clockOut ? nightHours(entry.clockIn, entry.clockOut) : 0,
+              breakStart: entry.breakStart ? brazilTime(entry.breakStart) : null,
+              breakEnd: entry.breakEnd ? brazilTime(entry.breakEnd) : null,
+              hours: entry.clockOut ? workedHours(entry) : null,
+              nightHours: workedNightHours(entry),
               lateMinutes: lateMinutes(employee.scheduledStart, entry.clockIn),
               clockInDistanceM: entry.clockInDistanceM,
               clockOutDistanceM: entry.clockOutDistanceM,

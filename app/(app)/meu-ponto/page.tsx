@@ -6,10 +6,10 @@ import {
   brazilTime,
   formatShiftDuration,
   lateMinutes,
-  nightHours,
-  shiftHours,
   todayInBrazil,
   turnoEsquecido,
+  workedHours,
+  workedNightHours,
   type AttendanceStreakTier,
 } from "@/lib/payroll";
 import { AVISOS_DIAS, buildAvisosPonto } from "@/lib/ponto-avisos";
@@ -118,6 +118,7 @@ export default async function MeuPontoPage() {
   const meusAvisos = avisosPonto[0]?.avisos ?? [];
 
   const openEntry = entries.find((entry) => !entry.clockOut && !turnoEsquecido(entry.clockIn, now));
+  const emIntervalo = !!openEntry?.breakStart && !openEntry.breakEnd;
   // "Meus vales" é só vale (produto pego na pizzaria) — o adiantamento
   // quinzenal de 40% é outra coisa (gerado em lote pro RH) e já vem excluído
   // pela busca acima (kind: "VALE"), mesmo descontando do mesmo jeito no
@@ -266,9 +267,9 @@ export default async function MeuPontoPage() {
             <CardContent className="flex flex-col items-center gap-3 py-8">
               {openEntry ? (
                 <p className="text-sm text-neutral-500">
-                  Trabalhando desde{" "}
+                  {emIntervalo ? "Em intervalo desde" : "Trabalhando desde"}{" "}
                   <span className="font-medium text-foreground">
-                    {brazilTime(openEntry.clockIn)}
+                    {brazilTime(emIntervalo && openEntry.breakStart ? openEntry.breakStart : openEntry.clockIn)}
                   </span>
                 </p>
               ) : (
@@ -286,7 +287,11 @@ export default async function MeuPontoPage() {
                   pelo celular.
                 </p>
               ) : (
-                <ClockButton isOpen={!!openEntry} hasStore={!!employee.store} />
+                <ClockButton
+                  isOpen={!!openEntry}
+                  hasStore={!!employee.store}
+                  intervalo={emIntervalo ? "EM_INTERVALO" : openEntry?.breakEnd ? "FEITO" : "NAO_FEZ"}
+                />
               )}
             </CardContent>
           </Card>
@@ -302,6 +307,7 @@ export default async function MeuPontoPage() {
                     <TableRow>
                       <TableHead>Data</TableHead>
                       <TableHead>Entrada</TableHead>
+                      <TableHead>Intervalo</TableHead>
                       <TableHead>Saída</TableHead>
                       <TableHead>Horas</TableHead>
                       <TableHead>Atraso</TableHead>
@@ -311,7 +317,7 @@ export default async function MeuPontoPage() {
                   <TableBody>
                     {entries.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-neutral-500">
+                        <TableCell colSpan={7} className="text-center text-neutral-500">
                           Nenhum registro ainda.
                         </TableCell>
                       </TableRow>
@@ -324,18 +330,23 @@ export default async function MeuPontoPage() {
                           <TableCell>
                             {brazilTime(entry.clockIn)}
                           </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {entry.breakStart
+                              ? `${brazilTime(entry.breakStart)}–${entry.breakEnd ? brazilTime(entry.breakEnd) : "?"}`
+                              : "—"}
+                          </TableCell>
                           <TableCell>
                             {entry.clockOut
                               ? brazilTime(entry.clockOut) : "—"}
                           </TableCell>
                           <TableCell>
                             {entry.clockOut
-                              ? formatShiftDuration(shiftHours(entry.clockIn, entry.clockOut))
+                              ? formatShiftDuration(workedHours(entry))
                               : "—"}
-                            {entry.clockOut && nightHours(entry.clockIn, entry.clockOut) > 0 && (
+                            {workedNightHours(entry) > 0 && (
                               <span className="text-neutral-500">
                                 {" "}
-                                ({formatShiftDuration(nightHours(entry.clockIn, entry.clockOut))} noturnas)
+                                ({formatShiftDuration(workedNightHours(entry))} noturnas)
                               </span>
                             )}
                           </TableCell>

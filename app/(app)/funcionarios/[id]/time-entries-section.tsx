@@ -24,6 +24,8 @@ type TimeEntry = {
   date: string;
   clockIn: string;
   clockOut: string | null;
+  breakStart: string | null;
+  breakEnd: string | null;
   hours: number | null;
   nightHours: number;
   lateMinutes: number;
@@ -121,6 +123,7 @@ export function TimeEntriesSection({
               <TableRow>
                 <TableHead>Data</TableHead>
                 <TableHead>Entrada</TableHead>
+                <TableHead>Intervalo</TableHead>
                 <TableHead>Saída</TableHead>
                 <TableHead>Horas</TableHead>
                 <TableHead>Noturnas</TableHead>
@@ -143,6 +146,9 @@ export function TimeEntriesSection({
                 <TableRow key={entry.id}>
                   <TableCell>{entry.date}</TableCell>
                   <TableCell>{entry.clockIn}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {entry.breakStart ? `${entry.breakStart}–${entry.breakEnd ?? "?"}` : "—"}
+                  </TableCell>
                   <TableCell>{entry.clockOut ?? "—"}</TableCell>
                   <TableCell>
                     {entry.hours !== null ? formatShiftDuration(entry.hours) : "—"}
@@ -181,6 +187,8 @@ export function TimeEntriesSection({
                           date: entry.date,
                           clockIn: entry.clockIn,
                           clockOut: entry.clockOut,
+                          breakStart: entry.breakStart,
+                          breakEnd: entry.breakEnd,
                           note: entry.note,
                         }}
                       />

@@ -29,12 +29,18 @@ function capturePhoto(video: HTMLVideoElement): string | undefined {
   return canvas.toDataURL("image/jpeg", 0.6);
 }
 
+// Tempo pra tocar em Intervalo/Saída; sem toque, nada é registrado.
+const ESCOLHA_MS = 15000;
+
+type Escolha = { employeeName: string; descriptor: number[]; photo?: string };
+
 export function TotemKiosk() {
   const { videoRef, ready, error } = useCamera();
   const [modelsReady, setModelsReady] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const busyRef = useRef(false);
   const cooldownRef = useRef(0);
+  const [escolha, setEscolha] = useState<Escolha | null>(null);
 
   useEffect(() => {
     loadFaceApi()
@@ -52,7 +58,11 @@ export function TotemKiosk() {
         if (!descriptor) return;
         const photo = capturePhoto(videoRef.current);
         const result = await registerFacialPonto(descriptor, photo);
-        if (result.status === "ok") {
+        if (result.status === "choose") {
+          setFeedback(null);
+          setEscolha({ employeeName: result.employeeName, descriptor, photo });
+          cooldownRef.current = Date.now() + ESCOLHA_MS;
+        } else if (result.status === "ok") {
           setFeedback({
             kind: "ok",
             text: `${result.employeeName} — ${result.action} às ${result.time}`,
@@ -83,10 +93,53 @@ export function TotemKiosk() {
     return () => clearTimeout(timeout);
   }, [feedback]);
 
+  useEffect(() => {
+    if (!escolha) return;
+    const timeout = setTimeout(() => setEscolha(null), ESCOLHA_MS);
+    return () => clearTimeout(timeout);
+  }, [escolha]);
+
+  async function confirmar(tipo: "intervalo" | "saida") {
+    if (!escolha) return;
+    const { descriptor, photo } = escolha;
+    setEscolha(null);
+    const result = await registerFacialPonto(descriptor, photo, tipo);
+    if (result.status === "ok") {
+      setFeedback({ kind: "ok", text: `${result.employeeName} — ${result.action} às ${result.time}` });
+    } else {
+      setFeedback({
+        kind: "error",
+        text: result.status === "error" ? result.message : "Não foi possível registrar. Tente de novo.",
+      });
+    }
+    cooldownRef.current = Date.now() + 6000;
+  }
+
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="relative w-full max-w-md overflow-hidden rounded-xl border bg-black">
         <video ref={videoRef} className="aspect-[3/4] w-full scale-x-[-1] object-cover" muted playsInline />
+        {escolha && (
+          <div className="absolute inset-x-0 bottom-0 flex flex-col gap-3 bg-neutral-900/95 p-4 text-center text-white">
+            <p className="text-lg font-semibold">{escolha.employeeName}, o que vai fazer?</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => confirmar("intervalo")}
+                className="rounded-lg bg-amber-500 p-5 text-xl font-bold text-black"
+              >
+                Intervalo
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmar("saida")}
+                className="rounded-lg bg-destructive p-5 text-xl font-bold text-white"
+              >
+                Saída
+              </button>
+            </div>
+          </div>
+        )}
         {feedback && (
           <div
             className={`absolute inset-x-0 bottom-0 p-4 text-center text-lg font-semibold text-white ${FEEDBACK_STYLES[feedback.kind]}`}

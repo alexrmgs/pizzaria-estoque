@@ -14,7 +14,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { addTimeEntry, editTimeEntry } from "../funcionarios/[id]/actions";
 
-type Entry = { id: string; clockIn: string; clockOut: string | null; note: string | null } | null;
+type Entry = {
+  id: string;
+  clockIn: string;
+  clockOut: string | null;
+  breakStart: string | null;
+  breakEnd: string | null;
+  note: string | null;
+} | null;
 
 export function EditPontoDialog({
   employeeId,
@@ -86,6 +93,16 @@ export function EditPontoDialog({
                 type="time"
                 defaultValue={entry?.clockOut ?? ""}
               />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`bs-${employeeId}`}>Saída pro intervalo</Label>
+              <Input id={`bs-${employeeId}`} name="breakStart" type="time" defaultValue={entry?.breakStart ?? ""} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`be-${employeeId}`}>Volta do intervalo</Label>
+              <Input id={`be-${employeeId}`} name="breakEnd" type="time" defaultValue={entry?.breakEnd ?? ""} />
             </div>
           </div>
           <div className="flex flex-col gap-2">

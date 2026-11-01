@@ -188,6 +188,7 @@ function abaFuncionario(
     "Data",
     "Dia",
     "Entrada",
+    "Intervalo",
     "Saída",
     "Horas trabalhadas",
     "Horas diurnas",
@@ -196,7 +197,7 @@ function abaFuncionario(
     "Situação",
     "Observação",
   ];
-  ws.columns = [11, 7, 13, 13, 11, 11, 11, 18, 18, 30].map((width) => ({ width }));
+  ws.columns = [11, 7, 13, 13, 13, 11, 11, 11, 18, 18, 30].map((width) => ({ width }));
   cabecalhoEmpresa(ws, empresa, "Espelho de Ponto", periodo, header.length);
 
   const dados: [string, string][] = [
@@ -226,6 +227,7 @@ function abaFuncionario(
       formatDiaBR(d.date),
       WEEKDAY_SHORT[d.weekday],
       d.batidas.map((b) => b.entrada).join(" / "),
+      d.batidas.map((b) => b.intervalo ?? "—").join(" / "),
       d.batidas.map((b) => b.saida ?? "?").join(" / "),
       d.horas ? toExcelHoras(d.horas) : null,
       d.horas ? toExcelHoras(d.horas - d.horasNoturnas) : null,
@@ -251,8 +253,8 @@ function abaFuncionario(
       cell.alignment = { vertical: "top", wrapText: true };
       if (cor) cell.fill = fill(cor);
     });
-    [5, 6, 7].forEach((c) => (row.getCell(c).numFmt = HORA_FMT));
-    if (d.situacao === "FALTA") row.getCell(9).font = { bold: true, color: { argb: "FFB91C1C" } };
+    [6, 7, 8].forEach((c) => (row.getCell(c).numFmt = HORA_FMT));
+    if (d.situacao === "FALTA") row.getCell(10).font = { bold: true, color: { argb: "FFB91C1C" } };
   }
   const ultima = ws.rowCount;
 
@@ -261,21 +263,22 @@ function abaFuncionario(
     "",
     `${f.diasTrabalhados} dias trabalhados`,
     "",
-    { formula: `SUM(E${primeira}:E${ultima})`, result: toExcelHoras(f.totalHoras) },
-    { formula: `SUM(F${primeira}:F${ultima})`, result: toExcelHoras(f.totalHoras - f.totalNoturnas) },
-    { formula: `SUM(G${primeira}:G${ultima})`, result: toExcelHoras(f.totalNoturnas) },
+    "",
+    { formula: `SUM(F${primeira}:F${ultima})`, result: toExcelHoras(f.totalHoras) },
+    { formula: `SUM(G${primeira}:G${ultima})`, result: toExcelHoras(f.totalHoras - f.totalNoturnas) },
+    { formula: `SUM(H${primeira}:H${ultima})`, result: toExcelHoras(f.totalNoturnas) },
     `${f.feriadosTrabalhados.length} feriado(s) trab.`,
     `${f.faltas.length} falta(s) · ${f.atestados.length} atestado(s)`,
     `${f.folgas} folga(s)`,
   ]);
-  ws.mergeCells(total.number, 3, total.number, 4);
+  ws.mergeCells(total.number, 3, total.number, 5);
   total.eachCell({ includeEmpty: true }, (cell) => {
     cell.font = { bold: true };
     cell.fill = fill(COR.total);
     cell.border = borda;
     cell.alignment = { vertical: "middle", wrapText: true };
   });
-  [5, 6, 7].forEach((c) => (total.getCell(c).numFmt = HORA_FMT));
+  [6, 7, 8].forEach((c) => (total.getCell(c).numFmt = HORA_FMT));
 
   ws.addRow([]);
   const legenda = ws.addRow([

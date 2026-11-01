@@ -187,6 +187,7 @@ export default async function RelatorioPontoPage({
               <TableRow>
                 <TableHead>Data</TableHead>
                 <TableHead>Entrada</TableHead>
+                <TableHead>Intervalo</TableHead>
                 <TableHead>Saída</TableHead>
                 <TableHead className="text-right">Horas</TableHead>
                 <TableHead className="text-right">Diurnas</TableHead>
@@ -202,6 +203,9 @@ export default async function RelatorioPontoPage({
                     {formatDiaBR(d.date).slice(0, 5)} {WEEKDAY_SHORT[d.weekday]}
                   </TableCell>
                   <TableCell>{d.batidas.map((b) => b.entrada).join(" / ") || "—"}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {d.batidas.map((b) => b.intervalo ?? "—").join(" / ") || "—"}
+                  </TableCell>
                   <TableCell>{d.batidas.map((b) => b.saida ?? "?").join(" / ") || "—"}</TableCell>
                   <TableCell className="text-right">{d.horas ? formatHoras(d.horas) : ""}</TableCell>
                   <TableCell className="text-right">

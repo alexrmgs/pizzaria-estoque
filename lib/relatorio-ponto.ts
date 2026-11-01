@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { nightHours, shiftHours } from "@/lib/payroll";
+import { workedHours, workedNightHours } from "@/lib/payroll";
 
 // Relatório mensal de ponto pra mandar pra contabilidade: por funcionário,
 // cada dia do mês com entrada/saída, horas, horas noturnas e se foi
@@ -8,7 +8,7 @@ import { nightHours, shiftHours } from "@/lib/payroll";
 export type DiaPonto = {
   date: string; // aaaa-mm-dd
   weekday: number;
-  batidas: { id: string; entrada: string; saida: string | null; note: string | null }[];
+  batidas: { id: string; entrada: string; intervalo: string | null; saida: string | null; note: string | null }[];
   horas: number;
   horasNoturnas: number;
   feriado: string | null;
@@ -156,8 +156,8 @@ export async function buildRelatorioPonto(
       let horasNoturnas = 0;
       for (const e of entries) {
         if (!e.clockOut) continue;
-        horas += shiftHours(e.clockIn, e.clockOut);
-        horasNoturnas += nightHours(e.clockIn, e.clockOut);
+        horas += workedHours(e);
+        horasNoturnas += workedNightHours(e);
       }
 
       const isWeeklyDayOff =
@@ -182,6 +182,9 @@ export async function buildRelatorioPonto(
         batidas: entries.map((e) => ({
           id: e.id,
           entrada: TIME_FMT.format(e.clockIn),
+          intervalo: e.breakStart
+            ? `${TIME_FMT.format(e.breakStart)}–${e.breakEnd ? TIME_FMT.format(e.breakEnd) : "?"}`
+            : null,
           saida: e.clockOut ? TIME_FMT.format(e.clockOut) : null,
           note: e.note,
         })),

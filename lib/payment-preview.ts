@@ -13,10 +13,10 @@ import {
   holidayWorkedBonusAmount,
   lateDiscountAmount,
   lateMinutes,
-  nightHours,
   nightPremiumAmount,
   overtimeAmount,
-  shiftHours,
+  workedHours,
+  workedNightHours,
   type AttendanceBonusTier,
   type AttendanceStreakTier,
 } from "@/lib/payroll";
@@ -128,9 +128,9 @@ export async function computePaymentPreview(
   const hoursByDay = new Map<string, number>();
   for (const entry of timeEntries) {
     if (!entry.clockOut) continue;
-    const hours = shiftHours(entry.clockIn, entry.clockOut);
+    const hours = workedHours(entry);
     totalHours += hours;
-    totalNightHours += nightHours(entry.clockIn, entry.clockOut);
+    totalNightHours += workedNightHours(entry);
     const dayKey = entry.date.toISOString().slice(0, 10);
     hoursByDay.set(dayKey, (hoursByDay.get(dayKey) ?? 0) + hours);
 

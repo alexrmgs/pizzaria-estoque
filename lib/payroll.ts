@@ -14,6 +14,29 @@ export function shiftHours(clockIn: Date, clockOut: Date): number {
   return Math.max(0, (clockOut.getTime() - clockIn.getTime()) / 3_600_000);
 }
 
+type BatidaPonto = {
+  clockIn: Date;
+  clockOut: Date | null;
+  breakStart?: Date | null;
+  breakEnd?: Date | null;
+};
+
+/** Horas trabalhadas do turno: o intervalo não conta como jornada (CLT art. 71 §2º). */
+export function workedHours(entry: BatidaPonto): number {
+  if (!entry.clockOut) return 0;
+  const total = shiftHours(entry.clockIn, entry.clockOut);
+  if (!entry.breakStart || !entry.breakEnd) return total;
+  return Math.max(0, total - shiftHours(entry.breakStart, entry.breakEnd));
+}
+
+/** Horas noturnas do turno, sem a parte do intervalo que caiu na janela noturna. */
+export function workedNightHours(entry: BatidaPonto): number {
+  if (!entry.clockOut) return 0;
+  const total = nightHours(entry.clockIn, entry.clockOut);
+  if (!entry.breakStart || !entry.breakEnd) return total;
+  return Math.max(0, total - nightHours(entry.breakStart, entry.breakEnd));
+}
+
 /**
  * Formata horas decimais (ex: 8.4667) como "8h28min" — evita confundir com
  * horas:minutos (ex: "8.47" lido como "8:47" em vez de 8h28).
@@ -140,6 +163,9 @@ export const LATE_TOLERANCE_MINUTES = 5;
 // Acima disso o turno não existe: é saída esquecida, e a próxima batida da
 // pessoa é entrada nova, não a saída de ontem.
 export const TURNO_MAX_HORAS = 16;
+// Turno acima de 6h exige intervalo de pelo menos 1h (CLT art. 71).
+export const INTERVALO_JORNADA_HORAS = 6;
+export const INTERVALO_MINIMO_MINUTOS = 60;
 // Entrada tão atrasada que provavelmente é a saída de quem esqueceu a entrada.
 export const SUSPEITA_SEM_ENTRADA_MINUTOS = 180;
 

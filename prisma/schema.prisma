@@ -639,6 +639,8 @@ model TimeEntry {
   clockOut          DateTime?
   clockOutDistanceM Int?
   clockOutPhoto     String?
+  breakStart        DateTime?
+  breakEnd          DateTime?
   note              String?
   createdAt         DateTime  @default(now())
 

@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { brazilTime, formatShiftDuration, lateMinutes, shiftHours, todayInBrazil } from "@/lib/payroll";
+import { brazilTime, formatShiftDuration, lateMinutes, todayInBrazil, workedHours } from "@/lib/payroll";
 import { AVISOS_DIAS, buildAvisosPonto, linkAvisoWhatsapp } from "@/lib/ponto-avisos";
 import { EditPontoDialog } from "./edit-ponto-dialog";
 import { DeletePontoButton } from "./delete-ponto-button";
@@ -292,6 +292,7 @@ export default async function PontoEquipePage({
                   <TableHead>Funcionário</TableHead>
                   <TableHead>Loja</TableHead>
                   <TableHead>Entrada</TableHead>
+                  <TableHead>Intervalo</TableHead>
                   <TableHead>Saída</TableHead>
                   <TableHead>Horas</TableHead>
                   <TableHead>Atraso</TableHead>
@@ -302,7 +303,7 @@ export default async function PontoEquipePage({
               <TableBody>
                 {rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-neutral-500">
+                    <TableCell colSpan={9} className="text-center text-neutral-500">
                       Nenhum funcionário ativo cadastrado.
                     </TableCell>
                   </TableRow>
@@ -322,6 +323,11 @@ export default async function PontoEquipePage({
                           <ProofPhoto photo={r.entry?.clockInPhoto ?? null} label="entrada" />
                         </div>
                       </TableCell>
+                      <TableCell className="whitespace-nowrap text-neutral-500">
+                        {r.entry?.breakStart
+                          ? `${formatTime(r.entry.breakStart)}–${r.entry.breakEnd ? formatTime(r.entry.breakEnd) : "?"}`
+                          : "—"}
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <span>{r.entry?.clockOut ? formatTime(r.entry.clockOut) : "—"}</span>
@@ -330,7 +336,7 @@ export default async function PontoEquipePage({
                       </TableCell>
                       <TableCell className="text-neutral-500">
                         {r.entry?.clockOut
-                          ? formatShiftDuration(shiftHours(r.entry.clockIn, r.entry.clockOut))
+                          ? formatShiftDuration(workedHours(r.entry))
                           : "—"}
                       </TableCell>
                       <TableCell>
@@ -360,6 +366,8 @@ export default async function PontoEquipePage({
                                     id: r.entry.id,
                                     clockIn: formatTime(r.entry.clockIn),
                                     clockOut: r.entry.clockOut ? formatTime(r.entry.clockOut) : null,
+                                    breakStart: r.entry.breakStart ? formatTime(r.entry.breakStart) : null,
+                                    breakEnd: r.entry.breakEnd ? formatTime(r.entry.breakEnd) : null,
                                     note: r.entry.note,
                                   }
                                 : null

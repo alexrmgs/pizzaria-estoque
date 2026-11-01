@@ -19,6 +19,8 @@ type TimeEntry = {
   date: string;
   clockIn: string;
   clockOut: string | null;
+  breakStart: string | null;
+  breakEnd: string | null;
   note: string | null;
 };
 
@@ -87,6 +89,16 @@ export function EditTimeEntryDialog({
                 type="time"
                 defaultValue={entry.clockOut ?? ""}
               />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`edit-bs-${entry.id}`}>Saída pro intervalo</Label>
+              <Input id={`edit-bs-${entry.id}`} name="breakStart" type="time" defaultValue={entry.breakStart ?? ""} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`edit-be-${entry.id}`}>Volta do intervalo</Label>
+              <Input id={`edit-be-${entry.id}`} name="breakEnd" type="time" defaultValue={entry.breakEnd ?? ""} />
             </div>
           </div>
           <div className="flex flex-col gap-2">

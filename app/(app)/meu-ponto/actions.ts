@@ -130,6 +130,33 @@ export async function clockIn(coords: Coords) {
   revalidatePath("/meu-ponto");
 }
 
+export async function toggleBreak(coords: Coords) {
+  const user = await requireUser();
+  await ensureCelularPonto(user.companyId);
+  const employee = await getOwnEmployee();
+
+  const now = new Date();
+  const openEntry = await prisma.timeEntry.findFirst({
+    where: { employeeId: employee.id, clockOut: null, clockIn: { gte: openEntrySince(now) } },
+    orderBy: { clockIn: "desc" },
+  });
+  if (!openEntry) {
+    throw new Error("Você ainda não bateu entrada hoje.");
+  }
+  if (openEntry.breakEnd) {
+    throw new Error("Você já fez o intervalo hoje.");
+  }
+
+  checkLocation(employee.store, coords);
+
+  await prisma.timeEntry.update({
+    where: { id: openEntry.id },
+    data: openEntry.breakStart ? { breakEnd: now } : { breakStart: now },
+  });
+
+  revalidatePath("/meu-ponto");
+}
+
 export async function clockOut(coords: Coords) {
   const user = await requireUser();
   await ensureCelularPonto(user.companyId);
@@ -141,6 +168,10 @@ export async function clockOut(coords: Coords) {
   });
   if (!openEntry) {
     throw new Error("Você ainda não bateu entrada hoje.");
+  }
+
+  if (openEntry.breakStart && !openEntry.breakEnd) {
+    throw new Error("Bata a volta do intervalo antes da saída.");
   }
 
   const distance = checkLocation(employee.store, coords);

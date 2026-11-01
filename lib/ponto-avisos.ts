@@ -2,22 +2,34 @@ import { prisma } from "@/lib/prisma";
 import {
   brazilDateTime,
   brazilTime,
+  INTERVALO_JORNADA_HORAS,
+  INTERVALO_MINIMO_MINUTOS,
   LATE_TOLERANCE_MINUTES,
   lateMinutes,
   SUSPEITA_SEM_ENTRADA_MINUTOS,
   todayInBrazil,
   TURNO_MAX_HORAS,
   turnoEsquecido,
+  workedHours,
 } from "@/lib/payroll";
 
 export const AVISOS_DIAS = 7;
 // Folga depois do horário antes de avisar que faltou bater.
 const MARGEM_MINUTOS = 30;
+// Antes disso ninguém tinha como bater intervalo.
+const INTERVALO_DESDE = "2026-11-02";
 
 const HORA_MS = 60 * 60 * 1000;
 
 export type AvisoPonto = {
-  tipo: "SEM_SAIDA" | "SEM_ENTRADA" | "SEM_REGISTRO" | "ATRASO" | "TURNO_LONGO" | "PONTO_NA_FOLGA";
+  tipo:
+    | "SEM_SAIDA"
+    | "SEM_ENTRADA"
+    | "SEM_REGISTRO"
+    | "ATRASO"
+    | "TURNO_LONGO"
+    | "PONTO_NA_FOLGA"
+    | "INTERVALO";
   date: string;
   texto: string;
 };
@@ -129,6 +141,20 @@ export async function buildAvisosPonto(
               date: iso,
               texto: `${diaBR(iso)}: turno de ${Math.round(horas)}h — provável saída esquecida`,
             });
+          } else if (iso >= INTERVALO_DESDE && workedHours(x) > INTERVALO_JORNADA_HORAS) {
+            const minutos =
+              x.breakStart && x.breakEnd
+                ? Math.round((x.breakEnd.getTime() - x.breakStart.getTime()) / 60_000)
+                : null;
+            if (minutos === null) {
+              avisos.push({ tipo: "INTERVALO", date: iso, texto: `${diaBR(iso)}: sem intervalo batido` });
+            } else if (minutos < INTERVALO_MINIMO_MINUTOS) {
+              avisos.push({
+                tipo: "INTERVALO",
+                date: iso,
+                texto: `${diaBR(iso)}: intervalo de só ${minutos} min (mínimo ${INTERVALO_MINIMO_MINUTOS})`,
+              });
+            }
           }
           continue;
         }

@@ -32,10 +32,23 @@ function combineDateTime(date: string, time: string, baseDate?: Date) {
 
 // ---------- Time entries (ponto) ----------
 
+function validarIntervalo(breakStart: Date | null, breakEnd: Date | null, clockOut: Date | null) {
+  if (breakEnd && !breakStart) return "Informe a saída pro intervalo.";
+  if (breakStart && breakEnd && breakEnd <= breakStart) {
+    return "A volta do intervalo deve ser depois da saída pro intervalo.";
+  }
+  if (clockOut && breakStart && !breakEnd) return "Informe a volta do intervalo.";
+  if (clockOut && ((breakStart && breakStart >= clockOut) || (breakEnd && breakEnd > clockOut))) {
+    return "O intervalo deve ficar dentro do turno.";
+  }
+}
+
 const timeEntrySchema = z.object({
   date: z.string().trim().min(1, "Informe a data."),
   clockIn: z.string().trim().min(1, "Informe o horário de entrada."),
   clockOut: z.string().trim().optional(),
+  breakStart: z.string().trim().optional(),
+  breakEnd: z.string().trim().optional(),
   note: z.string().trim().max(300).optional(),
 });
 
@@ -52,6 +65,8 @@ export async function addTimeEntry(
     date: formData.get("date"),
     clockIn: formData.get("clockIn"),
     clockOut: formData.get("clockOut") || undefined,
+    breakStart: formData.get("breakStart") || undefined,
+    breakEnd: formData.get("breakEnd") || undefined,
     note: formData.get("note") || undefined,
   });
   if (!parsed.success) {
@@ -67,9 +82,17 @@ export async function addTimeEntry(
   if (clockOut && clockOut <= clockIn) {
     return { error: "O horário de saída deve ser depois da entrada." };
   }
+  const breakStart = parsed.data.breakStart
+    ? combineDateTime(parsed.data.date, parsed.data.breakStart, clockIn)
+    : null;
+  const breakEnd = parsed.data.breakEnd
+    ? combineDateTime(parsed.data.date, parsed.data.breakEnd, clockIn)
+    : null;
+  const breakError = validarIntervalo(breakStart, breakEnd, clockOut);
+  if (breakError) return { error: breakError };
 
   await prisma.timeEntry.create({
-    data: { employeeId, date, clockIn, clockOut, note: parsed.data.note },
+    data: { employeeId, date, clockIn, clockOut, breakStart, breakEnd, note: parsed.data.note },
   });
 
   revalidatePath(`/funcionarios/${employeeId}`);
@@ -88,6 +111,8 @@ export async function editTimeEntry(
     date: formData.get("date"),
     clockIn: formData.get("clockIn"),
     clockOut: formData.get("clockOut") || undefined,
+    breakStart: formData.get("breakStart") || undefined,
+    breakEnd: formData.get("breakEnd") || undefined,
     note: formData.get("note") || undefined,
   });
   if (!parsed.success) {
@@ -103,10 +128,18 @@ export async function editTimeEntry(
   if (clockOut && clockOut <= clockIn) {
     return { error: "O horário de saída deve ser depois da entrada." };
   }
+  const breakStart = parsed.data.breakStart
+    ? combineDateTime(parsed.data.date, parsed.data.breakStart, clockIn)
+    : null;
+  const breakEnd = parsed.data.breakEnd
+    ? combineDateTime(parsed.data.date, parsed.data.breakEnd, clockIn)
+    : null;
+  const breakError = validarIntervalo(breakStart, breakEnd, clockOut);
+  if (breakError) return { error: breakError };
 
   await prisma.timeEntry.update({
     where: { id },
-    data: { date, clockIn, clockOut, note: parsed.data.note },
+    data: { date, clockIn, clockOut, breakStart, breakEnd, note: parsed.data.note },
   });
 
   revalidatePath(`/funcionarios/${employeeId}`);
