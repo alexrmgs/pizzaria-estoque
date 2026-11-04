@@ -98,7 +98,7 @@ export function EmployeeDialog({
           </Button>
         }
       />
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{employee ? "Editar funcionário" : "Novo funcionário"}</DialogTitle>
         </DialogHeader>
