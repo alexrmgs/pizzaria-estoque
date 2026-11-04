@@ -224,6 +224,11 @@ export default async function FuncionariosPage() {
                           carteiraAssinada: employee.carteiraAssinada,
                           userId: employee.userId,
                           storeId: employee.storeId,
+                          matricula: employee.matricula,
+                          cpf: employee.cpf,
+                          cbo: employee.cbo,
+                          departamento: employee.departamento,
+                          filial: employee.filial,
                         }}
                       />
                       <DismissEmployeeButton

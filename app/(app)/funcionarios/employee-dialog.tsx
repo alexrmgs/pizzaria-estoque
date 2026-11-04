@@ -47,6 +47,11 @@ type Employee = {
   carteiraAssinada: boolean;
   userId: string | null;
   storeId: string | null;
+  matricula: string | null;
+  cpf: string | null;
+  cbo: string | null;
+  departamento: string | null;
+  filial: string | null;
 };
 
 type AvailableUser = { id: string; name: string; email: string };
@@ -283,6 +288,33 @@ export function EmployeeDialog({
             <p className="pl-6 text-xs text-muted-foreground">
               Desmarcado, o contracheque dele já sai na versão simplificada (sem INSS/IRRF/FGTS).
             </p>
+          </div>
+
+          <div className="flex flex-col gap-2 rounded-lg border p-3">
+            <p className="text-sm font-medium">Dados do contracheque</p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="matricula">Código</Label>
+                <Input id="matricula" name="matricula" defaultValue={employee?.matricula ?? ""} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="cpf">CPF</Label>
+                <Input id="cpf" name="cpf" defaultValue={employee?.cpf ?? ""} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="cbo">CBO</Label>
+                <Input id="cbo" name="cbo" defaultValue={employee?.cbo ?? ""} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="departamento">Departamento</Label>
+                <Input id="departamento" name="departamento" defaultValue={employee?.departamento ?? ""} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="filial">Filial</Label>
+                <Input id="filial" name="filial" defaultValue={employee?.filial ?? ""} />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Copie do holerite da contabilidade.</p>
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}

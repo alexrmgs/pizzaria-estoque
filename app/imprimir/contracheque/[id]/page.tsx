@@ -233,158 +233,139 @@ export default async function ImprimirContrachequePage({
     timeZone: "UTC",
   });
 
-  const employeeName = payment.employee.name;
-  const employeeRole = payment.employee.role;
-  const employeeHireDate = payment.employee.hireDate;
-  const employeeDependents = payment.employee.dependents;
-  const employeeStoreName = payment.employee.store?.name ?? null;
-  const periodStartDate = payment.periodStart;
-  const periodEndDate = payment.periodEnd;
+  const emp = payment.employee;
+  const competenciaLabel = competencia.charAt(0).toUpperCase() + competencia.slice(1);
+  const filial = emp.filial || "1";
+  const empresa = settings.labelEmpresa || "Empresa";
+  // Corpo da tabela com altura fixa, como o formulário da contabilidade.
+  const linhasVazias = Math.max(0, 16 - rows.length);
+  const cell = "px-2 py-0.5";
 
   const payslip = (
-      <div className="w-full border border-black text-[11px]">
-        <div className="flex items-start justify-between border-b border-black px-2 py-1">
-          <div>
-            <p className="font-bold uppercase">{settings.labelEmpresa || "Empresa"}</p>
-            <p>
-              CNPJ: {settings.labelCnpj || "—"}
-              {employeeStoreName && <> &nbsp;&nbsp;CC: {employeeStoreName}</>}
+    <div className="flex w-full gap-2 font-mono text-[11px] leading-tight text-black">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="border border-black px-2 py-1">
+          <p className="uppercase">{empresa}</p>
+          <div className="grid grid-cols-3 items-end">
+            <p>CNPJ: {settings.labelCnpj || "—"}</p>
+            <p className="text-center">CC: Centro de Custo</p>
+            <p className="text-right">Folha Mensal</p>
+            <p className="font-bold uppercase">
+              {filial} - {empresa}
             </p>
-            <p>Mensalista</p>
-          </div>
-          <div className="text-right">
-            <p className="font-bold">Folha Mensal</p>
-            <p className="capitalize">{competencia}</p>
+            <p className="text-center">Mensalista</p>
+            <p className="text-right">{competenciaLabel}</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 border-b border-black px-2 py-1">
-          <div>
-            <p className="text-[9px] text-neutral-500">Nome do Funcionário</p>
-            <p className="font-medium uppercase">{employeeName}</p>
-            <p className="uppercase text-neutral-600">
-              {employeeRole ?? "—"}
-              {employeeHireDate && (
-                <span className="ml-3">Admissão: {brDate(employeeHireDate)}</span>
-              )}
-            </p>
+        <div className="border border-black px-2 py-1">
+          <div className="grid grid-cols-[3rem_minmax(0,1fr)_7rem_4rem_5rem_3rem] gap-x-2 font-sans text-[9px]">
+            <p className="text-center">Código</p>
+            <p>Nome do Funcionário</p>
+            <p className="text-center">CPF</p>
+            <p className="text-center">CBO</p>
+            <p className="text-center">Departamento</p>
+            <p className="text-center">Filial</p>
           </div>
-          <div className="text-right">
-            <p className="text-[9px] text-neutral-500">Dependentes IRRF</p>
-            <p>{employeeDependents}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-[9px] text-neutral-500">Período</p>
-            <p>
-              {brDate(periodStartDate)} a {brDate(periodEndDate)}
-            </p>
+          <div className="grid grid-cols-[3rem_minmax(0,1fr)_7rem_4rem_5rem_3rem] gap-x-2">
+            <p className="text-center">{emp.matricula ?? ""}</p>
+            <p className="uppercase">{emp.name}</p>
+            <p className="text-center font-bold">{emp.cpf ?? ""}</p>
+            <p className="text-center">{emp.cbo ?? ""}</p>
+            <p className="text-center">{emp.departamento ?? ""}</p>
+            <p className="text-center">{emp.filial ?? ""}</p>
+            <p />
+            <p className="uppercase">{emp.role ?? ""}</p>
+            <p />
+            <p className="col-span-2 text-right">Admissão:</p>
+            <p className="text-right">{emp.hireDate ? brDate(emp.hireDate) : ""}</p>
           </div>
         </div>
 
-        <table className="w-full table-fixed border-collapse">
-          <thead>
-            <tr className="border-b border-black bg-neutral-100">
-              <th className="w-10 border-r border-black px-1 py-0.5 text-left font-semibold">Código</th>
-              <th className="border-r border-black px-1 py-0.5 text-left font-semibold">Descrição</th>
-              <th className="w-16 border-r border-black px-1 py-0.5 text-right font-semibold">Referência</th>
-              <th className="w-20 border-r border-black px-1 py-0.5 text-right font-semibold">Vencimentos</th>
-              <th className="w-20 px-1 py-0.5 text-right font-semibold">Descontos</th>
+        <table className="w-full table-fixed border-collapse border border-black">
+          <thead className="font-sans">
+            <tr className="border-b border-black">
+              <th className="w-14 border-r border-black px-1 font-normal">Código</th>
+              <th className="border-r border-black px-1 font-normal">Descrição</th>
+              <th className="w-24 border-r border-black px-1 font-normal">Referência</th>
+              <th className="w-24 border-r border-black px-1 font-normal">Vencimentos</th>
+              <th className="w-24 px-1 font-normal">Descontos</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.code} className="border-b border-neutral-300">
-                <td className="border-r border-black px-1 py-0.5">{r.code}</td>
-                <td className="border-r border-black px-1 py-0.5 uppercase">{r.label}</td>
-                <td className="border-r border-black px-1 py-0.5 text-right">{r.ref}</td>
-                <td className="border-r border-black px-1 py-0.5 text-right">
+              <tr key={r.code}>
+                <td className={`border-r border-black text-right ${cell}`}>{r.code}</td>
+                <td className={`border-r border-black uppercase ${cell}`}>{r.label}</td>
+                <td className={`border-r border-black text-right ${cell}`}>{r.ref}</td>
+                <td className={`border-r border-black text-right ${cell}`}>
                   {r.vencimento > 0 ? num(r.vencimento) : ""}
                 </td>
-                <td className="px-1 py-0.5 text-right">{r.desconto > 0 ? num(r.desconto) : ""}</td>
+                <td className={`text-right ${cell}`}>{r.desconto > 0 ? num(r.desconto) : ""}</td>
               </tr>
             ))}
-            {/* Preenche até um mínimo de linhas, como no formulário impresso. */}
-            {Array.from({ length: Math.max(0, 3 - rows.length) }).map((_, i) => (
-              <tr key={`blank-${i}`} className="border-b border-neutral-300">
-                <td className="border-r border-black px-1 py-1">&nbsp;</td>
-                <td className="border-r border-black px-1 py-1"></td>
-                <td className="border-r border-black px-1 py-1"></td>
-                <td className="border-r border-black px-1 py-1"></td>
-                <td className="px-1 py-1"></td>
+            {Array.from({ length: linhasVazias }).map((_, i) => (
+              <tr key={`v-${i}`}>
+                <td className={`border-r border-black ${cell}`}>&nbsp;</td>
+                <td className="border-r border-black" />
+                <td className="border-r border-black" />
+                <td className="border-r border-black" />
+                <td />
               </tr>
             ))}
           </tbody>
         </table>
 
-        <div className="flex justify-end border-t border-black">
-          <table className="border-collapse">
-            <thead>
-              <tr>
-                <th className="w-24 border-b border-l border-black px-2 py-0.5 text-right font-semibold">
-                  Total de Vencimentos
-                </th>
-                <th className="w-24 border-b border-l border-black px-2 py-0.5 text-right font-semibold">
-                  Total de Descontos
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="border-l border-black px-2 py-0.5 text-right">{num(totalVencimentos)}</td>
-                <td className="border-l border-black px-2 py-0.5 text-right">{num(totalDescontos)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div className="flex justify-end border-t border-black">
-          <div className="flex w-48 items-center justify-between border-l border-black px-2 py-1 font-bold">
+        <div className="grid grid-cols-[minmax(0,1fr)_12rem_12rem] border border-black">
+          <div className="row-span-2" />
+          <div className="border-l border-black px-2 py-1 text-right">
+            <p className="text-center font-sans text-[9px]">Total de Vencimentos</p>
+            <p>{num(totalVencimentos)}</p>
+          </div>
+          <div className="border-l border-black px-2 py-1 text-right">
+            <p className="text-center font-sans text-[9px]">Total de Descontos</p>
+            <p>{num(totalDescontos)}</p>
+          </div>
+          <div className="flex items-center justify-between border-l border-t border-black px-2 py-1 font-sans text-[9px]">
             <span>Valor Líquido</span>
-            <span>{num(netAmount)}</span>
+            <span className="text-base">⇨</span>
           </div>
+          <div className="border-l border-t border-black px-2 py-1 text-right font-bold">{num(netAmount)}</div>
         </div>
-        <table className="w-full table-fixed border-collapse border-t border-black text-center">
-          <thead>
-            <tr className="bg-neutral-100">
-              <th className="border-r border-black px-1 py-0.5 font-semibold">Salário Base</th>
-              {!simples && (
-                <>
-                  <th className="border-r border-black px-1 py-0.5 font-semibold">Sal. Contr. INSS</th>
-                  <th className="border-r border-black px-1 py-0.5 font-semibold">Base Cálc. FGTS</th>
-                  <th className="border-r border-black px-1 py-0.5 font-semibold">F.G.T.S do Mês</th>
-                  <th className="border-r border-black px-1 py-0.5 font-semibold">Base Cálc. IRRF</th>
-                  <th className="px-1 py-0.5 font-semibold">Faixa IRRF</th>
-                </>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className={simples ? "px-1 py-0.5" : "border-r border-black px-1 py-0.5"}>
-                {num(salarioContratual)}
-              </td>
-              {!simples && (
-                <>
-                  <td className="border-r border-black px-1 py-0.5">{num(grossForTax)}</td>
-                  <td className="border-r border-black px-1 py-0.5">{num(grossForTax)}</td>
-                  <td className="border-r border-black px-1 py-0.5">{num(fgtsMes)}</td>
-                  <td className="border-r border-black px-1 py-0.5">{num(irrfBase)}</td>
-                  <td className="px-1 py-0.5">{num(bracketRate(irrfBase, irrfBrackets) * 100)}</td>
-                </>
-              )}
-            </tr>
-          </tbody>
-        </table>
 
-        <div className="border-t border-black px-2 py-2">
-          <p className="text-[9px] leading-tight text-neutral-600">
-            Declaro ter recebido a importância líquida discriminada neste recibo.
-          </p>
-          <div className="mt-5 flex justify-end gap-6 text-center text-[9px]">
-            <div className="w-40 border-t border-black pt-0.5">Assinatura do Funcionário</div>
-            <div className="w-20 border-t border-black pt-0.5">Data ___/___/____</div>
-          </div>
+        <div className={`grid border border-black text-center ${simples ? "grid-cols-1" : "grid-cols-6"}`}>
+          {[
+            ["Salário Base", num(salarioContratual)],
+            ...(simples
+              ? []
+              : [
+                  ["Sal. Contr. INSS", num(grossForTax)],
+                  ["Base Cálc. FGTS", num(grossForTax)],
+                  ["F.G.T.S do Mês", num(fgtsMes)],
+                  ["Base Cálc. IRRF", num(irrfBase)],
+                  ["Faixa IRRF", num(bracketRate(irrfBase, irrfBrackets) * 100)],
+                ]),
+          ].map(([k, v]) => (
+            <div key={k} className="px-1 py-0.5">
+              <p className="font-sans text-[9px]">{k}</p>
+              <p>{v}</p>
+            </div>
+          ))}
         </div>
       </div>
+
+      <div className="flex w-14 shrink-0 items-stretch border border-black font-sans text-[8px]">
+        <p className="flex-1 [writing-mode:vertical-rl] rotate-180 py-2 text-center">
+          Declaro ter recebido a importância líquida discriminada neste recibo.
+        </p>
+        <div className="flex flex-1 flex-col justify-between py-2">
+          <p className="[writing-mode:vertical-rl] rotate-180 border-r border-black text-center">
+            Assinatura do Funcionário
+          </p>
+          <p className="[writing-mode:vertical-rl] rotate-180 text-center">Data ___/___/____</p>
+        </div>
+      </div>
+    </div>
   );
 
   return (

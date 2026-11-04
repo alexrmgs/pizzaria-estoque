@@ -556,6 +556,12 @@ model Employee {
   weeklyDayOff     Int?
   active           Boolean   @default(true)
   carteiraAssinada Boolean   @default(true)
+  // Dados do holerite da contabilidade.
+  matricula        String?
+  cpf              String?
+  cbo              String?
+  departamento     String?
+  filial           String?
   faceDescriptor   Json?
   userId           String?   @unique
   user             User?     @relation(fields: [userId], references: [id])

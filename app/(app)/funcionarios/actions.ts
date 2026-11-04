@@ -45,6 +45,11 @@ const employeeSchema = z.object({
     .transform((value) => (value === "" || value === "none" ? null : value))
     .nullable()
     .optional(),
+  matricula: z.string().trim().max(30).optional(),
+  cpf: z.string().trim().max(30).optional(),
+  cbo: z.string().trim().max(30).optional(),
+  departamento: z.string().trim().max(30).optional(),
+  filial: z.string().trim().max(30).optional(),
 });
 
 export type EmployeeFormState = { error?: string } | undefined;
@@ -64,6 +69,11 @@ function parseEmployeeForm(formData: FormData) {
     carteiraAssinada: formData.get("carteiraAssinada") === "on",
     userId: formData.get("userId"),
     storeId: formData.get("storeId"),
+    matricula: formData.get("matricula") || undefined,
+    cpf: formData.get("cpf") || undefined,
+    cbo: formData.get("cbo") || undefined,
+    departamento: formData.get("departamento") || undefined,
+    filial: formData.get("filial") || undefined,
   });
 }
 
@@ -94,6 +104,11 @@ export async function createEmployee(
         carteiraAssinada: parsed.data.carteiraAssinada,
         userId: parsed.data.userId ?? null,
         storeId: parsed.data.storeId ?? null,
+        matricula: parsed.data.matricula || null,
+        cpf: parsed.data.cpf || null,
+        cbo: parsed.data.cbo || null,
+        departamento: parsed.data.departamento || null,
+        filial: parsed.data.filial || null,
       },
     });
   } catch {
@@ -132,6 +147,11 @@ export async function updateEmployee(
         carteiraAssinada: parsed.data.carteiraAssinada,
         userId: parsed.data.userId ?? null,
         storeId: parsed.data.storeId ?? null,
+        matricula: parsed.data.matricula || null,
+        cpf: parsed.data.cpf || null,
+        cbo: parsed.data.cbo || null,
+        departamento: parsed.data.departamento || null,
+        filial: parsed.data.filial || null,
       },
     });
   } catch {
