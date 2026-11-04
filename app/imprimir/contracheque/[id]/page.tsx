@@ -237,12 +237,13 @@ export default async function ImprimirContrachequePage({
   const competenciaLabel = competencia.charAt(0).toUpperCase() + competencia.slice(1);
   const filial = emp.filial || "1";
   const empresa = settings.labelEmpresa || "Empresa";
-  // Corpo da tabela com altura fixa, como o formulário da contabilidade.
-  const linhasVazias = Math.max(0, 16 - rows.length);
-  const cell = "px-2 py-0.5";
+  // Corpo da tabela com altura fixa, como o formulário da contabilidade —
+  // baixa o bastante pras duas vias caberem numa folha A4.
+  const linhasVazias = Math.max(0, 8 - rows.length);
+  const cell = "px-2 py-0";
 
   const payslip = (
-    <div className="flex w-full gap-2 font-mono text-[11px] leading-tight text-black">
+    <div className="flex w-full break-inside-avoid gap-2 font-mono text-[10px] leading-tight text-black">
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="border border-black px-2 py-1">
           <p className="uppercase">{empresa}</p>
@@ -372,7 +373,7 @@ export default async function ImprimirContrachequePage({
     <div className="mx-auto flex max-w-2xl flex-col gap-4 p-8 print:gap-2 print:p-0">
       <style
         dangerouslySetInnerHTML={{
-          __html: "@media print { @page { size: A4; margin: 8mm; } }",
+          __html: "@media print { @page { size: A4; margin: 6mm; } }",
         }}
       />
       <div className="flex items-center justify-between print:hidden">
