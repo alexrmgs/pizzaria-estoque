@@ -7,7 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,35 +97,28 @@ export function EmployeeDialog({
           </Button>
         }
       />
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{employee ? "Editar funcionário" : "Novo funcionário"}</DialogTitle>
+          <DialogTitle>{employee ? `Editar — ${employee.name}` : "Novo funcionário"}</DialogTitle>
         </DialogHeader>
-        <form action={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="name">Nome</Label>
-            <Input id="name" name="name" defaultValue={employee?.name} required />
-          </div>
+        <form action={handleSubmit} className="flex flex-col gap-5">
+          <Secao titulo="Dados pessoais">
+            <Campo id="name" label="Nome completo" span>
+              <Input id="name" name="name" defaultValue={employee?.name} required />
+            </Campo>
+            <Campo id="role" label="Cargo">
+              <Input id="role" name="role" defaultValue={employee?.role ?? ""} placeholder="Ex: Pizzaiolo" />
+            </Campo>
+            <Campo id="phone" label="Telefone (WhatsApp)">
+              <Input id="phone" name="phone" defaultValue={employee?.phone ?? ""} placeholder="(85) 99999-9999" />
+            </Campo>
+            <Campo id="cpf" label="CPF">
+              <Input id="cpf" name="cpf" defaultValue={employee?.cpf ?? ""} placeholder="000.000.000-00" />
+            </Campo>
+          </Secao>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="role">Cargo/função</Label>
-              <Input
-                id="role"
-                name="role"
-                defaultValue={employee?.role ?? ""}
-                placeholder="Ex: Cozinheiro"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="phone">Telefone</Label>
-              <Input id="phone" name="phone" defaultValue={employee?.phone ?? ""} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="baseSalary">Salário fixo (R$)</Label>
+          <Secao titulo="Trabalho">
+            <Campo id="baseSalary" label="Salário (R$)">
               <Input
                 id="baseSalary"
                 name="baseSalary"
@@ -136,195 +128,173 @@ export function EmployeeDialog({
                 defaultValue={employee?.baseSalary}
                 required
               />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="hireDate">Data de admissão</Label>
-              <Input
-                id="hireDate"
-                name="hireDate"
-                type="date"
-                defaultValue={employee?.hireDate ?? ""}
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="dependents">Dependentes (IR)</Label>
-            <Input
-              id="dependents"
-              name="dependents"
-              type="number"
-              step="1"
-              min="0"
-              className="w-32"
-              defaultValue={employee?.dependents ?? 0}
-            />
-            <p className="-mt-1 text-xs text-muted-foreground">
-              Usado no cálculo da dedução de IRRF, se marcado no fechamento do pagamento.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="scheduledStart">Horário de entrada</Label>
+            </Campo>
+            <Campo id="hireDate" label="Admissão">
+              <Input id="hireDate" name="hireDate" type="date" defaultValue={employee?.hireDate ?? ""} />
+            </Campo>
+            <Campo id="scheduledStart" label="Entrada">
               <Input
                 id="scheduledStart"
                 name="scheduledStart"
                 type="time"
                 defaultValue={employee?.scheduledStart ?? ""}
               />
+            </Campo>
+            <Campo id="scheduledEnd" label="Saída">
+              <Input id="scheduledEnd" name="scheduledEnd" type="time" defaultValue={employee?.scheduledEnd ?? ""} />
+            </Campo>
+            <Campo id="weeklyDayOff" label="Folga fixa">
+              <Select
+                name="weeklyDayOff"
+                autoComplete="off"
+                defaultValue={employee?.weeklyDayOff != null ? String(employee.weeklyDayOff) : "none"}
+                items={[{ value: "none", label: "Sem folga fixa" }, ...WEEKDAYS]}
+              >
+                <SelectTrigger id="weeklyDayOff" className="w-full">
+                  <SelectValue placeholder="Sem folga fixa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem folga fixa</SelectItem>
+                  {WEEKDAYS.map((day) => (
+                    <SelectItem key={day.value} value={day.value}>
+                      {day.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Campo>
+            <Campo id="storeId" label="Loja">
+              <Select
+                name="storeId"
+                autoComplete="off"
+                defaultValue={employee?.storeId ?? "none"}
+                items={[
+                  { value: "none", label: "Sem loja" },
+                  ...stores.map((s) => ({ value: s.id, label: s.name })),
+                ]}
+              >
+                <SelectTrigger id="storeId" className="w-full">
+                  <SelectValue placeholder="Sem loja" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem loja</SelectItem>
+                  {stores.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Campo>
+            <div className="flex flex-wrap gap-x-6 gap-y-2 sm:col-span-2">
+              <label htmlFor="carteiraAssinada" className="flex items-center gap-2 text-sm font-medium">
+                <Checkbox
+                  id="carteiraAssinada"
+                  name="carteiraAssinada"
+                  defaultChecked={employee?.carteiraAssinada ?? true}
+                />
+                Carteira assinada
+              </label>
+              <label htmlFor="active" className="flex items-center gap-2 text-sm font-medium">
+                <Checkbox id="active" name="active" defaultChecked={employee?.active ?? true} />
+                Ativo
+              </label>
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="scheduledEnd">Horário de saída</Label>
+          </Secao>
+
+          <Secao titulo="Contracheque" dica="Copie do holerite da contabilidade.">
+            <Campo id="matricula" label="Código">
+              <Input id="matricula" name="matricula" defaultValue={employee?.matricula ?? ""} />
+            </Campo>
+            <Campo id="cbo" label="CBO">
+              <Input id="cbo" name="cbo" defaultValue={employee?.cbo ?? ""} />
+            </Campo>
+            <Campo id="departamento" label="Departamento">
+              <Input id="departamento" name="departamento" defaultValue={employee?.departamento ?? ""} />
+            </Campo>
+            <Campo id="filial" label="Filial">
+              <Input id="filial" name="filial" defaultValue={employee?.filial ?? ""} />
+            </Campo>
+            <Campo id="dependents" label="Dependentes (IR)">
               <Input
-                id="scheduledEnd"
-                name="scheduledEnd"
-                type="time"
-                defaultValue={employee?.scheduledEnd ?? ""}
+                id="dependents"
+                name="dependents"
+                type="number"
+                step="1"
+                min="0"
+                defaultValue={employee?.dependents ?? 0}
               />
-            </div>
-          </div>
-          <p className="-mt-2 text-xs text-muted-foreground">
-            Usado para calcular atraso quando ele bate o ponto (opcional).
-          </p>
+            </Campo>
+          </Secao>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="weeklyDayOff">Folga fixa semanal</Label>
-            <Select
-              name="weeklyDayOff"
-              autoComplete="off"
-              defaultValue={employee?.weeklyDayOff != null ? String(employee.weeklyDayOff) : "none"}
-              items={[{ value: "none", label: "Sem folga fixa" }, ...WEEKDAYS]}
-            >
-              <SelectTrigger id="weeklyDayOff" className="w-full">
-                <SelectValue placeholder="Sem folga fixa" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sem folga fixa</SelectItem>
-                {WEEKDAYS.map((day) => (
-                  <SelectItem key={day.value} value={day.value}>
-                    {day.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Esse dia da semana fica marcado como folga automaticamente — não conta como falta se
-              ele não bater o ponto.
-            </p>
-          </div>
+          <Secao titulo="Acesso ao sistema" dica="Pra ele ver o próprio ponto e os vales em Meu Ponto. Crie o usuário em Usuários antes.">
+            <Campo id="userId" label="Usuário" span>
+              <Select
+                name="userId"
+                autoComplete="off"
+                defaultValue={employee?.userId ?? "none"}
+                items={[
+                  { value: "none", label: "Sem acesso" },
+                  ...availableUsers.map((u) => ({ value: u.id, label: `${u.name} (${u.email})` })),
+                ]}
+              >
+                <SelectTrigger id="userId" className="w-full">
+                  <SelectValue placeholder="Sem acesso" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem acesso</SelectItem>
+                  {availableUsers.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name} ({u.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Campo>
+          </Secao>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="userId">Conta de acesso ao sistema</Label>
-            <Select
-              name="userId"
-              autoComplete="off"
-              defaultValue={employee?.userId ?? "none"}
-              items={[
-                { value: "none", label: "Sem acesso ao sistema" },
-                ...availableUsers.map((u) => ({ value: u.id, label: `${u.name} (${u.email})` })),
-              ]}
-            >
-              <SelectTrigger id="userId" className="w-full">
-                <SelectValue placeholder="Sem acesso ao sistema" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sem acesso ao sistema</SelectItem>
-                {availableUsers.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.name} ({u.email})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Vincule a um usuário (crie um em Usuários primeiro) pra ele bater o próprio ponto e
-              ver seus vales em &quot;Meu Ponto&quot;.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="storeId">Loja</Label>
-            <Select
-              name="storeId"
-              autoComplete="off"
-              defaultValue={employee?.storeId ?? "none"}
-              items={[
-                { value: "none", label: "Sem loja vinculada" },
-                ...stores.map((s) => ({ value: s.id, label: s.name })),
-              ]}
-            >
-              <SelectTrigger id="storeId" className="w-full">
-                <SelectValue placeholder="Sem loja vinculada" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sem loja vinculada</SelectItem>
-                {stores.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Usado para confirmar a localização quando ele bater o ponto.
-            </p>
-          </div>
-
-          <label htmlFor="active" className="flex items-center gap-2">
-            <Checkbox id="active" name="active" defaultChecked={employee?.active ?? true} />
-            <span className="text-sm font-medium">Ativo</span>
-          </label>
-
-          <div className="flex flex-col gap-1">
-            <label htmlFor="carteiraAssinada" className="flex items-center gap-2">
-              <Checkbox
-                id="carteiraAssinada"
-                name="carteiraAssinada"
-                defaultChecked={employee?.carteiraAssinada ?? true}
-              />
-              <span className="text-sm font-medium">Carteira assinada</span>
-            </label>
-            <p className="pl-6 text-xs text-muted-foreground">
-              Desmarcado, o contracheque dele já sai na versão simplificada (sem INSS/IRRF/FGTS).
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-2 rounded-lg border p-3">
-            <p className="text-sm font-medium">Dados do contracheque</p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="matricula">Código</Label>
-                <Input id="matricula" name="matricula" defaultValue={employee?.matricula ?? ""} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="cpf">CPF</Label>
-                <Input id="cpf" name="cpf" defaultValue={employee?.cpf ?? ""} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="cbo">CBO</Label>
-                <Input id="cbo" name="cbo" defaultValue={employee?.cbo ?? ""} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="departamento">Departamento</Label>
-                <Input id="departamento" name="departamento" defaultValue={employee?.departamento ?? ""} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="filial">Filial</Label>
-                <Input id="filial" name="filial" defaultValue={employee?.filial ?? ""} />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">Copie do holerite da contabilidade.</p>
-          </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <DialogFooter>
+          <div className="sticky bottom-0 -mx-4 -mb-4 flex items-center justify-end gap-2 rounded-b-xl border-t bg-popover px-4 py-3">
+            {error && <p className="mr-auto text-sm text-red-600">{error}</p>}
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={isPending}>
               {isPending ? "Salvando..." : "Salvar"}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Secao({ titulo, dica, children }: { titulo: string; dica?: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="flex flex-col gap-3">
+      <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {titulo}
+      </legend>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{children}</div>
+      {dica && <p className="text-xs text-muted-foreground">{dica}</p>}
+    </fieldset>
+  );
+}
+
+function Campo({
+  id,
+  label,
+  span,
+  children,
+}: {
+  id: string;
+  label: string;
+  span?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`flex flex-col gap-1.5 ${span ? "sm:col-span-2" : ""}`}>
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+    </div>
   );
 }
