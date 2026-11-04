@@ -67,7 +67,7 @@ export type PaymentPreview = {
   holidayWorkedDatesAuto: string[];
   holidayWorkedDaysAuto: number;
   holidayBonusAmountAuto: number;
-  /** Horas trabalhadas em cada feriado (até a jornada do dia; o resto é hora extra). */
+  /** Horas de feriado pagas a 100%: a jornada do dia por feriado trabalhado. */
   holidayHoursAuto: number;
   holidayHoursPerDay: number;
   dsrDias: number;
@@ -190,13 +190,10 @@ export async function computePaymentPreview(
     .sort();
   const holidayWorkedDaysAuto = holidayWorkedDatesAuto.length;
   const dailyExpectedHours = Number(settings.dailyExpectedHours);
-  // Feriado paga as horas do dia a 100%; o que passar da jornada já entra
-  // como hora extra (excessHoursByDay), então não conta duas vezes.
-  const holidayHoursAuto = holidayWorkedDatesAuto.reduce(
-    (s, d) => s + Math.min(hoursByDay.get(d) ?? 0, dailyExpectedHours),
-    0,
-  );
-  const holidayHoursPerDay = holidayWorkedDaysAuto > 0 ? holidayHoursAuto / holidayWorkedDaysAuto : dailyExpectedHours;
+  // Feriado trabalhado paga o dia inteiro (a jornada) a 100%, não as horas
+  // batidas no ponto — como a contabilidade faz.
+  const holidayHoursPerDay = dailyExpectedHours;
+  const holidayHoursAuto = holidayWorkedDaysAuto * holidayHoursPerDay;
   const holidayBonusAmountAutoVal = holidayHoursAmount(baseSalary, holidayHoursAuto);
   const { dsrDias, diasUteis } = dsrDoMes(
     periodEnd.getUTCFullYear(),
