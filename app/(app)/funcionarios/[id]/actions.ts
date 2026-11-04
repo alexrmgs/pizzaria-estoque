@@ -10,7 +10,6 @@ import {
   comprarFolga,
   desfazerCompra,
   FOLGA_COMPRADA_REASON,
-  FOLGA_PAGA_TAG,
 } from "@/lib/folga-comprada";
 import {
   brazilDateTime,
@@ -449,17 +448,14 @@ export async function closePayment(
   // foi admitido no meio do mês (prefill no diálogo), então usa como veio.
   const baseSalary = parsed.data.baseSalary;
 
-  // Folga comprada (paga em dobro) é verba salarial — entra na base de
-  // INSS/IRRF junto com salário, noturno e hora extra.
-  const folgaPagaVal = preview.bonusItems
-    .filter((b) => b.description?.startsWith(FOLGA_PAGA_TAG))
-    .reduce((sum, b) => sum + b.amount, 0);
   const faltaVal = parsed.data.faltaDays > 0 ? round2(faltaAmount(baseSalary, parsed.data.faltaDays)) : 0;
   // Feriado em horas a 100% e reflexo no DSR, igual ao holerite da contabilidade.
+  // Folga comprada fica fora da base de INSS/FGTS/IRRF e do DSR: a
+  // contabilidade não lança, então só soma no líquido (via bônus).
   const holidayHours = parsed.data.holidayWorkedDays * preview.holidayHoursPerDay;
   const holidayVal = holidayHoursAmount(Number(employee.baseSalary), holidayHours);
   const dsrExtrasVal = dsrReflexo(
-    preview.overtimeAmount + holidayVal + folgaPagaVal,
+    preview.overtimeAmount + holidayVal,
     preview.dsrDias,
     preview.diasUteis,
   );
@@ -469,7 +465,6 @@ export async function closePayment(
     baseSalary +
       preview.nightPremium +
       preview.overtimeAmount +
-      folgaPagaVal +
       holidayVal +
       dsrExtrasVal +
       dsrNightVal -

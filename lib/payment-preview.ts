@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { getAppSettings } from "@/lib/settings";
-import { FOLGA_PAGA_TAG } from "@/lib/folga-comprada-shared";
 import {
   admissionProrationFactor,
   admissionUnworkedDays,
@@ -72,7 +71,7 @@ export type PaymentPreview = {
   holidayHoursPerDay: number;
   dsrDias: number;
   diasUteis: number;
-  /** Reflexo no DSR de hora extra + feriado + folga paga, com o feriado automático. */
+  /** Reflexo no DSR de hora extra + feriado, com o feriado automático. */
   dsrExtrasAuto: number;
   dsrNightAuto: number;
 };
@@ -259,9 +258,6 @@ export async function computePaymentPreview(
   const discountTotal = discountItems.reduce((sum, i) => sum + i.amount, 0);
   const advancesTotal = advanceItems.reduce((sum, i) => sum + i.amount, 0);
   const madrugadaTotal = madrugadaItems.reduce((sum, i) => sum + i.amount, 0);
-  const folgaPagaTotal = bonusItems
-    .filter((b) => b.description?.startsWith(FOLGA_PAGA_TAG))
-    .reduce((sum, i) => sum + i.amount, 0);
   // Madrugada é um canal de pagamento à parte (pago avulso pelo botão
   // "Pagar" em /madrugada) — não entra na conta do líquido da folha normal,
   // só é exibido informativamente pra quem gerencia.
@@ -319,7 +315,7 @@ export async function computePaymentPreview(
     holidayHoursPerDay,
     dsrDias,
     diasUteis,
-    dsrExtrasAuto: dsrReflexo(overtimePay + holidayBonusAmountAutoVal + folgaPagaTotal, dsrDias, diasUteis),
+    dsrExtrasAuto: dsrReflexo(overtimePay + holidayBonusAmountAutoVal, dsrDias, diasUteis),
     dsrNightAuto: dsrReflexo(nightPremium, dsrDias, diasUteis),
   };
 }

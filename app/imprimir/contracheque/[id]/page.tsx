@@ -100,14 +100,13 @@ export default async function ImprimirContrachequePage({
   const holidayHours =
     Number(payment.holidayHours) || (valorHora > 0 ? holidayBonusAmount / (valorHora * 2) : 0);
 
-  // Base de INSS/FGTS: todas as verbas salariais menos faltas e atrasos — a
-  // mesma usada no fechamento do pagamento.
+  // Base de INSS/FGTS: verbas salariais (sem a folga comprada) menos faltas e
+  // atrasos — a mesma usada no fechamento do pagamento.
   const grossForTax = Math.max(
     0,
     baseSalary +
       nightPremium +
       overtimeAmount +
-      folgaPagaTotal +
       holidayBonusAmount +
       dsrExtrasAmount +
       dsrNightAmount -

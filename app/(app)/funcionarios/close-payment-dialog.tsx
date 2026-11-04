@@ -17,7 +17,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { getPaymentPreview, closePayment, reopenPayment } from "./[id]/actions";
 import type { PaymentPreview } from "@/lib/payment-preview";
-import { isFolgaPaga } from "@/lib/folga-comprada-shared";
 import {
   daysInMonthUTC,
   dsrReflexo,
@@ -152,14 +151,9 @@ export function ClosePaymentDialog({
     applyHolidayBonus && preview
       ? holidayHoursAmount(baseSalary, Number(holidayWorkedDays || 0) * preview.holidayHoursPerDay)
       : 0;
-  // Folga comprada (paga em dobro) entra na base de INSS/IRRF — mesma conta
-  // do closePayment no servidor.
-  const folgaPagaVal = preview
-    ? preview.bonusItems.filter((b) => isFolgaPaga(b.description)).reduce((s, b) => s + b.amount, 0)
-    : 0;
   // Mesma conta do closePayment: reflexo no DSR e INSS sobre tudo, menos faltas e atrasos.
   const dsrExtrasVal = preview
-    ? dsrReflexo(preview.overtimeAmount + holidayVal + folgaPagaVal, preview.dsrDias, preview.diasUteis)
+    ? dsrReflexo(preview.overtimeAmount + holidayVal, preview.dsrDias, preview.diasUteis)
     : 0;
   const dsrNightVal = preview?.dsrNightAuto ?? 0;
   const grossForTax = preview
@@ -168,7 +162,6 @@ export function ClosePaymentDialog({
         salaryNum +
           preview.nightPremium +
           preview.overtimeAmount +
-          folgaPagaVal +
           holidayVal +
           dsrExtrasVal +
           dsrNightVal -
