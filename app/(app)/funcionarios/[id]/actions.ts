@@ -451,7 +451,8 @@ export async function closePayment(
   const faltaVal = parsed.data.faltaDays > 0 ? round2(faltaAmount(baseSalary, parsed.data.faltaDays)) : 0;
   // Feriado em horas a 100% e reflexo no DSR, igual ao holerite da contabilidade.
   // Folga comprada fica fora da base de INSS/FGTS/IRRF e do DSR: a
-  // contabilidade não lança, então só soma no líquido (via bônus).
+  // contabilidade não lança, então só soma no líquido (via bônus). O atraso
+  // também: desconta no líquido, mas a contabilidade não tira da base.
   const holidayHours = parsed.data.holidayWorkedDays * preview.holidayHoursPerDay;
   const holidayVal = holidayHoursAmount(Number(employee.baseSalary), holidayHours);
   const dsrExtrasVal = dsrReflexo(
@@ -468,8 +469,7 @@ export async function closePayment(
       holidayVal +
       dsrExtrasVal +
       dsrNightVal -
-      faltaVal -
-      preview.lateDiscountAmount,
+      faltaVal,
   );
   const inssVal = parsed.data.applyInss
     ? inssAmount(grossForTax, settings.inssBrackets as unknown as { upTo: number | null; rate: number }[])

@@ -151,7 +151,7 @@ export function ClosePaymentDialog({
     applyHolidayBonus && preview
       ? holidayHoursAmount(baseSalary, Number(holidayWorkedDays || 0) * preview.holidayHoursPerDay)
       : 0;
-  // Mesma conta do closePayment: reflexo no DSR e INSS sobre tudo, menos faltas e atrasos.
+  // Mesma conta do closePayment: reflexo no DSR; INSS sobre as verbas menos faltas.
   const dsrExtrasVal = preview
     ? dsrReflexo(preview.overtimeAmount + holidayVal, preview.dsrDias, preview.diasUteis)
     : 0;
@@ -165,8 +165,7 @@ export function ClosePaymentDialog({
           holidayVal +
           dsrExtrasVal +
           dsrNightVal -
-          faltaVal -
-          preview.lateDiscountAmount,
+          faltaVal,
       )
     : salaryNum;
   const inssVal = useMemo(
