@@ -88,7 +88,33 @@ export function hourlyRate(baseSalary: number): number {
 }
 
 export function nightPremiumAmount(baseSalary: number, totalNightHours: number): number {
-  return hourlyRate(baseSalary) * NIGHT_PREMIUM_RATE * totalNightHours;
+  return round2(hourlyRate(baseSalary) * NIGHT_PREMIUM_RATE * totalNightHours);
+}
+
+export const round2 = (v: number) => Math.round(v * 100 + 1e-9) / 100;
+
+/** Hora de feriado trabalhada paga a 100% (valor da hora em dobro), como a contabilidade faz. */
+export function holidayHoursAmount(baseSalary: number, holidayHours: number): number {
+  return round2(hourlyRate(baseSalary) * 2 * holidayHours);
+}
+
+/**
+ * Dias de descanso (domingos + feriados) e dias úteis do mês — base do
+ * reflexo das verbas variáveis no DSR (Lei 605/49, Súmula 172 TST).
+ */
+export function dsrDoMes(year: number, month0: number, holidayISOs: Set<string>) {
+  const dias = new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
+  let dsrDias = 0;
+  for (let d = 1; d <= dias; d++) {
+    const date = new Date(Date.UTC(year, month0, d));
+    if (date.getUTCDay() === 0 || holidayISOs.has(date.toISOString().slice(0, 10))) dsrDias += 1;
+  }
+  return { dsrDias, diasUteis: dias - dsrDias };
+}
+
+/** Reflexo no DSR: verba variável ÷ dias úteis × domingos e feriados. */
+export function dsrReflexo(amount: number, dsrDias: number, diasUteis: number): number {
+  return diasUteis > 0 ? round2((amount * dsrDias) / diasUteis) : 0;
 }
 
 /**
@@ -212,7 +238,8 @@ export function progressiveTax(base: number, brackets: TaxBracket[]): number {
 export function inssAmount(grossForInss: number, brackets: TaxBracket[]): number {
   const cap = brackets.length > 0 ? brackets[brackets.length - 1].upTo : null;
   const base = cap !== null ? Math.min(grossForInss, cap) : grossForInss;
-  return progressiveTax(base, brackets);
+  // A contabilidade trunca os centavos (142,4487 → 142,44), não arredonda.
+  return Math.floor(progressiveTax(base, brackets) * 100 + 1e-9) / 100;
 }
 
 /**
@@ -227,7 +254,12 @@ export function irrfAmount(
   brackets: TaxBracket[],
 ): number {
   const base = grossForIrrf - inssDeducted - dependents * dependentDeduction;
-  return progressiveTax(base, brackets);
+  const tax = progressiveTax(base, brackets);
+  // Lei 15.270/2025 (a partir de 2026): até R$ 5.000 de rendimento não paga;
+  // até R$ 7.350 tem redução parcial.
+  const reducao =
+    grossForIrrf <= 5000 ? tax : grossForIrrf <= 7350 ? Math.max(0, 978.62 - 0.133145 * grossForIrrf) : 0;
+  return round2(Math.max(0, tax - reducao));
 }
 
 export function faltaAmount(baseSalary: number, faltaDays: number): number {

@@ -15,8 +15,10 @@ import {
 import {
   brazilDateTime,
   faltaAmount,
-  holidayWorkedBonusAmount,
+  dsrReflexo,
+  holidayHoursAmount,
   inssAmount,
+  round2,
   irrfAmount,
   nthBusinessDayOfMonth,
   valeTransporteAmount,
@@ -452,12 +454,28 @@ export async function closePayment(
   const folgaPagaVal = preview.bonusItems
     .filter((b) => b.description?.startsWith(FOLGA_PAGA_TAG))
     .reduce((sum, b) => sum + b.amount, 0);
-  const grossForTax = baseSalary + preview.nightPremium + preview.overtimeAmount + folgaPagaVal;
-  const faltaVal = parsed.data.faltaDays > 0 ? faltaAmount(baseSalary, parsed.data.faltaDays) : 0;
-  const holidayVal =
-    parsed.data.holidayWorkedDays > 0
-      ? holidayWorkedBonusAmount(baseSalary, parsed.data.holidayWorkedDays)
-      : 0;
+  const faltaVal = parsed.data.faltaDays > 0 ? round2(faltaAmount(baseSalary, parsed.data.faltaDays)) : 0;
+  // Feriado em horas a 100% e reflexo no DSR, igual ao holerite da contabilidade.
+  const holidayHours = parsed.data.holidayWorkedDays * preview.holidayHoursPerDay;
+  const holidayVal = holidayHoursAmount(Number(employee.baseSalary), holidayHours);
+  const dsrExtrasVal = dsrReflexo(
+    preview.overtimeAmount + holidayVal + folgaPagaVal,
+    preview.dsrDias,
+    preview.diasUteis,
+  );
+  const dsrNightVal = preview.dsrNightAuto;
+  const grossForTax = Math.max(
+    0,
+    baseSalary +
+      preview.nightPremium +
+      preview.overtimeAmount +
+      folgaPagaVal +
+      holidayVal +
+      dsrExtrasVal +
+      dsrNightVal -
+      faltaVal -
+      preview.lateDiscountAmount,
+  );
   const inssVal = parsed.data.applyInss
     ? inssAmount(grossForTax, settings.inssBrackets as unknown as { upTo: number | null; rate: number }[])
     : 0;
@@ -481,7 +499,9 @@ export async function closePayment(
     preview.overtimeAmount +
     preview.bonusTotal +
     attendanceBonusVal +
-    holidayVal -
+    holidayVal +
+    dsrExtrasVal +
+    dsrNightVal -
     preview.discountTotal -
     preview.advancesTotal -
     preview.lateDiscountAmount -
@@ -540,6 +560,10 @@ export async function closePayment(
           faltaAmount: faltaVal,
           holidayWorkedDays: parsed.data.holidayWorkedDays,
           holidayBonusAmount: holidayVal,
+          holidayHours,
+          nightHours: preview.totalNightHours,
+          dsrExtrasAmount: dsrExtrasVal,
+          dsrNightAmount: dsrNightVal,
           inssAmount: inssVal,
           irrfAmount: irrfVal,
           valeTransporteAmount: vtVal,

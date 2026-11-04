@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getAppSettings } from "@/lib/settings";
+import { FOLGA_PAGA_TAG } from "@/lib/folga-comprada-shared";
 import {
   admissionProrationFactor,
   admissionUnworkedDays,
@@ -7,10 +8,12 @@ import {
   attendanceScore,
   attendanceStreakMultiplier,
   discountableLateMinutes,
+  dsrDoMes,
+  dsrReflexo,
   excessHoursByDay,
   faltaAmount,
   faltaDeductionDays,
-  holidayWorkedBonusAmount,
+  holidayHoursAmount,
   lateDiscountAmount,
   lateMinutes,
   nightPremiumAmount,
@@ -64,6 +67,14 @@ export type PaymentPreview = {
   holidayWorkedDatesAuto: string[];
   holidayWorkedDaysAuto: number;
   holidayBonusAmountAuto: number;
+  /** Horas trabalhadas em cada feriado (até a jornada do dia; o resto é hora extra). */
+  holidayHoursAuto: number;
+  holidayHoursPerDay: number;
+  dsrDias: number;
+  diasUteis: number;
+  /** Reflexo no DSR de hora extra + feriado + folga paga, com o feriado automático. */
+  dsrExtrasAuto: number;
+  dsrNightAuto: number;
 };
 
 export async function computePaymentPreview(
@@ -79,7 +90,11 @@ export async function computePaymentPreview(
   const holidayWindowEnd = new Date(periodEnd);
   holidayWindowEnd.setDate(holidayWindowEnd.getDate() + 6);
 
-  const [employee, settings, timeEntries, adjustments, advances, dayOffs, holidays] = await Promise.all([
+  // Mês de competência (o do fim do período) — pros dias de DSR.
+  const competenciaInicio = new Date(Date.UTC(periodEnd.getUTCFullYear(), periodEnd.getUTCMonth(), 1));
+  const competenciaFim = new Date(Date.UTC(periodEnd.getUTCFullYear(), periodEnd.getUTCMonth() + 1, 0));
+
+  const [employee, settings, timeEntries, adjustments, advances, dayOffs, holidays, holidaysMes] = await Promise.all([
     prisma.employee.findUniqueOrThrow({ where: { id: employeeId } }),
     getAppSettings(companyId),
     prisma.timeEntry.findMany({
@@ -98,6 +113,10 @@ export async function computePaymentPreview(
     }),
     prisma.holiday.findMany({
       where: { date: { gte: holidayWindowStart, lte: holidayWindowEnd } },
+      select: { date: true },
+    }),
+    prisma.holiday.findMany({
+      where: { date: { gte: competenciaInicio, lte: competenciaFim } },
       select: { date: true },
     }),
   ]);
@@ -170,7 +189,20 @@ export async function computePaymentPreview(
     .filter((d) => d >= periodStartISO && d <= periodEndISO && hoursByDay.has(d))
     .sort();
   const holidayWorkedDaysAuto = holidayWorkedDatesAuto.length;
-  const holidayBonusAmountAutoVal = holidayWorkedBonusAmount(baseSalary, holidayWorkedDaysAuto);
+  const dailyExpectedHours = Number(settings.dailyExpectedHours);
+  // Feriado paga as horas do dia a 100%; o que passar da jornada já entra
+  // como hora extra (excessHoursByDay), então não conta duas vezes.
+  const holidayHoursAuto = holidayWorkedDatesAuto.reduce(
+    (s, d) => s + Math.min(hoursByDay.get(d) ?? 0, dailyExpectedHours),
+    0,
+  );
+  const holidayHoursPerDay = holidayWorkedDaysAuto > 0 ? holidayHoursAuto / holidayWorkedDaysAuto : dailyExpectedHours;
+  const holidayBonusAmountAutoVal = holidayHoursAmount(baseSalary, holidayHoursAuto);
+  const { dsrDias, diasUteis } = dsrDoMes(
+    periodEnd.getUTCFullYear(),
+    periodEnd.getUTCMonth(),
+    new Set(holidaysMes.map((h) => h.date.toISOString().slice(0, 10))),
+  );
   const scoreVal = attendanceScore(lateOccurrences, settings.latePenaltyPoints);
   const baseBonusVal = attendanceBonusAmount(
     scoreVal,
@@ -188,7 +220,6 @@ export async function computePaymentPreview(
   );
   const attendanceBonusVal = baseBonusVal * streakMultiplier;
 
-  const dailyExpectedHours = Number(settings.dailyExpectedHours);
   const excessHours = excessHoursByDay(hoursByDay, dailyExpectedHours);
   const overtimeHours = settings.overtimeMode === "HORA_EXTRA" ? excessHours : 0;
   const bankedHours = settings.overtimeMode === "BANCO_HORAS" ? excessHours : 0;
@@ -231,6 +262,9 @@ export async function computePaymentPreview(
   const discountTotal = discountItems.reduce((sum, i) => sum + i.amount, 0);
   const advancesTotal = advanceItems.reduce((sum, i) => sum + i.amount, 0);
   const madrugadaTotal = madrugadaItems.reduce((sum, i) => sum + i.amount, 0);
+  const folgaPagaTotal = bonusItems
+    .filter((b) => b.description?.startsWith(FOLGA_PAGA_TAG))
+    .reduce((sum, i) => sum + i.amount, 0);
   // Madrugada é um canal de pagamento à parte (pago avulso pelo botão
   // "Pagar" em /madrugada) — não entra na conta do líquido da folha normal,
   // só é exibido informativamente pra quem gerencia.
@@ -284,5 +318,11 @@ export async function computePaymentPreview(
     holidayWorkedDatesAuto,
     holidayWorkedDaysAuto,
     holidayBonusAmountAuto: holidayBonusAmountAutoVal,
+    holidayHoursAuto,
+    holidayHoursPerDay,
+    dsrDias,
+    diasUteis,
+    dsrExtrasAuto: dsrReflexo(overtimePay + holidayBonusAmountAutoVal + folgaPagaTotal, dsrDias, diasUteis),
+    dsrNightAuto: dsrReflexo(nightPremium, dsrDias, diasUteis),
   };
 }

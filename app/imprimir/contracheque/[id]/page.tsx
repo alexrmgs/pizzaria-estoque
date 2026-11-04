@@ -20,6 +20,12 @@ function bracketRate(base: number, brackets: Bracket[]): number {
   return brackets[brackets.length - 1]?.rate ?? 0;
 }
 
+/** Horas no formato do holerite: 52 → "52:00", 7,5 → "7:30". */
+function hhmm(hours: number): string {
+  const total = Math.round(hours * 60);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+
 type Row = { code: string; label: string; ref: string; vencimento: number; desconto: number };
 
 export default async function ImprimirContrachequePage({
@@ -66,7 +72,6 @@ export default async function ImprimirContrachequePage({
   const adiantamentoTotal = advances
     .filter((a) => a.kind === "ADIANTAMENTO")
     .reduce((s, a) => s + Number(a.amount), 0);
-  const inssBrackets = settings.inssBrackets as unknown as Bracket[];
   const irrfBrackets = settings.irrfBrackets as unknown as Bracket[];
 
   const baseSalary = Number(payment.baseSalary);
@@ -80,34 +85,60 @@ export default async function ImprimirContrachequePage({
   const faltaAmount = Number(payment.faltaAmount);
   const faltaDays = Number(payment.faltaDays);
   const holidayBonusAmount = Number(payment.holidayBonusAmount);
-  const holidayWorkedDays = Number(payment.holidayWorkedDays);
   const inssAmount = Number(payment.inssAmount);
   const irrfAmount = Number(payment.irrfAmount);
   const valeTransporteAmount = Number(payment.valeTransporteAmount);
   const discountTotal = Number(payment.discountTotal);
   const netAmount = Number(payment.netAmount);
+  const dsrExtrasAmount = Number(payment.dsrExtrasAmount);
+  const dsrNightAmount = Number(payment.dsrNightAmount);
+  const salarioContratual = Number(payment.employee.baseSalary);
+  const valorHora = salarioContratual / 220;
+  // Pagamentos antigos não guardavam as horas — recalcula a partir do valor.
+  const nightHours =
+    Number(payment.nightHours) || (valorHora > 0 ? nightPremium / (valorHora * 0.2) : 0);
+  const holidayHours =
+    Number(payment.holidayHours) || (valorHora > 0 ? holidayBonusAmount / (valorHora * 2) : 0);
 
-  // Base de cálculo padrão (salário + adicional noturno + hora extra) — a
-  // mesma usada no fechamento do pagamento pra INSS/IRRF/FGTS.
-  const grossForTax = baseSalary + nightPremium + overtimeAmount + folgaPagaTotal;
+  // Base de INSS/FGTS: todas as verbas salariais menos faltas e atrasos — a
+  // mesma usada no fechamento do pagamento.
+  const grossForTax = Math.max(
+    0,
+    baseSalary +
+      nightPremium +
+      overtimeAmount +
+      folgaPagaTotal +
+      holidayBonusAmount +
+      dsrExtrasAmount +
+      dsrNightAmount -
+      faltaAmount -
+      lateDiscountAmount,
+  );
   const irrfBase = Math.max(
     0,
     grossForTax - inssAmount - payment.employee.dependents * Number(settings.irrfDependentDeduction),
   );
   const fgtsMes = grossForTax * 0.08;
 
-  // "Dias normais" — 30 se o mês foi trabalhado inteiro (convenção do
-  // mensalista); proporcional se o salário do período veio menor que o
-  // salário contratual atual (admitido no meio do mês).
-  const salarioContratual = Number(payment.employee.baseSalary);
-  const diasNormais =
-    salarioContratual > 0 ? Math.min(30, Math.round((baseSalary / salarioContratual) * 30)) : 30;
+  // "Horas normais" — 220h no mês cheio (mensalista); proporcional se o
+  // salário do período veio menor (admitido no meio do mês).
+  const horasNormais = salarioContratual > 0 ? Math.min(220, (baseSalary / salarioContratual) * 220) : 220;
 
+  // Mesmos códigos e ordem do holerite da contabilidade.
   const rows: Row[] = [
-    { code: "001", label: "Salário Base", ref: `${num(diasNormais)}`, vencimento: baseSalary, desconto: 0 },
+    { code: "1", label: "Horas Normais", ref: hhmm(horasNormais), vencimento: baseSalary, desconto: 0 },
   ];
+  if (dsrExtrasAmount > 0) {
+    rows.push({ code: "8125", label: "Reflexo Horas Extras DSR", ref: "0:00", vencimento: dsrExtrasAmount, desconto: 0 });
+  }
+  if (dsrNightAmount > 0) {
+    rows.push({ code: "8924", label: "Reflexo Horas Adic. Noturno DSR", ref: "0:00", vencimento: dsrNightAmount, desconto: 0 });
+  }
+  if (holidayBonusAmount > 0) {
+    rows.push({ code: "202", label: "Horas Feriado 100%", ref: hhmm(holidayHours), vencimento: holidayBonusAmount, desconto: 0 });
+  }
   if (nightPremium > 0) {
-    rows.push({ code: "002", label: "Adicional Noturno (20%)", ref: "", vencimento: nightPremium, desconto: 0 });
+    rows.push({ code: "201", label: "Adicional Noturno 20%", ref: hhmm(nightHours), vencimento: nightPremium, desconto: 0 });
   }
   if (overtimeAmount > 0) {
     rows.push({
@@ -139,15 +170,6 @@ export default async function ImprimirContrachequePage({
       desconto: 0,
     });
   }
-  if (holidayBonusAmount > 0) {
-    rows.push({
-      code: "006",
-      label: "Feriado Trabalhado",
-      ref: `${num(holidayWorkedDays)}`,
-      vencimento: holidayBonusAmount,
-      desconto: 0,
-    });
-  }
   if (faltaAmount > 0) {
     rows.push({ code: "101", label: "Faltas", ref: `${num(faltaDays)}`, vencimento: 0, desconto: faltaAmount });
   }
@@ -164,9 +186,19 @@ export default async function ImprimirContrachequePage({
     rows.push({
       code: "998",
       label: "I.N.S.S.",
-      ref: `${num(bracketRate(grossForTax, inssBrackets) * 100)}`,
+      // Alíquota efetiva (INSS ÷ base), como a contabilidade mostra.
+      ref: grossForTax > 0 ? num((inssAmount / grossForTax) * 100) : "",
       vencimento: 0,
       desconto: inssAmount,
+    });
+  }
+  if (adiantamentoTotal > 0) {
+    rows.push({
+      code: "981",
+      label: "Desc.Adiant.Salarial",
+      ref: num(adiantamentoTotal),
+      vencimento: 0,
+      desconto: adiantamentoTotal,
     });
   }
   if (irrfAmount > 0 && !simples) {
@@ -192,15 +224,6 @@ export default async function ImprimirContrachequePage({
   }
   if (valeTotal > 0) {
     rows.push({ code: "108", label: "Vale", ref: "", vencimento: 0, desconto: valeTotal });
-  }
-  if (adiantamentoTotal > 0) {
-    rows.push({
-      code: "109",
-      label: "Adiantamento Quinzenal (40%)",
-      ref: "",
-      vencimento: 0,
-      desconto: adiantamentoTotal,
-    });
   }
 
   const totalVencimentos = rows.reduce((s, r) => s + r.vencimento, 0);

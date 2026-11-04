@@ -20,8 +20,9 @@ import type { PaymentPreview } from "@/lib/payment-preview";
 import { isFolgaPaga } from "@/lib/folga-comprada-shared";
 import {
   daysInMonthUTC,
+  dsrReflexo,
   faltaAmount,
-  holidayWorkedBonusAmount,
+  holidayHoursAmount,
   inssAmount,
   irrfAmount,
   nthBusinessDayOfMonth,
@@ -146,17 +147,34 @@ export function ClosePaymentDialog({
   }
 
   const salaryNum = Number(salaryOverride || 0);
-  const faltaVal = applyFalta ? faltaAmount(salaryNum, Number(faltaDays || 0)) : 0;
-  const holidayVal = applyHolidayBonus
-    ? holidayWorkedBonusAmount(salaryNum, Number(holidayWorkedDays || 0))
-    : 0;
+  const faltaVal = applyFalta ? Math.round(faltaAmount(salaryNum, Number(faltaDays || 0)) * 100) / 100 : 0;
+  const holidayVal =
+    applyHolidayBonus && preview
+      ? holidayHoursAmount(baseSalary, Number(holidayWorkedDays || 0) * preview.holidayHoursPerDay)
+      : 0;
   // Folga comprada (paga em dobro) entra na base de INSS/IRRF — mesma conta
   // do closePayment no servidor.
   const folgaPagaVal = preview
     ? preview.bonusItems.filter((b) => isFolgaPaga(b.description)).reduce((s, b) => s + b.amount, 0)
     : 0;
+  // Mesma conta do closePayment: reflexo no DSR e INSS sobre tudo, menos faltas e atrasos.
+  const dsrExtrasVal = preview
+    ? dsrReflexo(preview.overtimeAmount + holidayVal + folgaPagaVal, preview.dsrDias, preview.diasUteis)
+    : 0;
+  const dsrNightVal = preview?.dsrNightAuto ?? 0;
   const grossForTax = preview
-    ? salaryNum + preview.nightPremium + preview.overtimeAmount + folgaPagaVal
+    ? Math.max(
+        0,
+        salaryNum +
+          preview.nightPremium +
+          preview.overtimeAmount +
+          folgaPagaVal +
+          holidayVal +
+          dsrExtrasVal +
+          dsrNightVal -
+          faltaVal -
+          preview.lateDiscountAmount,
+      )
     : salaryNum;
   const inssVal = useMemo(
     () => (applyInss ? inssAmount(grossForTax, cltSettings.inssBrackets) : 0),
@@ -330,6 +348,12 @@ export function ClosePaymentDialog({
                   <span className="text-neutral-500">Adicional noturno (20%)</span>
                   <span className="font-medium">{currency(preview.nightPremium)}</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">
+                    Reflexo no DSR ({preview.dsrDias} domingos/feriados ÷ {preview.diasUteis} dias úteis)
+                  </span>
+                  <span className="font-medium">{currency(dsrExtrasVal + dsrNightVal)}</span>
+                </div>
                 {preview.overtimeMode === "HORA_EXTRA" ? (
                   <div className="flex justify-between">
                     <span className="text-neutral-500">
@@ -432,9 +456,8 @@ export function ClosePaymentDialog({
                       {preview.holidayWorkedDatesAuto
                         .map((d) => d.split("-").reverse().join("/"))
                         .join(", ")}{" "}
-                      ({preview.holidayWorkedDaysAuto} dia
-                      {preview.holidayWorkedDaysAuto === 1 ? "" : "s"} a mais, 1/30 do salário
-                      cada). Ajuste o número acima se precisar.
+                      ({preview.holidayHoursAuto.toFixed(2)}h pagas a 100%). Ajuste o número de
+                      dias acima se precisar.
                     </p>
                   )}
                 </div>
@@ -562,7 +585,9 @@ export function ClosePaymentDialog({
                       preview.overtimeAmount +
                       preview.bonusTotal +
                       (applyAttendanceBonus ? preview.attendanceBonusAmount : 0) +
-                      holidayVal -
+                      holidayVal +
+                      dsrExtrasVal +
+                      dsrNightVal -
                       preview.discountTotal -
                       preview.advancesTotal -
                       preview.lateDiscountAmount -
