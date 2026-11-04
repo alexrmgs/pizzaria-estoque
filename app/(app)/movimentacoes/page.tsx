@@ -93,7 +93,7 @@ function MovementsTable({
             const quantity = Number(movement.quantity);
             return (
             <TableRow key={movement.id}>
-              <TableCell>{movement.createdAt.toLocaleString("pt-BR")}</TableCell>
+              <TableCell>{movement.createdAt.toLocaleString("pt-BR", { timeZone: "America/Fortaleza" })}</TableCell>
               <TableCell className="font-medium">{movement.ingredient.name}</TableCell>
               <TableCell>
                 {String(movement.quantity)} {movement.ingredient.unit}
@@ -149,6 +149,10 @@ export default async function MovimentacoesPage({
   const fornecedorEntrada = typeof params.fornecedorEntrada === "string" ? params.fornecedorEntrada : "";
   const dataEntradaRange = dataEntrada ? brazilDayRange(dataEntrada) : null;
   const hasEntradaFilter = Boolean(dataEntradaRange || fornecedorEntrada);
+  const dataSaida = typeof params.dataSaida === "string" ? params.dataSaida : "";
+  const ingredienteSaida = typeof params.ingredienteSaida === "string" ? params.ingredienteSaida : "";
+  const dataSaidaRange = dataSaida ? brazilDayRange(dataSaida) : null;
+  const hasSaidaFilter = Boolean(dataSaidaRange || ingredienteSaida);
 
   const [ingredientRows, entradas, saidas, fornecedoresRaw] = await Promise.all([
     prisma.ingredient.findMany({
@@ -167,9 +171,13 @@ export default async function MovimentacoesPage({
       include: { ingredient: true, user: true, supplier: { select: { name: true } } },
     }),
     prisma.stockMovement.findMany({
-      where: { type: "SAIDA" },
+      where: {
+        type: "SAIDA",
+        ...(dataSaidaRange && { createdAt: { gte: dataSaidaRange.start, lt: dataSaidaRange.end } }),
+        ...(ingredienteSaida && { ingredientId: ingredienteSaida }),
+      },
       orderBy: { createdAt: "desc" },
-      take: 20,
+      take: hasSaidaFilter ? 500 : 20,
       include: { ingredient: true, user: true, supplier: { select: { name: true } } },
     }),
     prisma.fornecedor.findMany({
@@ -198,7 +206,8 @@ export default async function MovimentacoesPage({
         <p className="text-sm text-neutral-500">Lance entradas e saídas manuais de insumos.</p>
       </div>
 
-      <Tabs defaultValue="entrada">
+      {/* Depois de filtrar as saídas, a página volta já na aba Saída. */}
+      <Tabs defaultValue={hasSaidaFilter ? "saida" : "entrada"}>
         <TabsList>
           <TabsTrigger value="entrada">Entrada</TabsTrigger>
           <TabsTrigger value="saida">Saída</TabsTrigger>
@@ -290,12 +299,56 @@ export default async function MovimentacoesPage({
           <QrBaixaPanel />
           <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
             <MovementForm ingredients={ingredients} type="SAIDA" showValues={showValues} />
-            <MovementsTable
-              movements={saidas}
-              ingredients={ingredients}
-              fornecedores={fornecedores}
-              showValues={showValues}
-            />
+            <div className="flex flex-col gap-3">
+              <form className="flex flex-wrap items-end gap-3 rounded-lg border bg-white p-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-neutral-500" htmlFor="dataSaida">
+                    Data
+                  </label>
+                  <Input id="dataSaida" name="dataSaida" type="date" defaultValue={dataSaida} className="h-9" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-neutral-500" htmlFor="ingredienteSaida">
+                    Ingrediente
+                  </label>
+                  <select
+                    id="ingredienteSaida"
+                    name="ingredienteSaida"
+                    defaultValue={ingredienteSaida}
+                    className={selectClassName}
+                  >
+                    <option value="">Todos</option>
+                    {ingredients.map((ingredient) => (
+                      <option key={ingredient.id} value={ingredient.id}>
+                        {ingredient.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Button type="submit" size="sm">
+                  Filtrar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  nativeButton={false}
+                  render={<a href="/movimentacoes" />}
+                >
+                  Limpar
+                </Button>
+                {!hasSaidaFilter && (
+                  <p className="text-xs text-neutral-400">
+                    Sem filtro, mostra só as 20 saídas mais recentes.
+                  </p>
+                )}
+              </form>
+              <MovementsTable
+                movements={saidas}
+                ingredients={ingredients}
+                fornecedores={fornecedores}
+                showValues={showValues}
+              />
+            </div>
           </div>
         </TabsContent>
       </Tabs>
