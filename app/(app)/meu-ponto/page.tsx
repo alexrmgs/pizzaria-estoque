@@ -62,6 +62,10 @@ export default async function MeuPontoPage() {
     Date.UTC(brazilToday.getUTCFullYear(), brazilToday.getUTCMonth(), brazilToday.getUTCDate() - 30),
   );
 
+  const startOfPreviousMonth = new Date(
+    Date.UTC(brazilToday.getUTCFullYear(), brazilToday.getUTCMonth() - 1, 1),
+  );
+
   const lastPayment = await prisma.payment.findFirst({
     where: { employeeId: employee.id },
     orderBy: { periodEnd: "desc" },
@@ -96,14 +100,14 @@ export default async function MeuPontoPage() {
       orderBy: { clockIn: "desc" },
       take: 30,
     }),
-    // Todo vale ainda não descontado + os já pagos dos últimos 30 dias. Antes era
-    // só os 20 mais recentes no total, e o "pendente" somava só eles — quem
-    // pega muitos vales pequenos via um valor bem menor que o real.
+    // Todo vale ainda não descontado + todos os do mês atual e do anterior,
+    // pagos ou não. Com "últimos 30 dias" o mês fechado aparecia pela metade
+    // (os vales do começo do mês sumiam assim que a folha era paga).
     prisma.advance.findMany({
       where: {
         employeeId: employee.id,
         kind: "VALE",
-        OR: [{ paymentId: null }, { date: { gte: thirtyDaysAgo } }],
+        OR: [{ paymentId: null }, { date: { gte: startOfPreviousMonth } }],
       },
       orderBy: { date: "desc" },
       take: 300,
